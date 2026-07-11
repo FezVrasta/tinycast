@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Central design tokens for the palette UI, so visual tweaks happen in one place.
-/// The app forces
+/// Color values follow the dark design system in `DESIGN.md`; the app forces
 /// `.darkAqua`, so they are literal white/black alphas rather than adaptive colors.
 enum Theme {
     enum Spacing {
