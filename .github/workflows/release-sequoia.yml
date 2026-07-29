@@ -49,6 +49,11 @@ jobs:
             echo "::error::tag must end in -sequoia (got $GITHUB_REF_NAME)"
             exit 1
           fi
+          # Reject a typo'd tag here rather than publishing a release named after it.
+          if ! printf '%s' "$BASE" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'; then
+            echo "::error::bad version '$BASE' — expected v<x.y.z>-sequoia or v<x.y.z>-beta.<n>-sequoia"
+            exit 1
+          fi
           # Bundle id + display name MATCH the mainline channel on purpose: a Sequoia user who later
           # upgrades to macOS 26 keeps their prefs, caches, login item and Accessibility grant, all
           # of which are keyed by Bundle.main.bundleIdentifier.
