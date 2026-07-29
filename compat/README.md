@@ -38,6 +38,7 @@ concurrency churn (`@MainActor` annotations, `@preconcurrency import Darwin`,
 ## Everyday use
 
 ```sh
+./compat/release.sh           # ship it (see below) — the normal entry point
 ./compat/verify.sh --quick    # ~35s: patch applies + typechecks at 15 AND 26
 ./compat/verify.sh            # + Release build, 15.0 floor assert, weak-linkage assert
 ```
@@ -57,14 +58,23 @@ If the patch has rotted or `main` gained a new macOS 26-only API, run the **`mac
 
 ## Cutting a release
 
-Releases are **tag-triggered**, because `workflow_dispatch` only works for workflows present on the
-default branch and this one deliberately isn't there:
+One command, from this branch:
 
 ```sh
-git checkout compat/macos15 && git merge main
-./compat/verify.sh
-git tag v0.2.0-sequoia && git push origin v0.2.0-sequoia     # beta: v0.2.0-beta.3-sequoia
+./compat/release.sh              # sync with main, verify, tag, push — the whole thing
+./compat/release.sh --dry-run    # everything except publishing
 ```
+
+The version defaults to the newest **stable** mainline tag, so `v0.7.5` ships as `v0.7.5-sequoia` —
+the Sequoia build tracks whatever shipped on macOS 26. Override with `--version 0.8.0`, replace an
+existing tag with `--retag`.
+
+If it exits non-zero (patch rotted, or `main` gained a macOS 26-only API), run the **`macos15-compat`
+skill** — it repairs and then releases. That's the intended path: run the skill, do no git yourself.
+
+Releases are **tag-triggered** rather than a button, because `workflow_dispatch` only fires for
+workflows present on the default branch and this one deliberately isn't there. `release.sh` creates
+and pushes the tag for you.
 
 The workflow verifies compatibility *before* publishing anything, then builds, asserts the 15.0
 floor on the shipping binary, packages a DMG, publishes a GitHub Release, and bumps the tap cask.
