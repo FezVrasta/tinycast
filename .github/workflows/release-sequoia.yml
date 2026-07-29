@@ -1,0 +1,216 @@
+name: Release (Sequoia)
+
+run-name: "Tinycast ${{ github.ref_name }} · macOS 15 channel"
+
+# TAG-triggered, not workflow_dispatch: this workflow lives only on compat/macos15, and GitHub
+# "will only trigger a workflow run if the workflow file exists on the default branch" for
+# workflow_dispatch. Tag pushes have no such restriction, so releases are cut by tagging this
+# branch:
+#
+#   git checkout compat/macos15 && git merge main      # or run the macos15-compat skill
+#   git tag v0.2.0-sequoia && git push origin v0.2.0-sequoia
+#
+# Beta: tag v0.2.0-beta.3-sequoia.
+on:
+  push:
+    tags:
+      - "v*-sequoia"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # macos-26 with Xcode 26 is deliberate: the macOS 15 artifact is built against the NEW SDK
+    # with only MACOSX_DEPLOYMENT_TARGET lowered. Building on macos-15/Xcode 16 instead would
+    # force ~30 files of unrelated concurrency churn for zero benefit.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n1)"
+          if [ -z "$XCODE_PATH" ]; then
+            echo "::error::No Xcode 26.x found on this runner. Installed Xcodes:"
+            ls /Applications | grep -i xcode || true
+            exit 1
+          fi
+          echo "Using $XCODE_PATH"
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+
+      - name: Compute release metadata
+        id: meta
+        run: |
+          # v0.2.0-sequoia -> 0.2.0 ; v0.2.0-beta.3-sequoia -> 0.2.0-beta.3
+          RAW="${GITHUB_REF_NAME#v}"
+          BASE="${RAW%-sequoia}"
+          if [ "$BASE" = "$RAW" ]; then
+            echo "::error::tag must end in -sequoia (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          # Bundle id + display name MATCH the mainline channel on purpose: a Sequoia user who later
+          # upgrades to macOS 26 keeps their prefs, caches, login item and Accessibility grant, all
+          # of which are keyed by Bundle.main.bundleIdentifier.
+          case "$BASE" in
+            *beta*) DISPLAY="Tinycast Beta"; BUNDLE="com.tinycast.app.beta"; CASK="tinycast@beta-sequoia"; CHANNEL=beta ;;
+            *)      DISPLAY="Tinycast";      BUNDLE="com.tinycast.app";      CASK="tinycast-sequoia";     CHANNEL=stable ;;
+          esac
+          FULL="${BASE}-sequoia"
+          {
+            echo "full_version=${FULL}"
+            echo "display_name=${DISPLAY}"
+            echo "bundle_id=${BUNDLE}"
+            echo "cask_name=${CASK}"
+            echo "channel=${CHANNEL}"
+            echo "dmg_file=Tinycast-${FULL}.dmg"
+          } >> "$GITHUB_OUTPUT"
+
+      # Fails the release before anything is published if the patch has rotted or main gained a
+      # new macOS 26-only API. Also re-asserts the 15.0 floor and weak glass linkage.
+      - name: Verify macOS 15 compatibility
+        run: ./compat/verify.sh
+
+      - name: Apply the macOS 15 compatibility patch
+        run: |
+          git apply --whitespace=nowarn compat/macos15.patch
+          git --no-pager diff --stat
+
+      # Same self-signed identity as the mainline release: a CONSTANT signature is what keeps the
+      # user's Accessibility (TCC) grant alive across updates. See docs/signing.md.
+      - name: Import signing certificate
+        env:
+          P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "${P12_BASE64}" ]; then
+            echo "::error::SIGNING_P12_BASE64 not set — a differently-signed build would silently drop users' Accessibility grant."
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KPW="$(openssl rand -base64 24)"
+          echo "${P12_BASE64}" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "${P12_PASSWORD}" -A -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Build app
+        env:
+          VERSION: ${{ steps.meta.outputs.full_version }}
+          DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
+          BUNDLE_ID: ${{ steps.meta.outputs.bundle_id }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Release \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET=15.0 \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Tinycast Self-Signed" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
+            PRODUCT_NAME="$DISPLAY_NAME" PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            build
+
+      # Belt and braces: assert the SHIPPING binary really has a 15.0 floor. A silently-dropped
+      # MACOSX_DEPLOYMENT_TARGET override would otherwise publish a macOS 26 build as "sequoia".
+      - name: Assert macOS 15 floor on the shipping binary
+        env:
+          DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
+        run: |
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/${DISPLAY_NAME}.app"
+          BIN="$APP/Contents/MacOS/${DISPLAY_NAME}"
+          MINOS="$(xcrun vtool -show-build-version "$BIN" | awk '/minos/{print $2}')"
+          PLIST_MIN="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")"
+          echo "minos=$MINOS LSMinimumSystemVersion=$PLIST_MIN"
+          if [ "$MINOS" != "15.0" ] || [ "$PLIST_MIN" != "15.0" ]; then
+            echo "::error::expected a macOS 15.0 floor, got minos=$MINOS plist=$PLIST_MIN"
+            exit 1
+          fi
+          STRONG="$(xcrun nm -m "$BIN" 2>/dev/null | grep -i glass | grep -v weak || true)"
+          if [ -n "$STRONG" ]; then
+            echo "$STRONG"
+            echo "::error::non-weak glass symbol — would crash at launch on macOS 15"
+            exit 1
+          fi
+
+      - name: Package DMG
+        env:
+          DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
+          DMG_FILE: ${{ steps.meta.outputs.dmg_file }}
+        run: |
+          STAGE="$(mktemp -d)"
+          cp -R "$RUNNER_TEMP/DerivedData/Build/Products/Release/${DISPLAY_NAME}.app" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          mkdir -p dist
+          diskutil image create from "$STAGE" --format UDZO --volumeName "$DISPLAY_NAME" "dist/${DMG_FILE}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Tinycast-${{ steps.meta.outputs.full_version }}
+          path: dist/${{ steps.meta.outputs.dmg_file }}
+
+      # ALWAYS --prerelease, including for the stable Sequoia channel: website/src/lib/use-version.ts
+      # reads /releases/latest, which GitHub defines as the latest NON-prerelease. A full-release
+      # Sequoia build would hijack the version shown on the site.
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "dist/${{ steps.meta.outputs.dmg_file }}" \
+            --title "${{ steps.meta.outputs.display_name }} ${{ steps.meta.outputs.full_version }} (macOS 15)" \
+            --prerelease \
+            --notes "**Channel:** ${{ steps.meta.outputs.channel }} · macOS 15 Sequoia
+          **Version:** ${{ steps.meta.outputs.full_version }}
+          **Bundle ID:** \`${{ steps.meta.outputs.bundle_id }}\`
+          **Requires:** macOS 15.0 or later
+          Built from ${{ github.sha }} (main + \`compat/macos15.patch\`).
+
+          This is the **macOS 15 (Sequoia)** build. On macOS 26 or later, use the regular release
+          instead — it renders the native Liquid Glass material, which does not exist on Sequoia.
+
+          **Recommended:** install via Homebrew — it clears the quarantine flag automatically on every install and update:
+          \`\`\`sh
+          brew trust --tap abue-ammar/tinycast
+          brew install --cask abue-ammar/tinycast/${{ steps.meta.outputs.cask_name }}
+          \`\`\`
+          This build is self-signed. If you download the DMG directly instead of using Homebrew, macOS will refuse to open it until you clear the quarantine flag once:
+          \`\`\`sh
+          xattr -dr com.apple.quarantine \"/Applications/${{ steps.meta.outputs.display_name }}.app\"
+          \`\`\`"
+
+      # The tap must already contain Casks/<cask>.rb with `depends_on macos: "<= :sequoia"`,
+      # or a Sequoia machine could be handed the macOS 26 build. See compat/README.md.
+      - name: Update Homebrew cask
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          CASK: ${{ steps.meta.outputs.cask_name }}
+          VERSION: ${{ steps.meta.outputs.full_version }}
+          DMG_FILE: ${{ steps.meta.outputs.dmg_file }}
+        run: |
+          if [ -z "${TAP_TOKEN}" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN secret not set — skipping cask bump."
+            exit 0
+          fi
+          SHA="$(shasum -a 256 "dist/${DMG_FILE}" | awk '{print $1}')"
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/abue-ammar/homebrew-tinycast.git" tap
+          CASK_FILE="tap/Casks/${CASK}.rb"
+          if [ ! -f "$CASK_FILE" ]; then
+            echo "::error::$CASK_FILE not found in tap. Create it once (see compat/README.md) before the first Sequoia release."
+            exit 1
+          fi
+          sed -i '' -E "s|^  version \".*\"|  version \"${VERSION}\"|" "$CASK_FILE"
+          sed -i '' -E "s|^  sha256 \".*\"|  sha256 \"${SHA}\"|" "$CASK_FILE"
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "Casks/${CASK}.rb"
+          if git diff --cached --quiet; then
+            echo "No cask changes to commit."
+          else
+            git commit -m "${CASK} ${VERSION}"
+            git push
+          fi

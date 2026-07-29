@@ -1,0 +1,67 @@
+--- a/Tinycast/Core/Theme.swift
++++ b/Tinycast/Core/Theme.swift
+@@ -133,10 +133,48 @@
+     }
+ }
+ 
++/// The floating-control surface, resolved per OS: Liquid Glass on macOS 26+, native vibrancy on Sequoia.
++private struct FrostedSurface<S: Shape>: ViewModifier {
++    let shape: S
++    /// Interactive glass lenses under the cursor — right for the tappable pill and circle, wrong for a menu panel.
++    let isInteractive: Bool
++
++    @ViewBuilder
++    func body(content: Content) -> some View {
++        if #available(macOS 26.0, *) {
++            // `.tint(.clear)` only neutralizes glass tint inheritance, so it belongs on this branch alone.
++            if isInteractive {
++                content
++                    .glassEffect(.regular.interactive().tint(Theme.Colors.glassFrost), in: shape)
++                    .tint(.clear)
++            } else {
++                content.glassEffect(.regular, in: shape)
++            }
++        } else {
++            fallback(content)
++        }
++    }
++
++    /// Sequoia has no glass, so the elevation glass carries for free has to be drawn back by hand.
++    private func fallback(_ content: Content) -> some View {
++        content.background {
++            shape
++                .fill(.ultraThinMaterial)
++                .overlay { shape.fill(Theme.Colors.glassFrost) }
++                .overlay { shape.stroke(Theme.Colors.border.opacity(0.6), lineWidth: 0.5) }
++                .shadow(color: .black.opacity(0.22), radius: 6, y: 2)
++        }
++    }
++}
++
+ extension View {
+-    /// A floating Liquid Glass control surface (action group + menu button), interactive for native lensing with a whitish frost tint so it reads brighter than clear glass.
++    /// A floating control surface (action group + menu button), interactive for native lensing with a whitish frost tint so it reads brighter than clear glass.
+     func frosted(in shape: some Shape) -> some View {
+-        glassEffect(.regular.interactive().tint(Theme.Colors.glassFrost), in: shape)
+-            .tint(.clear)
++        modifier(FrostedSurface(shape: shape, isInteractive: true))
+     }
++
++    /// The same surface for non-interactive floating panels (the popover menus), which must not lens under the cursor.
++    func frostedMenu(in shape: some Shape) -> some View {
++        modifier(FrostedSurface(shape: shape, isInteractive: false))
++    }
+ }
+--- a/Tinycast/Features/PopoverMenu.swift
++++ b/Tinycast/Features/PopoverMenu.swift
+@@ -80,8 +80,8 @@
+         .padding(Theme.Spacing.sm)
+         .frame(width: Theme.Size.menuWidth)
+         // Tahoe glass carries its own elevation/shadow; a hand-tuned drop shadow on top reads heavy and non-native, so we let the glass own it.
+-        .glassEffect(
+-            .regular, in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
++        .frostedMenu(
++            in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
+         )
+     }
+ }
