@@ -88,26 +88,42 @@ Identity notes:
   `website/src/lib/use-version.ts` reads `/releases/latest`, which GitHub defines as the latest
   *non-prerelease*, so a full release here would hijack the version shown on the site.
 
-## One-time tap setup (required before the first release)
+## Tap setup (done — `Casks/tinycast-sequoia.rb` exists)
 
 There is **no in-app updater** — Homebrew is the only update path, so the cask guards are the entire
-safety mechanism keeping a Sequoia machine from being handed the macOS 26 build. In
-`abue-ammar/homebrew-tinycast`, copy `Casks/tinycast.rb` to `Casks/tinycast-sequoia.rb` and:
+safety mechanism routing each machine to the right build.
+
+`depends_on macos:` semantics, verified against Homebrew 6.0 rather than the docs (which are stale
+on this point):
+
+| Form | Means |
+|---|---|
+| `depends_on macos: :sequoia` | `>= macOS 15` — a bare symbol is a **minimum**, not an exact match |
+| `depends_on macos: [:sequoia]` | also `>= macOS 15`; the array gives no exact match |
+| `depends_on macos: "<= :sequoia"` | `<= macOS 15`, but the string form is **deprecated** and warns on every install |
+
+So there is no non-deprecated way to express a maximum, and the guards work asymmetrically:
 
 ```ruby
-# Casks/tinycast-sequoia.rb
-depends_on macos: "<= :sequoia"
-conflicts_with cask: "abue-ammar/tinycast/tinycast"
-# ...url points at the -sequoia DMG asset
-
-# Casks/tinycast.rb  — add:
-depends_on macos: ">= :tahoe"
+# Casks/tinycast.rb + tinycast@beta.rb
+depends_on macos: :tahoe                                        # >= 26
 conflicts_with cask: "abue-ammar/tinycast/tinycast-sequoia"
+
+# Casks/tinycast-sequoia.rb
+depends_on macos: :sequoia                                      # >= 15, the binary's real floor
+conflicts_with cask: "abue-ammar/tinycast/tinycast"
 ```
 
+`tinycast` requiring `>= :tahoe` is what stops a Sequoia machine getting the macOS 26 build — the
+direction that actually matters. The reverse is not blocked: a macOS 26+ user who explicitly asks for
+`tinycast-sequoia` gets it, and it runs, just with the fallback material instead of glass.
+`conflicts_with` stops both being installed at once, since they share `Tinycast.app` and
+`com.tinycast.app`.
+
 Keep the existing `postflight` that runs `xattr -dr com.apple.quarantine`. The cask-bump step
-hard-errors if `Casks/<cask>.rb` doesn't already exist, so do this first. Repeat for
-`tinycast@beta-sequoia` if you want a Sequoia beta channel.
+hard-errors if `Casks/<cask>.rb` doesn't already exist. Repeat for `tinycast@beta-sequoia` if you
+ever want a Sequoia beta channel — it does not exist yet, so a `-beta.N-sequoia` tag would fail at
+the cask step.
 
 ## Not verified
 
