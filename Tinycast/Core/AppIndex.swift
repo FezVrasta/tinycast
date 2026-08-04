@@ -6,6 +6,11 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case application
         case systemSettings
         case command
+        case customCommand
+        case snippet
+        case systemAction
+        case windowCommand
+        case quicklink
     }
 
     let id: String  // file path (or "command:…" id) — always unique
@@ -13,16 +18,34 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     let url: URL
     let bundleID: String?
     let kind: Kind
+    /// Extra strings this entry matches on as strongly as its name — a snippet's keyword. Empty for every other kind.
+    var matchAliases: [String] = []
+    /// Per-item SF Symbol, for the one kind whose glyph is the user's choice rather than its kind's. Nil elsewhere.
+    var symbolName: String?
+    /// Spotlight's `kMDItemAlternateNames`, ranked below the display name. Applications only.
+    var alternateNames: [String] = []
+    /// `CFBundleExecutable`, matched literally as a last resort. Applications only.
+    var executableName: String?
 
     /// Stable identity for learned ranking, favorites, and other per-entry preferences.
     var preferenceKey: String { bundleID ?? id }
+
+    var searchFields: SearchFields {
+        SearchFields(
+            names: [name] + matchAliases, alternateNames: alternateNames,
+            bundleID: bundleID, executableName: executableName)
+    }
 
     var kindLabel: String {
         switch kind {
         case .application: return "Application"
         case .systemSettings: return "System Setting"
-        case .command:
-            return CustomCommand.id(fromEntryID: id) == nil ? "Command" : "Custom Command"
+        case .command: return "Command"
+        case .customCommand: return "Custom Command"
+        case .snippet: return "Snippet"
+        case .systemAction: return "System Action"
+        case .windowCommand: return "Window Command"
+        case .quicklink: return "Quicklink"
         }
     }
 
@@ -33,19 +56,38 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             return bundleID.map { .app(bundleID: $0) }
         case .systemSettings:
             return bundleID.map { .settingsPane(bundleID: $0) }
-        case .command:
+        case .customCommand:
             return CustomCommand.id(fromEntryID: id).map { .customCommand(id: $0) }
+        case .systemAction:
+            return SystemActionCatalog.action(forEntryID: id).map { .systemAction(id: $0.id) }
+        case .windowCommand:
+            return WindowCommandCatalog.command(forEntryID: id).map { .windowCommand(id: $0.id) }
+        case .quicklink:
+            return Quicklink.id(fromEntryID: id).map { .quicklink(id: $0) }
+        case .command, .snippet:
+            return nil
         }
     }
 
-    /// Command entries are synthetic — no file behind them to reveal.
-    var canRevealInFinder: Bool { kind != .command }
+    /// Synthetic command entries have no file behind them to reveal. A quicklink's own entry is
+    /// synthetic too — revealing the *destination* is an action on the record, in its own menu.
+    var canRevealInFinder: Bool { kind == .application || kind == .systemSettings || kind == .snippet }
 
-    /// Command entries draw an SF Symbol tile; everything else uses its file icon.
-    var isSymbolIcon: Bool { kind == .command }
+    /// Synthetic entries draw an SF Symbol tile; everything else uses its file icon.
+    var isSymbolIcon: Bool { kind != .application && kind != .systemSettings }
+
     var symbolIconName: String {
-        if let builtIn = CommandRegistry.command(for: self) { return builtIn.sfSymbol }
-        return CustomCommand.id(fromEntryID: id) == nil ? "questionmark" : "terminal"
+        if let symbolName { return symbolName }
+        switch kind {
+        case .quicklink: return Quicklink.sfSymbol
+        case .snippet: return "text.quote"
+        case .customCommand: return CustomCommand.sfSymbol
+        case .command: return CommandRegistry.command(for: self)?.sfSymbol ?? "questionmark"
+        case .systemAction: return SystemActionCatalog.action(forEntryID: id)?.sfSymbol ?? "questionmark"
+        case .windowCommand:
+            return WindowCommandCatalog.command(forEntryID: id)?.sfSymbol ?? "questionmark"
+        case .application, .systemSettings: return "questionmark"
+        }
     }
 
     var icon: NSImage {
@@ -112,11 +154,7 @@ enum IconCache {
             NSColor.white.withAlphaComponent(0.09).setFill()
             NSBezierPath(roundedRect: tile, xRadius: 9, yRadius: 9).fill()
 
-            let config = NSImage.SymbolConfiguration(pointSize: 21, weight: .medium)
-                .applying(.init(paletteColors: [.white.withAlphaComponent(0.85)]))
-            guard
-                let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                    .withSymbolConfiguration(config)
+            guard let symbol = glyph(named: name, tint: .white.withAlphaComponent(0.85))
             else { return true }
             let size = symbol.size
             symbol.draw(
@@ -130,8 +168,104 @@ enum IconCache {
         return icon
     }
 
+    /// Most tiles draw an SF Symbol, pre-tinted via `SymbolConfiguration`; names SF Symbols lacks (Bluetooth, a SIG trademark) fall back to a template asset tinted by compositing.
+    private static func glyph(named name: String, tint: NSColor) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 21, weight: .medium)
+            .applying(.init(paletteColors: [tint]))
+        if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config) {
+            return symbol
+        }
+        guard let asset = NSImage(named: name) else { return nil }
+        // A 24pt box lands the asset's ink at the ~22pt optical height the SF Symbols above draw at pointSize 21.
+        let assetSize = NSSize(width: 24, height: 24)
+        return NSImage(size: assetSize, flipped: false) { rect in
+            asset.draw(in: rect)
+            tint.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+    }
+
+    /// The share of its square canvas a macOS **app** icon paints. Measured: folders paint 98% of the
+    /// width and documents 69%, so a column mixing types reads ragged until they're scaled to match.
+    private static let artworkExtent: CGFloat = 0.83
+
+    /// Cache-only lookup for `loadFittedAsync`.
+    static func cachedFitted(forFile path: String) -> NSImage? {
+        cache.object(forKey: fittedKey(path))
+    }
+
+    /// Like `loadAsync`, but normalized so the painted artwork spans `artworkExtent` whatever the file
+    /// type. An app icon comes back untouched; a folder or document shrinks to the same visual size.
+    static func loadFittedAsync(forFile path: String) async -> NSImage? {
+        if let cached = cachedFitted(forFile: path) { return cached }
+        return await Task.detached(priority: .userInitiated) { () -> Decoded in
+            guard FileManager.default.fileExists(atPath: path) else { return Decoded(image: nil) }
+            return Decoded(image: fittedIcon(forFile: path))
+        }.value.image
+    }
+
+    private static func fittedKey(_ path: String) -> NSString { ("fit:" + path) as NSString }
+
+    private static func fittedIcon(forFile path: String) -> NSImage {
+        let key = fittedKey(path)
+        if let cached = cache.object(forKey: key) { return cached }
+        let source = NSWorkspace.shared.icon(forFile: path)
+        // Drawing the source into a `side`-square box makes its artwork span `side * extent`; solving
+        // for `side * extent == displayPixel * artworkExtent` leaves an app icon exactly as it was.
+        let extent = paintedExtent(source) ?? artworkExtent
+        let side = displayPixel * artworkExtent / extent
+        let inset = (displayPixel - side) / 2
+        let (icon, cost) = rasterized(
+            source, into: NSRect(x: inset, y: inset, width: side, height: side))
+        cache.setObject(icon, forKey: key, cost: cost)
+        return icon
+    }
+
+    /// The larger dimension of the icon's non-transparent artwork, as a fraction of its canvas.
+    /// Measured at the raster's own 2× resolution: a 1× grid smears antialiased edges into the
+    /// bounding box and over-reads the extent, which would shrink app icons that should stay put.
+    private static func paintedExtent(_ source: NSImage) -> CGFloat? {
+        let pixels = Int(displayPixel * 2)
+        guard
+            let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0),
+            let ctx = NSGraphicsContext(bitmapImageRep: rep)
+        else { return nil }
+        rep.size = NSSize(width: pixels, height: pixels)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        source.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
+        NSGraphicsContext.restoreGraphicsState()
+
+        var minX = pixels, maxX = -1, minY = pixels, maxY = -1
+        for y in 0..<pixels {
+            for x in 0..<pixels {
+                // A faint antialiased edge isn't artwork; 0.06 keeps a drop shadow from counting.
+                guard let colour = rep.colorAt(x: x, y: y), colour.alphaComponent > 0.06 else {
+                    continue
+                }
+                minX = min(minX, x)
+                maxX = max(maxX, x)
+                minY = min(minY, y)
+                maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        let side = max(maxX - minX + 1, maxY - minY + 1)
+        return CGFloat(side) / CGFloat(pixels)
+    }
+
     /// Rasterize the multi-rep workspace icon into one `displayPixel`-square bitmap, returning it and its decoded byte cost.
     private static func downsampled(_ source: NSImage) -> (NSImage, Int) {
+        rasterized(source, into: NSRect(origin: .zero, size: NSSize(width: displayPixel, height: displayPixel)))
+    }
+
+    /// Draws `source` into `frame` on a `displayPixel`-square canvas.
+    private static func rasterized(_ source: NSImage, into frame: NSRect) -> (NSImage, Int) {
         // Fixed 2× (not `NSScreen.main`, which is main-thread-only) so this can rasterize on a detached decode; 96px covers the ≤24pt draw on any display.
         let pixels = Int(displayPixel * 2)
         let fallbackCost = Int(displayPixel * displayPixel * 4)
@@ -149,7 +283,7 @@ enum IconCache {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = ctx
         ctx.imageInterpolation = .high
-        source.draw(in: NSRect(origin: .zero, size: rep.size))
+        source.draw(in: frame)
         NSGraphicsContext.restoreGraphicsState()
 
         let image = NSImage(size: rep.size)
@@ -162,11 +296,43 @@ enum IconCache {
 final class AppIndex: ObservableObject {
     @Published private(set) var apps: [AppEntry] = []
 
+    private var snippetEntries: [AppEntry] = []
+
+    private struct MatchCache {
+        let query: String
+        let rankingRevision: Int
+        let result: [AppEntry]
+    }
+
     /// One-entry memo so repeated renders for the same query reuse the ranking instead of re-matching every frame.
-    private var matchCache: (query: String, rankingRevision: Int, result: [AppEntry])?
+    private var matchCache: MatchCache?
+
+    private static let systemActionEntries: [AppEntry] = SystemActionCatalog.all
+        .map { command in
+            AppEntry(
+                id: command.entryID, name: command.name,
+                url: URL(string: "tinycast://system-action/" + command.id.rawValue)!,
+                bundleID: nil, kind: .systemAction)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+    private static let allWindowCommandEntries: [AppEntry] = WindowCommandCatalog.all
+        .map { command in
+            AppEntry(
+                id: command.entryID, name: command.name,
+                url: URL(string: "tinycast://window-command/" + command.id.rawValue)!,
+                bundleID: nil, kind: .windowCommand)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
     private var discoveredEntries: [AppEntry] = []
     private var customCommandEntries: [AppEntry] = []
+    private var windowCommandEntries: [AppEntry] = []
+    private var quicklinkEntries: [AppEntry] = []
+    /// Built-in commands minus the quicklink ones while the feature is off.
+    private var commandEntries: [AppEntry] = CommandRegistry.all
+    private var alternateNameCache = SpotlightNames.Cache()
+    private var paneCache: SettingsPaneScanner.Cache?
     private var isRefreshing = false
     /// Set when a refresh is requested mid-scan, so a scope edit landing during an in-flight scan isn't silently dropped.
     private var refreshPending = false
@@ -184,11 +350,63 @@ final class AppIndex: ObservableObject {
             AppEntry(
                 id: command.entryID, name: command.name,
                 url: URL(string: "tinycast://custom-command/" + command.id.uuidString)!,
-                bundleID: nil, kind: .command)
+                bundleID: nil, kind: .customCommand)
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         guard entries != customCommandEntries else { return }
         customCommandEntries = entries
+        publishEntries()
+    }
+
+    /// Replaces the quicklink slice and, in the same publish, the built-in commands that only make
+    /// sense while the feature is on — one call so a toggle can't leave the two out of step.
+    func setQuicklinks(_ quicklinks: [Quicklink], commandsVisible: Bool) {
+        let entries = quicklinks
+            .filter(\.showsInRootSearch)
+            .sorted(by: Quicklink.precedes)
+            .map { quicklink in
+                AppEntry(
+                    id: quicklink.entryID, name: quicklink.name,
+                    url: URL(string: "tinycast://quicklink/" + quicklink.id.uuidString)!,
+                    bundleID: nil, kind: .quicklink,
+                    symbolName: quicklink.iconSymbol
+                        ?? QuicklinkDestination.detect(quicklink.link)?.defaultSymbol)
+            }
+        let commands = commandsVisible
+            ? CommandRegistry.all
+            : CommandRegistry.all.filter { entry in
+                CommandRegistry.command(for: entry).map { !$0.isQuicklinkCommand } ?? true
+            }
+        guard entries != quicklinkEntries || commands != commandEntries else { return }
+        quicklinkEntries = entries
+        commandEntries = commands
+        publishEntries()
+    }
+
+    /// Shows or hides the whole window-command slice; the catalog is static, so this is the on/off switch
+    /// rather than a content update.
+    func setWindowCommandsVisible(_ visible: Bool) {
+        let entries = visible ? Self.allWindowCommandEntries : []
+        guard entries != windowCommandEntries else { return }
+        windowCommandEntries = entries
+        publishEntries()
+    }
+
+    func updateSnippets(_ records: [StoredSnippet]) {
+        let entries = records
+            .filter { $0.snippet.isEnabled }
+            .map { record in
+                AppEntry(
+                    id: "snippet:\(record.id)",
+                    name: record.snippet.name,
+                    url: record.fileURL,
+                    bundleID: nil,
+                    kind: .snippet,
+                    matchAliases: [record.snippet.keyword].compactMap { $0 })
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        guard entries != snippetEntries else { return }
+        snippetEntries = entries
         publishEntries()
     }
 
@@ -218,44 +436,65 @@ final class AppIndex: ObservableObject {
         repeat {
             refreshPending = false
             let scopes = settings?.searchScopes ?? SearchScopes.defaults
-            let found = await Task.detached(priority: .utility) { AppIndex.scan(scopes: scopes) }
-                .value
+            let reusing = alternateNameCache
+            let reusingPanes = paneCache
+            let (found, cache, panes) = await Task.detached(priority: .utility) {
+                AppIndex.scan(
+                    scopes: scopes, cache: SpotlightNames.Cache(reusing: reusing),
+                    paneCache: reusingPanes)
+            }.value
+            alternateNameCache = cache
+            paneCache = panes
             guard found != discoveredEntries else { continue }
             discoveredEntries = found
             publishEntries()
         } while refreshPending
     }
 
-    nonisolated private static func scan(scopes: [String]) -> [AppEntry] {
-        var seenBundleIDs = Set<String>()
-        var result: [AppEntry] = []
-        for url in SearchScopes.appBundles(in: scopes) {
-            let bundle = Bundle(url: url)
-            let bundleID = bundle?.bundleIdentifier
-            // Dedup by bundle id; the earliest scope wins.
-            if let bundleID, !seenBundleIDs.insert(bundleID).inserted { continue }
+    nonisolated private static func scan(
+        scopes: [String], cache: SpotlightNames.Cache, paneCache: SettingsPaneScanner.Cache?
+    ) -> ([AppEntry], SpotlightNames.Cache, SettingsPaneScanner.Cache?) {
+        Signposts.interval("AppIndex.scan") {
+            var cache = cache
+            var seenBundleIDs = Set<String>()
+            var result: [AppEntry] = []
+            for url in SearchScopes.appBundles(in: scopes) {
+                let bundle = Bundle(url: url)
+                let bundleID = bundle?.bundleIdentifier
+                // Dedup by bundle id; the earliest scope wins.
+                if let bundleID, !seenBundleIDs.insert(bundleID).inserted { continue }
 
-            let name =
-                (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-                ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
-                ?? url.deletingPathExtension().lastPathComponent
-            result.append(
-                AppEntry(
-                    id: url.path, name: name, url: url, bundleID: bundleID,
-                    kind: .application))
+                let name =
+                    (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+                    ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
+                    ?? url.deletingPathExtension().lastPathComponent
+                let executable =
+                    bundle?.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
+                result.append(
+                    AppEntry(
+                        id: url.path, name: name, url: url, bundleID: bundleID,
+                        kind: .application,
+                        alternateNames: cache.alternateNames(for: url, displayName: name),
+                        // A binary named after the app adds nothing the display name doesn't already cover.
+                        executableName: executable.flatMap {
+                            $0.caseInsensitiveCompare(name) == .orderedSame ? nil : $0
+                        }))
+            }
+            // `publishEntries` appends snippets, custom commands and built-in commands after apps and Settings panes so the sectioned flat selection maps 1:1 onto rows.
+            let apps = result.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+            // Settings panes are `.appex` bundles, which carry no Spotlight alternate names.
+            let (panes, panesCache) = SettingsPaneScanner.scan(cache: paneCache)
+            return (apps + panes, cache, panesCache)
         }
-        // `publishEntries` appends commands after apps and Settings panes so the sectioned flat selection maps 1:1 onto rows.
-        let apps = result.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-        }
-        return apps + SettingsPaneScanner.scan()
     }
 
     private func publishEntries() {
-        let commands = (CommandRegistry.all + customCommandEntries).sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-        }
-        let updated = discoveredEntries + commands
+        // Each slice is already in its own display order — alphabetical, or pinned-first for quicklinks. The slice order is the launcher's section order (LauncherList mirrors it), so custom commands sit in their own section ahead of the built-ins.
+        let updated =
+            discoveredEntries + quicklinkEntries + snippetEntries + Self.systemActionEntries
+            + windowCommandEntries + customCommandEntries + commandEntries
         guard updated != apps else { return }
         apps = updated
         matchCache = nil
@@ -266,91 +505,33 @@ final class AppIndex: ObservableObject {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return apps }
         if let matchCache, matchCache.query == q,
-            matchCache.rankingRevision == ranking.revision
-        {
+            matchCache.rankingRevision == ranking.revision {
             return matchCache.result
         }
         let result = rank(q, limit: limit)
-        matchCache = (q, ranking.revision, result)
+        matchCache = MatchCache(query: q, rankingRevision: ranking.revision, result: result)
         return result
     }
 
     private func rank(_ q: String, limit: Int) -> [AppEntry] {
-        let learned = ranking.boosts(query: q)
-        let scored = apps.compactMap { app -> (AppEntry, Int)? in
-            guard let score = FuzzyMatch.score(query: q, candidate: app.name) else { return nil }
-            return (app, score + (learned[app.preferenceKey] ?? 0))
-        }
-        return
-            scored
-            .sorted {
-                $0.1 != $1.1
-                    ? $0.1 > $1.1
-                    : $0.0.name.localizedCaseInsensitiveCompare($1.0.name) == .orderedAscending
+        Signposts.interval("AppIndex.rank") {
+            let learned = ranking.boosts(query: q)
+            let scored = apps.compactMap { app -> (AppEntry, Int)? in
+                // Base relevance comes from the entry's strongest matching field; the learned boost is added after and never knows which field that was.
+                guard let score = SearchRelevance.score(query: q, fields: app.searchFields) else {
+                    return nil
+                }
+                return (app, score + (learned[app.preferenceKey] ?? 0))
             }
-            .prefix(limit)
-            .map(\.0)
-    }
-}
-
-enum FuzzyMatch {
-    /// Tiered relevance score (higher is better), or nil when the query doesn't match; tiers are spaced so a better kind always wins.
-    static func score(query: String, candidate: String) -> Int? {
-        let q = normalized(query)
-        let c = normalized(candidate)
-        guard !q.isEmpty else { return 0 }
-
-        if c == q { return 100_000 }
-        if c.hasPrefix(q) { return 90_000 - c.count }
-
-        if let range = c.range(of: q) {
-            let atWordStart = isWordStart(c, range.lowerBound)
-            return (atWordStart ? 80_000 : 70_000) - c.count
+            return
+                scored
+                .sorted {
+                    $0.1 != $1.1
+                        ? $0.1 > $1.1
+                        : $0.0.name.localizedCaseInsensitiveCompare($1.0.name) == .orderedAscending
+                }
+                .prefix(limit)
+                .map(\.0)
         }
-
-        guard let sub = subsequenceScore(Array(q), Array(c)) else { return nil }
-        return sub
-    }
-
-    /// App metadata can contain invisible bidirectional/zero-width format scalars (WhatsApp's display name starts with U+200E); they must not demote an otherwise-visible prefix match.
-    private static func normalized(_ value: String) -> String {
-        let scalars = value.unicodeScalars.filter {
-            $0.properties.generalCategory != .format
-        }
-        return String(String.UnicodeScalarView(scalars)).lowercased()
-    }
-
-    private static func isWordStart(_ s: String, _ index: String.Index) -> Bool {
-        if index == s.startIndex { return true }
-        let before = s[s.index(before: index)]
-        return !before.isLetter && !before.isNumber
-    }
-
-    /// Subsequence match with bonuses for consecutive hits and word boundaries, or nil when `q` isn't a subsequence of `c`.
-    private static func subsequenceScore(_ q: [Character], _ c: [Character]) -> Int? {
-        var qi = 0
-        var score = 0
-        var run = 0
-        var prev = -2
-        for (ci, ch) in c.enumerated() where qi < q.count && ch == q[qi] {
-            var bonus = 1
-            if ci == prev + 1 {
-                run += 1
-                bonus += run * 3
-            } else {
-                run = 0
-            }
-            if ci == 0 {
-                bonus += 12
-            } else {
-                let before = c[ci - 1]
-                if !before.isLetter && !before.isNumber { bonus += 8 }
-            }
-            score += bonus
-            prev = ci
-            qi += 1
-        }
-        guard qi == q.count else { return nil }
-        return score
     }
 }

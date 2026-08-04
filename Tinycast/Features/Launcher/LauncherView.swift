@@ -5,8 +5,8 @@ struct LauncherList: View {
     let selectedID: AppEntry.ID?
     let favoriteCount: Int
     let showSections: Bool
-    /// Changes only when the list should scroll to follow the selection (keyboard nav / reset), so mouse selection never yanks the scroll position.
-    let scrollToken: UUID
+    /// Changes only when the list should scroll (keyboard nav / reset), so mouse selection never yanks the scroll position.
+    let scroll: ScrollIntent
     /// Inline calculator answer; occupies flat selection index 0 when present (requires a non-empty query, so it never coexists with the sectioned view).
     var calc: CalcResult?
     var calcSelected = false
@@ -31,6 +31,14 @@ struct LauncherList: View {
         }
     }
 
+    /// Scroll target for the current selection.
+    private var selectedRowID: String? { calcSelected ? Self.calcRowID : selectedID }
+
+    /// Whether the selection sits on flat index 0 — the calc card when present, else the first result.
+    private var firstRowSelected: Bool {
+        calc != nil ? calcSelected : selectedID != nil && selectedID == results.first?.id
+    }
+
     private var rows: [Row] {
         var calcRows: [Row] = []
         if let calc { calcRows = [.header("Calculator"), .calc(calc)] }
@@ -41,15 +49,22 @@ struct LauncherList: View {
         var rows: [Row] = calcRows
         let favorites = results.prefix(favoriteCount)
         let rest = results.dropFirst(favoriteCount)
-        // `rest` is apps-then-panes-then-commands by the AppIndex sort invariant, so filtering by kind keeps row order identical and the flat selection index valid.
-        let apps = rest.filter { $0.kind == .application }
-        let panes = rest.filter { $0.kind == .systemSettings }
-        let commands = rest.filter { $0.kind == .command }
-        for (title, group) in [
-            ("Favorites", Array(favorites)), ("Applications", apps),
-            ("System Settings", panes), ("Commands", commands),
+        // `rest` is apps, panes, quicklinks, snippets, system actions, window commands, custom
+        // commands, then built-in commands by the AppIndex sort invariant, so filtering by kind
+        // keeps row order identical and the flat selection index valid.
+        // Annotated: with this many sections the inference pass times out.
+        let sections: [(String, [AppEntry])] = [
+            ("Favorites", Array(favorites)),
+            ("Applications", rest.filter { $0.kind == .application }),
+            ("System Settings", rest.filter { $0.kind == .systemSettings }),
+            ("Quicklinks", rest.filter { $0.kind == .quicklink }),
+            ("Snippets", rest.filter { $0.kind == .snippet }),
+            ("System Actions", rest.filter { $0.kind == .systemAction }),
+            ("Window Management", rest.filter { $0.kind == .windowCommand }),
+            ("Custom Commands", rest.filter { $0.kind == .customCommand }),
+            ("Commands", rest.filter { $0.kind == .command })
         ]
-        where !group.isEmpty {
+        for (title, group) in sections where !group.isEmpty {
             rows.append(.header(title))
             rows.append(contentsOf: group.map(Row.app))
         }
@@ -91,14 +106,21 @@ struct LauncherList: View {
                         .padding(.top, Theme.Spacing.xs)
                         .padding(.bottom, Theme.Spacing.md)
                         .hideNativeScrollers()
+                        .scrollOriginAnchor()
                     }
                     .edgeDissolve()
                     .thinScrollbar()
-                    .onChange(of: scrollToken) {
-                        if calcSelected {
-                            proxy.scrollTo(Self.calcRowID, anchor: .center)
-                        } else if let selectedID {
-                            proxy.scrollTo(selectedID, anchor: .center)
+                    .onChange(of: scroll) { _, scroll in
+                        switch scroll.kind {
+                        case .top:
+                            proxy.scrollToOrigin()
+                        case .follow:
+                            // On the first row, snap to the origin so its section header shows too — a nil anchor won't, since the row is already visible.
+                            if firstRowSelected {
+                                proxy.scrollToOrigin()
+                            } else if let selectedRowID {
+                                proxy.reveal(selectedRowID)
+                            }
                         }
                     }
                 }
@@ -142,10 +164,8 @@ private struct AppRow: View {
 
     /// Keycaps for this entry's hotkey, or `nil` if none is bound.
     private var shortcutCaps: [String]? {
-        guard let action = app.hotKeyAction,
-            let shortcut = hotKeys.shortcut(for: action)
-        else { return nil }
-        return shortcut.keycaps
+        guard let action = app.hotKeyAction else { return nil }
+        return hotKeys.binding(for: action)?.keycaps
     }
 
     var body: some View {
@@ -263,6 +283,14 @@ enum AppActionsMenu {
                     core.quit(app)
                 })
         }
+        if app.kind == .application {
+            items.append(
+                PopoverMenuItem(
+                    title: "Uninstall Application", systemImage: "trash", isDestructive: true
+                ) {
+                    core.beginUninstall(app)
+                })
+        }
         return PopoverMenuContent(header: app.name, items: items)
     }
 
@@ -271,6 +299,11 @@ enum AppActionsMenu {
         case .application: return "Open Application"
         case .systemSettings: return "Open System Setting"
         case .command: return "Run Command"
+        case .customCommand: return "Run Custom Command"
+        case .snippet: return "Paste Snippet"
+        case .systemAction: return "Run System Action"
+        case .windowCommand: return "Move Window"
+        case .quicklink: return "Open Quicklink"
         }
     }
 }

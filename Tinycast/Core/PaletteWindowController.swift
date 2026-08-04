@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 @MainActor
@@ -17,29 +18,31 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     var isVisible: Bool { panel?.isVisible ?? false }
 
     func show() {
-        // Ignore ourselves as the "previous" app (e.g. summoned while Settings/About/Onboarding is frontmost) so paste/focus-restore always targets the user's real app, never Tinycast's own field.
-        let frontmost = NSWorkspace.shared.frontmostApplication
-        if frontmost?.processIdentifier != NSRunningApplication.current.processIdentifier {
-            previousApp = frontmost
-        }
-        // Resolve the name/icon path once per summon rather than per render; reading `previousApp` (not `frontmost`) keeps the label naming the same app paste will actually target.
-        core.palette.pasteTarget = PasteTarget(app: previousApp)
-        let panel = ensurePanel()
-        // Open disarmed: the pointer may already sit over a row, but nothing should be highlighted until the user actually moves it.
-        core.palette.hoverHighlightArmed = false
-        // Re-resolve the anchor for wherever the user is summoning now, then hold it for the whole session so compact↔expanded resizes never move the window.
-        anchor = nil
-        // Size + place the panel to the current collapsed state before ordering front, so a compact summon never flashes at full size.
-        positionPanel(panel, collapsed: core.paletteIsCollapsed)
-        // Flush the hosting view's first-mount layout while still off-screen, so the one-time safe-area settle of the `safeAreaInset` header doesn't nudge the search placeholder on the first visible frame.
-        panel.contentView?.layoutSubtreeIfNeeded()
-        // The `.nonactivatingPanel` takes key focus without activating the app, so summoning the palette never raises the app's Settings/onboarding windows behind it.
-        panel.makeKeyAndOrderFront(nil)
-        panel.orderFrontRegardless()
-        // A never-activated login-item process can drop the first key request before the window is registered with the window server; re-assert next turn once it is (same pattern as AuxWindowController).
-        DispatchQueue.main.async { [weak panel] in
-            guard let panel, panel.isVisible, !panel.isKeyWindow else { return }
+        Signposts.interval("PaletteWindowController.show") {
+            // Ignore ourselves as the "previous" app (e.g. summoned while Settings/About/Onboarding is frontmost) so paste/focus-restore always targets the user's real app, never Tinycast's own field.
+            let frontmost = NSWorkspace.shared.frontmostApplication
+            if frontmost?.processIdentifier != NSRunningApplication.current.processIdentifier {
+                previousApp = frontmost
+            }
+            // Resolve the name/icon path once per summon rather than per render; reading `previousApp` (not `frontmost`) keeps the label naming the same app paste will actually target.
+            core.palette.pasteTarget = PasteTarget(app: previousApp)
+            let panel = ensurePanel()
+            // Open disarmed: the pointer may already sit over a row, but nothing should be highlighted until the user actually moves it.
+            core.palette.hoverHighlightArmed = false
+            // Re-resolve the anchor for wherever the user is summoning now, then hold it for the whole session so compact↔expanded resizes never move the window.
+            anchor = nil
+            // Size + place the panel to the current collapsed state before ordering front, so a compact summon never flashes at full size.
+            positionPanel(panel, collapsed: core.paletteIsCollapsed)
+            // Flush the hosting view's first-mount layout while still off-screen, so the one-time safe-area settle of the `safeAreaInset` header doesn't nudge the search placeholder on the first visible frame.
+            panel.contentView?.layoutSubtreeIfNeeded()
+            // The `.nonactivatingPanel` takes key focus without activating the app, so summoning the palette never raises the app's Settings/onboarding windows behind it.
             panel.makeKeyAndOrderFront(nil)
+            panel.orderFrontRegardless()
+            // A never-activated login-item process can drop the first key request before the window is registered with the window server; re-assert next turn once it is (same pattern as AuxWindowController).
+            DispatchQueue.main.async { [weak panel] in
+                guard let panel, panel.isVisible, !panel.isKeyWindow else { return }
+                panel.makeKeyAndOrderFront(nil)
+            }
         }
     }
 
@@ -61,8 +64,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             core.palette.prepare(mode: .launcher)
             return
         }
-        popToRootTimer = Timer.scheduledTimer(withTimeInterval: timeout.interval, repeats: false) {
-            [weak self] _ in
+        popToRootTimer = Timer.scheduledTimer(withTimeInterval: timeout.interval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.popToRootTimer = nil
                 self?.core.palette.prepare(mode: .launcher)
@@ -121,16 +123,49 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             .environmentObject(core.frequentEmoji)
             .environmentObject(core.runningApps)
             .environmentObject(core.hotKeys)
+            .environmentObject(core.uninstall)
+            .environmentObject(core.quicklinks)
+            .environmentObject(core.quicklinkArguments)
         let panel = PalettePanel(rootView: root)
         panel.delegate = self
         panel.paletteViewModel = core.palette
         // Backspace in an already-empty search backs out of a sub-screen to a fresh root launcher; `prepare` clears state and re-focuses the field.
         panel.onBareBackspace = { [weak self] in
-            guard let vm = self?.core.palette, vm.mode != .launcher, vm.query.isEmpty else {
+            guard let core = self?.core, core.palette.mode != .launcher, core.palette.query.isEmpty
+            else { return false }
+            // In the argument form it steps back through the answers first, so a typo in the second
+            // of three fields costs one keypress rather than the whole flow.
+            if core.palette.mode == .quicklinkArguments,
+                let previous = core.quicklinkArguments.retreat() {
+                core.palette.query = previous
+                core.palette.selection = 0
+                return true
+            }
+            core.palette.prepare(mode: .launcher)
+            return true
+        }
+        // The field editor swallows some `⌘` chords (e.g. `⌘,`) before SwiftUI `.onKeyPress` can fire, and `LSUIElement` apps have no main menu for `⌘W` or `⌘Esc`. Handle them at the panel level.
+        panel.onCommandShortcut = { [weak self] event in
+            guard let self, !event.isARepeat,
+                event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command
+            else { return false }
+            // Escape has no character, so it matches by key code.
+            if Int(event.keyCode) == kVK_Escape {
+                self.core.palette.prepare(mode: .launcher)
+                return true
+            }
+            // `⌘,` and `⌘W` are character chords like the rest of the palette's (⌘K, ⌘P): matching their QWERTY key codes would fire the wrong action on Dvorak, where the two are transposed.
+            guard let character = event.charactersIgnoringModifiers?.lowercased() else { return false }
+            switch character {
+            case ",":
+                self.core.showSettings()
+                return true
+            case "w":
+                self.core.hidePalette()
+                return true
+            default:
                 return false
             }
-            vm.prepare(mode: .launcher)
-            return true
         }
         self.panel = panel
         return panel
