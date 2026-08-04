@@ -7,10 +7,10 @@ same app to macOS 15 **without changing a single file on `main`**.
 
 `glassEffect(_:in:)` is `@available(macOS 26)`. Lowering `MACOSX_DEPLOYMENT_TARGET` is only a build
 setting, but the compiler then hard-errors at every call site, and no build flag suppresses that —
-the deployment target *is* the availability contract. So some source must be gated. It's two call
-sites, and they live here as `macos15.patch` instead of on `main`.
+the deployment target *is* the availability contract. So some source must be gated. It's a handful of
+call sites, and they live here as `macos15.patch` instead of on `main`.
 
-Verified: with those two sites gated, the whole app compiles at `-target arm64-apple-macos15.0`,
+Verified: with those sites gated, the whole app compiles at `-target arm64-apple-macos15.0`,
 builds `Release`, and produces `minos 15.0` / `LSMinimumSystemVersion 15.0` against SDK 26.5. The
 six SwiftUI glass symbols become **weak** imports, so dyld binds them to null on Sequoia and the
 `#available` guard means they're never called.
@@ -22,7 +22,7 @@ Both in one `ViewModifier` (`FrostedSurface`) in `Tinycast/Core/Theme.swift`:
 | Helper | macOS 26 | macOS 15 |
 |---|---|---|
 | `frosted(in:)` — floating pill + menu circle | `glassEffect(.regular.interactive().tint(glassFrost))` | `.ultraThinMaterial` + frost overlay + 0.5pt hairline + soft shadow |
-| `frostedMenu(in:)` — popover panels | `glassEffect(.regular)` | same fallback |
+| `frostedMenu(in:)` — popover panels (`PopoverMenu`, `ShortcutRecorderPopover`) | `glassEffect(.regular)` | same fallback |
 
 `docs/ui.md` confines glass to floating controls, so that is the entire visual surface affected. The
 main palette surface is `NSVisualEffectView` vibrancy — macOS 10.10 API, unchanged on Sequoia, it
