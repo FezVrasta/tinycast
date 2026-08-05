@@ -62,7 +62,7 @@ enum CommandID: String, CaseIterable, Sendable {
     }
 }
 
-enum CommandRegistry {
+enum CommandCatalog {
     /// Sorted by name to keep the AppIndex sort invariant; the URL is a placeholder since commands are never launched from disk.
     nonisolated static let all: [AppEntry] =
         CommandID.allCases

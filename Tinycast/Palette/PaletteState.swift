@@ -1,9 +1,9 @@
 import Foundation
 
-/// View-model shared between the panel's SwiftUI tree and the coordinator.
+/// Palette state shared between the panel's SwiftUI tree and the coordinator.
 @MainActor
 @Observable
-final class PaletteViewModel {
+final class PaletteState {
     var mode: PaletteMode = .launcher
     var query: String = ""
     var selection: Int = 0

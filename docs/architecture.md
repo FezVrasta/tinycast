@@ -13,7 +13,7 @@ System-action catalog, launcher integration and permission behavior are document
 manager — `AppIndex`, `ClipboardStore`, `ClipboardManager`, `SnippetsStore`,
 `SnippetKeywordListener`, `SnippetTextInjector`, `HotKeyManager`, `AppSettings`, `FavoritesStore`,
 `VisibilityStore`, `LauncherRankingStore`, `CustomCommandStore`, `CalculatorHistoryStore`,
-`CurrencyRateStore`, `RunningAppsMonitor`, `PaletteViewModel` — plus the window controllers, including
+`CurrencyRateStore`, `RunningAppsMonitor`, `PaletteState` — plus the window controllers, including
 `DialogController` (dialogs are reached from elsewhere via `AppCore.showNotice` /
 `confirm`, so the controller stays single-owned).
 `AppDelegate.applicationDidFinishLaunching` calls

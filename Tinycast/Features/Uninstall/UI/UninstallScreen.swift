@@ -4,7 +4,7 @@ import SwiftUI
 struct UninstallScreen: PaletteScreen {
     let session: UninstallSession
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let openActions: () -> Void
 
     /// The search field filters files by name or location on this screen.

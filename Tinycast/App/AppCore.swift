@@ -27,7 +27,7 @@ final class AppCore {
     let emojiIndex = EmojiIndex()
     let frequentEmoji = FrequentEmojiStore()
     let runningApps = RunningAppsMonitor()
-    let palette = PaletteViewModel()
+    let palette = PaletteState()
     let uninstall = UninstallSession()
     let quicklinkArguments = QuicklinkArgumentSession()
 

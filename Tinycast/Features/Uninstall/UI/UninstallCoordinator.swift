@@ -4,7 +4,7 @@ import AppKit
 @MainActor
 final class UninstallCoordinator {
     private let session: UninstallSession
-    private let palette: PaletteViewModel
+    private let palette: PaletteState
     private let paletteCoordinator: PaletteCoordinator
     private let appIndex: AppIndex
     private let runningApps: RunningAppsMonitor
@@ -17,7 +17,7 @@ final class UninstallCoordinator {
 
     init(
         session: UninstallSession,
-        palette: PaletteViewModel,
+        palette: PaletteState,
         paletteCoordinator: PaletteCoordinator,
         appIndex: AppIndex,
         runningApps: RunningAppsMonitor,

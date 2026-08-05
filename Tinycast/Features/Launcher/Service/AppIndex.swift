@@ -81,7 +81,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case .quicklink: return Quicklink.sfSymbol
         case .snippet: return "text.quote"
         case .customCommand: return CustomCommand.sfSymbol
-        case .command: return CommandRegistry.command(for: self)?.sfSymbol ?? "questionmark"
+        case .command: return CommandCatalog.command(for: self)?.sfSymbol ?? "questionmark"
         case .systemAction: return SystemActionCatalog.action(forEntryID: id)?.sfSymbol ?? "questionmark"
         case .windowCommand:
             return WindowCommandCatalog.command(forEntryID: id)?.sfSymbol ?? "questionmark"
@@ -145,7 +145,7 @@ final class AppIndex {
     private var windowCommandEntries: [AppEntry] = []
     private var quicklinkEntries: [AppEntry] = []
     /// Built-in commands minus the quicklink ones while the feature is off.
-    private var commandEntries: [AppEntry] = CommandRegistry.all
+    private var commandEntries: [AppEntry] = CommandCatalog.all
     private var alternateNameCache = SpotlightNames.Cache()
     private var paneCache: SettingsPaneScanner.Cache?
     private var isRefreshing = false
@@ -187,9 +187,9 @@ final class AppIndex {
                         ?? QuicklinkDestination.detect(quicklink.link)?.defaultSymbol)
             }
         let commands = commandsVisible
-            ? CommandRegistry.all
-            : CommandRegistry.all.filter { entry in
-                CommandRegistry.command(for: entry).map { !$0.isQuicklinkCommand } ?? true
+            ? CommandCatalog.all
+            : CommandCatalog.all.filter { entry in
+                CommandCatalog.command(for: entry).map { !$0.isQuicklinkCommand } ?? true
             }
         guard entries != quicklinkEntries || commands != commandEntries else { return }
         quicklinkEntries = entries

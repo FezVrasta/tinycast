@@ -7,7 +7,7 @@ struct LauncherScreen: PaletteScreen {
     let visibility: VisibilityStore
     let currencyRates: CurrencyRateStore
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     /// Sampled by `openActions`, so the Quit row can't appear or vanish while the menu is up.
     let running: Bool
     let openActions: () -> Void

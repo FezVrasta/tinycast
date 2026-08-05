@@ -83,7 +83,7 @@ final class LauncherCoordinator {
     }
 
     private func runCommand(_ entry: AppEntry) {
-        switch CommandRegistry.command(for: entry) {
+        switch CommandCatalog.command(for: entry) {
         case .calculatorHistory:
             paletteCoordinator.showPalette(mode: .calculatorHistory)
         case .clipboardHistory:

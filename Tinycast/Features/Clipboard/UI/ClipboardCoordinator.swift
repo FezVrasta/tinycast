@@ -4,13 +4,13 @@ import AppKit
 @MainActor
 final class ClipboardCoordinator {
     private let clipboardStore: ClipboardStore
-    private let palette: PaletteViewModel
+    private let palette: PaletteState
     private let windowController: PaletteWindowController
     private let paletteCoordinator: PaletteCoordinator
 
     init(
         clipboardStore: ClipboardStore,
-        palette: PaletteViewModel,
+        palette: PaletteState,
         windowController: PaletteWindowController,
         paletteCoordinator: PaletteCoordinator
     ) {

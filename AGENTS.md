@@ -250,7 +250,7 @@ Never break these without an explicit task to do so.
 - `Tinycast/Platform/` — the system shims: `Permissions`, `LaunchAtLogin`, `CursorScreen`,
   `AppDisplayName`, `NotificationToken`, `AppPaths`, `Signposts` and `Images/`.
 - `Tinycast/Palette/` — the palette shell: `PalettePanel`, `PaletteWindowController`,
-  `RootPaletteView`, the `PaletteScreen` protocol, `PaletteCoordinator` and the `PaletteViewModel` /
+  `RootPaletteView`, the `PaletteScreen` protocol, `PaletteCoordinator` and the `PaletteState` /
   `PaletteMode` / `PasteTarget` state types.
 - `Tinycast/Windows/` — the non-palette AppKit surfaces: `AuxWindowController` (Settings, About,
   Onboarding), `Dialog/` and `HUD/`, kept separate because a dialog asks and a HUD reports, plus
@@ -272,3 +272,48 @@ Never break these without an explicit task to do so.
 - `Tinycast/App/` — `@main` app, delegate and `AppCore`, the composition root.
 - `Tools/` — standalone test harnesses and the emoji generator.
 - `.github/workflows/release.yml` — the entire release pipeline (see `docs/development.md`).
+
+## Naming vocabulary
+
+A type's suffix says what it *is*. Each row below is a suffix, what it means, and — where the set is
+small enough to enumerate — every type that currently carries it, so a reader can tell a closed set
+from an open one. The table governs **top-level types**; a private nested helper is free to be named
+for its job.
+
+**A new type takes an existing suffix, or this table gains a row in the same commit.**
+
+| Suffix        | Means                                                          | Members                                                                        |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `Store`       | Owns persisted state and publishes it                          | open (10)                                                                      |
+| `Coordinator` | A feature's action surface, called by `AppCore` and the palette | open (10)                                                                      |
+| `Controller`  | Owns one AppKit window or surface                              | open (5)                                                                       |
+| `Catalog`     | Pure static namespace over a built-in list                     | `CommandCatalog`, `EmojiCatalog`, `SystemActionCatalog`, `WindowCommandCatalog` |
+| `Index`       | A searchable collection, rebuilt as its inputs change          | `AppIndex`, `EmojiIndex`, `PaletteRowIndex`                                    |
+| `Runner`      | Performs one effectful operation on request                    | `ShellCommandRunner`, `SystemActionRunner`, `UninstallRunner`                   |
+| `Session`     | Transient state for one in-progress interaction                | `QuicklinkArgumentSession`, `ShortcutCaptureSession`, `UninstallSession`        |
+| `Policy`      | A pure decision — no state, no effects                         | the three `Snippet…Policy` types                                               |
+| `Engine`      | A pure evaluator: input → output                               | `CalcEngine`, `SnippetTemplateEngine`                                          |
+| `Monitor`     | Watches an external stream and reports changes; owns no policy | `DoubleTapMonitor`, `RunningAppsMonitor`                                       |
+| `Scanner`     | Reads the filesystem to produce candidates                     | `SettingsPaneScanner`, `UninstallScanner`                                      |
+| `State`       | Shared observable state that persists nothing itself           | `OnboardingState`, `PaletteState`, `VolumeState`                               |
+| `Manager`     | **Closed set of two.** Sole owner of a subsystem's lifecycle *and* its policy, started from `AppCore.start()`. Do not add a third — a new type wanting this suffix wants `Store`, `Monitor` or `Coordinator` instead. | `ClipboardManager`, `HotKeyManager` |
+
+`Manager` survives on two types because neither alternative is honest. `ClipboardManager` polls, but it
+also owns the capture policy (`sensitiveTypes`, `maxTextLength`, `internalType`, the disabled-apps
+filter) and the paste-side handshake, which the two real `Monitor`s do not. `HotKeyManager` persists
+bindings like a `Store`, but it also drives Carbon registration and double-tap dispatch.
+
+Exceptions, each earning its own word:
+
+- `Launcher` (`AppLauncher`, `QuicklinkLauncher`) — reserved synonym for an `NSWorkspace.open` wrapper.
+  Clearer than `Runner` for opening things.
+- `Repository` (`SnippetRepository`) — conflict-detecting, revision-checked file semantics that `Store`
+  does not imply.
+- `Center` (`HotKeyCenter`) — the Carbon registration layer specifically.
+- `Presenter` (`HUDPresenter`) — owns the one-at-a-time / auto-dismiss / fade policy for both HUDs.
+- Domain terms with no better alternative: `SnippetTextInjector`, `WindowMover`, `HyperKeyTap`.
+- `Registry` is retired as a top-level suffix — a static table is a `Catalog`. It survives only on
+  `SnippetRepository`'s private nested `CoordinatorRegistry`, which really does register: it interns
+  one lock per canonical channel-directory path.
+- SwiftUI-layer suffixes (`View`, `Screen`, `Card`, `Row`, `Sheet`) are a separate vocabulary and are
+  not governed by this table.

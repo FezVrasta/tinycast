@@ -5,7 +5,7 @@ struct CalculatorHistoryScreen: PaletteScreen {
     let history: CalculatorHistoryStore
     let currencyRates: CurrencyRateStore
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let openActions: () -> Void
 
     /// The card is a row like any other, so the flat selection indexes `rows` with no offset.

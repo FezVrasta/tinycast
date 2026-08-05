@@ -4,7 +4,7 @@ import SwiftUI
 /// Owns summoning and the aux windows: which mode shows. Where and how big stays with the controller.
 @MainActor
 final class PaletteCoordinator {
-    private let palette: PaletteViewModel
+    private let palette: PaletteState
     private let settings: AppSettings
     private let appIndex: AppIndex
     private let windowController: PaletteWindowController
@@ -13,7 +13,7 @@ final class PaletteCoordinator {
     private unowned let core: AppCore
 
     init(
-        palette: PaletteViewModel,
+        palette: PaletteState,
         settings: AppSettings,
         appIndex: AppIndex,
         windowController: PaletteWindowController,

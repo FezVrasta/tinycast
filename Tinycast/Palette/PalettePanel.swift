@@ -9,9 +9,9 @@ final class PalettePanel: NSPanel {
     /// Called for command-key chords before they reach the field editor; return true to consume the event. The field editor swallows some `⌘` chords (e.g. `⌘,`) before SwiftUI `.onKeyPress` can see them, and `LSUIElement` apps have no main menu to handle standard window equivalents like `⌘W`.
     var onCommandShortcut: ((NSEvent) -> Bool)?
     /// Arms the hover highlight from `sendEvent` — the one place both event streams pass through, so a keyboard-driven scroll under a still pointer never fires `.mouseMoved` and hover stays disarmed. Also carries the caret-hide hook fired when a footer menu opens.
-    weak var paletteViewModel: PaletteViewModel? {
+    weak var paletteState: PaletteState? {
         didSet {
-            paletteViewModel?.onMenuOpenChanged = { [weak self] open in self?.setSearchCaretHidden(open) }
+            paletteState?.onMenuOpenChanged = { [weak self] open in self?.setSearchCaretHidden(open) }
         }
     }
 
@@ -31,13 +31,13 @@ final class PalettePanel: NSPanel {
 
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
-        case .mouseMoved: paletteViewModel?.hoverHighlightArmed = true
-        case .keyDown: paletteViewModel?.hoverHighlightArmed = false
+        case .mouseMoved: paletteState?.hoverHighlightArmed = true
+        case .keyDown: paletteState?.hoverHighlightArmed = false
         default: break
         }
         // A footer menu owns the keyboard: the search field stays first responder (no focus swap, so nothing reflows) with only its caret hidden; swallow text-editing keystrokes before the field editor consumes them, but let shortcut chords (⌘K, ⌘⌫) and menu-nav keys reach SwiftUI's onKeyPress.
         if event.type == .keyDown,
-            paletteViewModel?.menuOpen == true,
+            paletteState?.menuOpen == true,
             event.modifierFlags.isDisjoint(with: [.command, .control]),
             !Self.menuNavKeys.contains(Int(event.keyCode)) {
             return

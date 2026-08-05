@@ -5,7 +5,7 @@ struct EmojiScreen: PaletteScreen {
     let index: EmojiIndex
     let frequent: FrequentEmojiStore
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let tone: EmojiSkinTone
     let openActions: () -> Void
 

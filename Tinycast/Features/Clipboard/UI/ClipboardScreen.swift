@@ -4,7 +4,7 @@ import SwiftUI
 struct ClipboardScreen: PaletteScreen {
     let store: ClipboardStore
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let openActions: () -> Void
     let scrollToFollow: () -> Void
 

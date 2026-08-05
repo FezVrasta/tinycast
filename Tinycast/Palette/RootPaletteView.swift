@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RootPaletteView: View {
     @Environment(AppCore.self) private var core
-    @Environment(PaletteViewModel.self) private var vm
+    @Environment(PaletteState.self) private var vm
     @Environment(AppIndex.self) private var appIndex
     @Environment(ClipboardStore.self) private var store
     @Environment(FavoritesStore.self) private var favorites

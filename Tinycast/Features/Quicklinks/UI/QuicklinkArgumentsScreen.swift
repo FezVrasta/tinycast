@@ -10,7 +10,7 @@ struct QuicklinkArgumentsScreen: PaletteScreen {
 
     let session: QuicklinkArgumentSession
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let scrollToTop: () -> Void
 
     var rows: [Choice] {

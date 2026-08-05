@@ -26,7 +26,7 @@ executable content.
 
 `AppIndex` owns two slices: applications/System Settings discovered off-main and custom command
 entries supplied on the main actor. It publishes the custom command slice ahead of the alphabetized
-`CommandRegistry` built-ins, each its own launcher section. This keeps the visible row order identical
+`CommandCatalog` built-ins, each its own launcher section. This keeps the visible row order identical
 to the flat palette selection while allowing edits to invalidate fuzzy results without rescanning disk.
 
 The command text is deliberately not searchable. Only the user-facing name enters fuzzy matching.

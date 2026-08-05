@@ -4,7 +4,7 @@ import SwiftUI
 struct QuicklinkListScreen: PaletteScreen {
     let store: QuicklinkStore
     let core: AppCore
-    let vm: PaletteViewModel
+    let vm: PaletteState
     let openActions: () -> Void
 
     var rows: [Quicklink] {
