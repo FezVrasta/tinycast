@@ -1,7 +1,7 @@
 import Foundation
 
 struct SnippetRepository: Sendable {
-    private final class Coordinator: @unchecked Sendable {
+    private final class DirectoryLock: @unchecked Sendable {
         private let lock = NSLock()
 
         func withLock<Value>(
@@ -13,17 +13,17 @@ struct SnippetRepository: Sendable {
         }
     }
 
-    private final class CoordinatorRegistry: @unchecked Sendable {
+    private final class DirectoryLockTable: @unchecked Sendable {
         private let lock = NSLock()
-        private var coordinators: [String: Coordinator] = [:]
+        private var locks: [String: DirectoryLock] = [:]
 
-        func coordinator(for channelDirectory: URL) -> Coordinator {
+        func directoryLock(for channelDirectory: URL) -> DirectoryLock {
             let identity = canonicalIdentity(for: channelDirectory)
             return lock.withLock {
-                if let coordinator = coordinators[identity] { return coordinator }
-                let coordinator = Coordinator()
-                coordinators[identity] = coordinator
-                return coordinator
+                if let existing = locks[identity] { return existing }
+                let directoryLock = DirectoryLock()
+                locks[identity] = directoryLock
+                return directoryLock
             }
         }
 
@@ -47,7 +47,7 @@ struct SnippetRepository: Sendable {
         }
     }
 
-    private static let coordinatorRegistry = CoordinatorRegistry()
+    private static let directoryLocks = DirectoryLockTable()
 
     enum Mutation: Sendable {
         case save
@@ -99,7 +99,7 @@ struct SnippetRepository: Sendable {
     let channelDirectory: URL
     let snippetsDirectory: URL
 
-    private let coordinator: Coordinator
+    private let directoryLock: DirectoryLock
     private let mutationHooks: MutationHooks
 
     init(
@@ -115,13 +115,13 @@ struct SnippetRepository: Sendable {
             bundleIdentifier,
             isDirectory: true)
         self.channelDirectory = channelDirectory
-        coordinator = Self.coordinatorRegistry.coordinator(for: channelDirectory)
+        directoryLock = Self.directoryLocks.directoryLock(for: channelDirectory)
         self.mutationHooks = mutationHooks
         snippetsDirectory = channelDirectory.appendingPathComponent("Snippets", isDirectory: true)
     }
 
     func load() throws(RepositoryError) -> Snapshot {
-        try coordinator.withLock { () throws(RepositoryError) -> Snapshot in
+        try directoryLock.withLock { () throws(RepositoryError) -> Snapshot in
             try mappedError(at: snippetsDirectory) {
                 try ensureSnippetsDirectory()
                 let files = try markdownFiles(in: snippetsDirectory)
@@ -151,7 +151,7 @@ struct SnippetRepository: Sendable {
     }
 
     func create(_ snippet: Snippet) throws(RepositoryError) -> StoredSnippet {
-        try coordinator.withLock { () throws(RepositoryError) -> StoredSnippet in
+        try directoryLock.withLock { () throws(RepositoryError) -> StoredSnippet in
             try mappedError(at: snippetsDirectory) {
                 try ensureSnippetsDirectory()
                 return try createUnlocked(snippet)
@@ -160,7 +160,7 @@ struct SnippetRepository: Sendable {
     }
 
     func create(_ snippets: [Snippet]) throws(RepositoryError) -> [StoredSnippet] {
-        try coordinator.withLock { () throws(RepositoryError) -> [StoredSnippet] in
+        try directoryLock.withLock { () throws(RepositoryError) -> [StoredSnippet] in
             try mappedError(at: snippetsDirectory) {
                 try ensureSnippetsDirectory()
                 var created: [StoredSnippet] = []
@@ -184,7 +184,7 @@ struct SnippetRepository: Sendable {
         fileURL: URL,
         expectedRevision: SnippetSourceRevision
     ) throws(RepositoryError) -> StoredSnippet {
-        try coordinator.withLock { () throws(RepositoryError) -> StoredSnippet in
+        try directoryLock.withLock { () throws(RepositoryError) -> StoredSnippet in
             try mappedError(at: fileURL) {
                 let fileURL = try validatedFileURL(fileURL)
                 let content = SnippetMarkdownSerializer.serialize(snippet)
@@ -213,7 +213,7 @@ struct SnippetRepository: Sendable {
         fileURL: URL,
         expectedRevision: SnippetSourceRevision
     ) throws(RepositoryError) {
-        try coordinator.withLock { () throws(RepositoryError) in
+        try directoryLock.withLock { () throws(RepositoryError) in
             try mappedError(at: fileURL) {
                 let fileURL = try validatedFileURL(fileURL)
                 try coordinatedMutation(at: fileURL, options: .forDeleting) { coordinatedURL in
