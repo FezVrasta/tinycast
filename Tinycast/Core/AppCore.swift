@@ -240,6 +240,13 @@ final class AppCore {
             hotKeys.onOpenQuicklink = { [weak self] id in
                 self?.quicklinkCoordinator.openQuicklink(id: id)
             }
+            hotKeys.displayName = { [weak self] action in self?.hotKeyDisplayName(for: action) }
+            KeyShortcut.hyperDisplay = { [settings] in
+                (settings.hyperKey, settings.hyperKeyReplacesGlyph, settings.hyperKeyIncludesShift)
+            }
+            SystemActionRunner.onAsyncFailure = { [weak self] id, failure in
+                self?.presentSystemActionFailure(id: id, failure: failure)
+            }
             hotKeys.start(
                 customCommandIDs: Set(customCommands.commands.map(\.id)),
                 quicklinkIDs: Set(quicklinks.quicklinks.map(\.id)))
@@ -264,6 +271,23 @@ final class AppCore {
                 OnboardingState.markShown()
                 showOnboarding()
             }
+        }
+    }
+
+    /// The store-backed half of the conflict message; `HotKeyManager` names the catalogs itself.
+    private func hotKeyDisplayName(for action: HotKeyAction) -> String? {
+        switch action {
+        case .app(let bundleID):
+            return appIndex.apps.first { $0.kind == .application && $0.bundleID == bundleID }?.name
+        case .settingsPane(let bundleID):
+            return appIndex.apps.first { $0.kind == .systemSettings && $0.bundleID == bundleID }?
+                .name
+        case .customCommand(let id):
+            return customCommands.command(id: id)?.name
+        case .quicklink(let id):
+            return quicklinks.quicklink(id: id)?.name
+        case .togglePalette, .toggleClipboard, .toggleEmoji, .systemAction, .windowCommand:
+            return nil
         }
     }
 

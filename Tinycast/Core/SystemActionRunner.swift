@@ -34,6 +34,9 @@ struct SystemActionFeedback: Sendable {
 
 @MainActor
 enum SystemActionRunner {
+    /// Failures raised after `run` returned; the runner owns effects, never UI. Set in `start()`.
+    static var onAsyncFailure: ((SystemAction.ID, SystemActionFailure) -> Void)?
+
     private struct ProcessOutput: Sendable {
         let status: Int32
         let stdout: String
@@ -66,9 +69,8 @@ enum SystemActionRunner {
                 at: url, configuration: NSWorkspace.OpenConfiguration()) { _, error in
                     guard let error else { return }
                     Task { @MainActor in
-                        AppCore.shared.presentSystemActionFailure(
-                            id: .showScreenSaver,
-                            failure: SystemActionFailure(error.localizedDescription))
+                        onAsyncFailure?(
+                            .showScreenSaver, SystemActionFailure(error.localizedDescription))
                     }
                 }
         case .playPause:

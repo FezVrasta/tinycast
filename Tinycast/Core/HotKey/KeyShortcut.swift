@@ -20,9 +20,19 @@ struct KeyShortcut: Hashable, Sendable {
         self.init(carbonKeyCode: keyCode, carbonModifiers: Self.carbonModifiers(from: flags))
     }
 
+    /// Hyper display preference; a closure, not a value, so a Settings toggle re-renders keycaps.
+    @MainActor
+    static var hyperDisplay:
+        () -> (hyperKey: HyperKeyPhysicalKey, replacesGlyph: Bool, includesShift: Bool) = {
+            (.none, false, true)
+        }
+
     /// One string per keycap in canonical macOS order (⌃⌥⇧⌘) with the key glyph last, feeding the launcher rows and settings recorder.
     @MainActor var keycaps: [String] {
-        Self.collapsedModifierSymbols(from: modifierFlags) + [keyGlyph]
+        let hyper = Self.hyperDisplay()
+        return Self.collapsedModifierSymbols(
+            from: modifierFlags, hyperKey: hyper.hyperKey, replacesGlyph: hyper.replacesGlyph,
+            includesShift: hyper.includesShift) + [keyGlyph]
     }
 
     var modifierFlags: NSEvent.ModifierFlags {
@@ -44,14 +54,17 @@ struct KeyShortcut: Hashable, Sendable {
     }
 
     /// `modifierSymbols` with the configured Hyper set collapsed into a single "✦"; keyed on configuration (not tap health) so glyphs never flicker, leftover modifiers keep canonical order after the ✦.
-    @MainActor
-    static func collapsedModifierSymbols(from flags: NSEvent.ModifierFlags) -> [String] {
-        let settings = AppCore.shared.settings
-        guard settings.hyperKey != .none, settings.hyperKeyReplacesGlyph else {
+    static func collapsedModifierSymbols(
+        from flags: NSEvent.ModifierFlags,
+        hyperKey: HyperKeyPhysicalKey,
+        replacesGlyph: Bool,
+        includesShift: Bool
+    ) -> [String] {
+        guard hyperKey != .none, replacesGlyph else {
             return modifierSymbols(from: flags)
         }
         let hyperSet: NSEvent.ModifierFlags =
-            settings.hyperKeyIncludesShift
+            includesShift
             ? [.control, .option, .shift, .command]
             : [.control, .option, .command]
         guard flags.isSuperset(of: hyperSet) else { return modifierSymbols(from: flags) }

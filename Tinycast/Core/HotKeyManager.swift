@@ -11,6 +11,8 @@ final class HotKeyManager {
     var onRunSystemAction: ((SystemAction.ID) -> Void)?
     var onRunWindowCommand: ((WindowCommand.ID) -> Void)?
     var onOpenQuicklink: ((UUID) -> Void)?
+    /// Names what only the stores know; the fixed catalogs resolve here. Set in `AppCore.start()`.
+    var displayName: ((HotKeyAction) -> String?)?
 
     /// The recorder currently capturing keystrokes, or `nil`; keeping this as plain app state makes recorders glitch-free, and any active recorder pauses both engines so the shortcut being typed can't fire the binding it's replacing. Setting it also starts/stops `capture`.
     var recordingAction: HotKeyAction? {
@@ -158,22 +160,16 @@ final class HotKeyManager {
             return "Clipboard History"
         case .toggleEmoji:
             return "Emoji & Symbols"
-        case .app(let bundleID):
-            let apps = AppCore.shared.appIndex.apps
-            return apps.first { $0.kind == .application && $0.bundleID == bundleID }?.name
-                ?? bundleID
-        case .settingsPane(let bundleID):
-            let apps = AppCore.shared.appIndex.apps
-            return apps.first { $0.kind == .systemSettings && $0.bundleID == bundleID }?.name
-                ?? bundleID
-        case .customCommand(let id):
-            return AppCore.shared.customCommands.command(id: id)?.name ?? "Custom Command"
+        case .app(let bundleID), .settingsPane(let bundleID):
+            return displayName?(action) ?? bundleID
+        case .customCommand:
+            return displayName?(action) ?? "Custom Command"
         case .systemAction(let id):
             return SystemActionCatalog.action(id: id).name
         case .windowCommand(let id):
             return WindowCommandCatalog.command(id: id)?.name ?? "Window Command"
-        case .quicklink(let id):
-            return AppCore.shared.quicklinks.quicklink(id: id)?.name ?? "Quicklink"
+        case .quicklink:
+            return displayName?(action) ?? "Quicklink"
         }
     }
 
