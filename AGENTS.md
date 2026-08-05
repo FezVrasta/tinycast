@@ -220,7 +220,7 @@ Never break these without an explicit task to do so.
   still carry a plain white button — as "Import executable commands?" does. Resolve every glyph
   through `SymbolImage`, not `Image(systemName:)`: some catalog symbols are bundled assets
   (`toggleBluetooth`). A button never prints its key cap; hovering it shows a `Tooltip`
-  (`Core/Tooltip.swift`) instead, styled like the palette's own keycap chips.
+  (`DesignSystem/Tooltip.swift`) instead, styled like the palette's own keycap chips.
 - **A transient readout is a HUD, not a dialog.** `VolumeHUDController`'s box is volume/mute only,
   since that one needs an actual level and number; every other success/info confirmation (system
   commands, Custom Commands, Snippets) goes through `MessageHUDController`'s pill, whose trailing
@@ -234,10 +234,10 @@ Never break these without an explicit task to do so.
   menu circle, `PopoverMenu`, a dialog's buttons. On a bare borderless panel it falls back to an
   opaque backing and shows as a dark edge. Both HUDs therefore use `black panelDimming` →
   `VisualEffectView()` → `clipShape`, exactly like a dialog.
-- **Read [`docs/ui.md`](docs/ui.md) before any restyle or new view.** `Core/Theme.swift` is the single
-  design-token source.
-- **`Core/EdgeDissolve.swift` and `Core/ThinScrollbar.swift` are off-limits.** Both are tuned by eye
-  against the palette's floating bars, so any edit is a visual regression. Do not touch them to fix a
+- **Read [`docs/ui.md`](docs/ui.md) before any restyle or new view.** `DesignSystem/Theme.swift` is the
+  single design-token source.
+- **`DesignSystem/Scrolling/EdgeDissolve.swift` and `DesignSystem/Scrolling/ThinScrollbar.swift` are
+  off-limits.** Both are tuned by eye against the palette's floating bars, so any edit is a visual regression. Do not touch them to fix a
   scroll bug, and never as a side effect of a restyle or refactor — needing to is the signal that the
   real fix belongs elsewhere (a scroll target, an inset, an intent). Edit either one only under an
   explicit task to change that look.
@@ -250,12 +250,18 @@ Never break these without an explicit task to do so.
   through); `Core/WindowManagement/` is a pure geometry layer plus its one AX file; `Core/Uninstall/`
   splits the same way — five pure files, one scanner, one Trash runner; `Core/Quicklinks/` is four
   pure files plus the opener and the argument session;
-  `Core/Theme.swift` is the design-token source; `Core/HotKey/` is the in-house hotkey stack.
+  `Core/HotKey/` is the in-house hotkey stack.
+- `Tinycast/DesignSystem/` — the shared visual primitives: `Theme.swift` is the design-token source,
+  plus `KeyCapChip`, `Tooltip`, `SymbolImage`, `VisualEffectView`, `PopoverMenu`,
+  `SettingsComponents`, `Scrolling/` and `Interaction/`.
+- `Tinycast/Platform/` — the system shims: `Permissions`, `LaunchAtLogin`, `CursorScreen`,
+  `AppDisplayName`, `NotificationToken`, `AppPaths`, `Signposts` and `Images/`.
 - `Tinycast/Features/` — SwiftUI views: `RootPaletteView`, `Launcher/`, `Clipboard/`, `Calculator/`,
-  `Emoji/`, `Quicklinks/`, `Uninstall/`, `Settings/`, `About/`, `Onboarding/`, plus shared
-  `PopoverMenu`, the `PaletteScreen` protocol and the harness-compiled `PaletteRowIndex`. Each
+  `Emoji/`, `Quicklinks/`, `Uninstall/`, `Settings/`, `About/`, `Onboarding/`, plus
+  the `PaletteScreen` protocol and the harness-compiled `PaletteRowIndex`. Each
   `SettingsTab` maps to
-  one `…SettingsView` built on the `SettingsPane` / `SettingsCard` scaffold in `SettingsComponents.swift`;
+  one `…SettingsView` built on the `SettingsPane` / `SettingsCard` scaffold in
+  `DesignSystem/SettingsComponents.swift`;
   the four launcher-category panes (Applications, System Settings, System Actions, Commands) are thin
   wrappers over the shared `LauncherItemsCard`.
 - `Tinycast/App/` — `@main` app + delegate.

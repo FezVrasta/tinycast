@@ -244,7 +244,7 @@ Run the real model, codec, template engine, repository, keyword listener with a 
 main-actor watcher against temporary roots:
 
 ```sh
-swiftc -swift-version 6 Tinycast/Core/NotificationToken.swift \
+swiftc -swift-version 6 Tinycast/Platform/NotificationToken.swift \
   Tinycast/Core/HealthTicker.swift Tinycast/Core/Snippets/*.swift \
   Tools/snippets-test.swift -o /tmp/snippets-test && /tmp/snippets-test
 ```
