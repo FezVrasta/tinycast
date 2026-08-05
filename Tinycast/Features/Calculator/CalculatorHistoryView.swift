@@ -151,32 +151,3 @@ private struct CalcHistoryRow: View {
         .armedHover($hovered)
     }
 }
-
-/// Actions menu content for a calculator-history entry, shown bottom-right like the other modes.
-@MainActor
-enum CalcHistoryActionsMenu {
-    static func content(entry: CalcHistoryEntry, core: AppCore, calcHistory: CalculatorHistoryStore)
-        -> PopoverMenuContent {
-        PopoverMenuContent(
-            header: entry.expression,
-            items: [
-                PopoverMenuItem(title: "Copy Answer", systemImage: "doc.on.doc", shortcut: "↵") {
-                    core.copyHistoryEntry(entry)
-                },
-                PopoverMenuItem(
-                    title: "Copy Expression", systemImage: "doc.on.doc.fill", shortcut: "⌘↵"
-                ) {
-                    core.copyHistoryExpression(entry)
-                },
-                PopoverMenuItem(title: "Delete Entry", systemImage: "trash", isDestructive: true) {
-                    calcHistory.remove(entry)
-                },
-                PopoverMenuItem(
-                    title: "Delete All Entries", systemImage: "trash.fill", isDestructive: true
-                ) {
-                    calcHistory.clearAll()
-                }
-            ]
-        )
-    }
-}

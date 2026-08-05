@@ -45,8 +45,6 @@ struct RootPaletteView: View {
     private var appResults: [AppEntry] {
         appIndex.orderedResults(query: vm.query, visibility: visibility, favorites: favorites)
     }
-    private var clipResults: [ClipboardItem] { store.search(vm.query) }
-    private var histResults: [CalcHistoryEntry] { calcHistory.search(vm.query) }
 
     /// The migrated modes' screen; nil while a mode is still one of the switch arms below.
     private var screen: (any PaletteScreen)? {
@@ -65,26 +63,28 @@ struct RootPaletteView: View {
             return EmojiScreen(
                 index: emojiIndex, frequent: frequentEmoji, core: core, vm: vm,
                 tone: settings.emojiSkinTone, openActions: openActions)
+        case .clipboard:
+            return ClipboardScreen(
+                store: store, core: core, vm: vm, openActions: openActions,
+                scrollToFollow: { scroll = ScrollIntent(kind: .follow) })
+        case .calculatorHistory:
+            return CalculatorHistoryScreen(
+                history: calcHistory, currencyRates: currencyRates, core: core, vm: vm,
+                openActions: openActions)
         default:
             return nil
         }
     }
 
-    /// Inline calculator answer for the current query, live in both the launcher and Calculator History search; when present it occupies flat selection index 0 so rows shift by `calcCount`.
+    /// Inline calculator answer for the current launcher query; when present it occupies flat selection index 0 so rows shift by `calcCount`.
     private var calcResult: CalcResult? {
-        vm.mode == .launcher || vm.mode == .calculatorHistory
-            ? CalcMemo.evaluate(vm.query, currency: currencyRates.source) : nil
+        vm.mode == .launcher ? CalcMemo.evaluate(vm.query, currency: currencyRates.source) : nil
     }
     private var calcCount: Int { calcResult == nil ? 0 : 1 }
 
     private var resultCount: Int {
         if let screen { return screen.rows.count }
-        switch vm.mode {
-        case .launcher: return appResults.count + calcCount
-        case .clipboard: return clipResults.count
-        case .calculatorHistory: return histResults.count + calcCount
-        default: return 0
-        }
+        return vm.mode == .launcher ? appResults.count + calcCount : 0
     }
     /// Selection clamped into the current results — the single source of truth for highlight, preview and activation so the list and preview can never disagree.
     private var selection: Int { resultCount == 0 ? 0 : min(max(vm.selection, 0), resultCount - 1) }
@@ -108,13 +108,6 @@ struct RootPaletteView: View {
         let index = selection - calcCount
         return appResults.indices.contains(index) ? appResults[index] : nil
     }
-    private var selectedClipItem: ClipboardItem? {
-        clipResults.indices.contains(selection) ? clipResults[selection] : nil
-    }
-    private var selectedHistEntry: CalcHistoryEntry? {
-        let index = selection - calcCount
-        return histResults.indices.contains(index) ? histResults[index] : nil
-    }
 
     /// The bottom-right Actions menu content for the current mode's selection, or nil when the selection has no actions.
     private var actionsContent: PopoverMenuContent? {
@@ -135,21 +128,6 @@ struct RootPaletteView: View {
                             vm.selection = index + calcCount
                         }
                     })
-            }
-            return nil
-        case .clipboard:
-            if let clip = selectedClipItem {
-                return ClipboardActionsMenu.content(
-                    item: clip, core: core, store: store, target: vm.pasteTarget)
-            }
-            return nil
-        case .calculatorHistory:
-            if let calc = calcActionableResult {
-                return CalcActionsMenu.content(result: calc, core: core)
-            }
-            if let hist = selectedHistEntry {
-                return CalcHistoryActionsMenu.content(
-                    entry: hist, core: core, calcHistory: calcHistory)
             }
             return nil
         default:
@@ -179,17 +157,12 @@ struct RootPaletteView: View {
     var body: some View {
         // Filter once per render for the active mode only, so the matcher/search doesn't run several times per render (rare event handlers use the computed properties above).
         let apps = vm.mode == .launcher ? appResults : []
-        let clips = vm.mode == .clipboard ? clipResults : []
-        let hist = vm.mode == .calculatorHistory ? histResults : []
         let screenRows = screen?.rows.count ?? 0
-        // Newest stored clip + the reorder token: the pair changes only when the store mutates, never when a query filters the list.
-        let clipFollow = ClipFollowKey(
-            id: vm.mode == .clipboard ? store.items.first?.id : nil, token: vm.followToken)
         // Every count/selection below derives from this one calc/offset pair — the flat selection index must always match the visible row order, calc card included.
         let calc = calcResult
         let offset = calc == nil ? 0 : 1
         // Only the active mode is non-empty.
-        let count = apps.count + offset + clips.count + hist.count + screenRows
+        let count = apps.count + offset + screenRows
         let sel = count == 0 ? 0 : min(max(vm.selection, 0), count - 1)
         let calcSelected = calc != nil && sel == 0
         // An error card is selectable but has no action: it must not drive the Copy Answer pill, ⌘K menu, or Enter.
@@ -204,6 +177,7 @@ struct RootPaletteView: View {
         // does something — and the pill is the only thing that says what.
         let showActionGroup =
             (count > 0 || vm.mode == .quicklinkArguments) && !(calcSelected && !calcActionable)
+            && (screen?.hasPrimaryAction(at: sel) ?? true)
 
         // The `header` (and its single search field) is always attached in the same position via safeAreaInset so its focus survives the compact↔expanded swap — only the results below it toggle. Collapsed shows the bar alone; expanded floats header + action bar over the list with edge-dissolve (see docs/ui.md).
         return Group {
@@ -211,8 +185,8 @@ struct RootPaletteView: View {
                 Color.clear
             } else {
                 content(
-                    apps: apps, clips: clips, hist: hist, calc: calc, selection: sel,
-                    favoriteCount: favoriteCount, showSections: showSections
+                    apps: apps, calc: calc, selection: sel, favoriteCount: favoriteCount,
+                    showSections: showSections
                 )
             }
         }
@@ -294,16 +268,6 @@ struct RootPaletteView: View {
             }
             vm.menuOpen = menuOpen
         }
-        // Follow a row the store moved: a fresh capture (or promote-on-paste) lands at the head of its section, and pinning lifts a row into the Pinned section. With a query typed the highlight stays put; `AppCore` has already placed it for pin/paste.
-        .onChange(of: clipFollow) { old, new in
-            // A nil `old.id` is the first load landing, not a row that moved.
-            guard vm.mode == .clipboard, old.id != nil else { return }
-            if isQueryEmpty, old.id != new.id, let id = new.id,
-                let index = clips.firstIndex(where: { $0.id == id }) {
-                vm.selection = index
-            }
-            scroll = ScrollIntent(kind: .follow)
-        }
         .onAppear { searchFocused = true }
         // Typing/clearing/overflow/settings all flip `paletteIsCollapsed`; resize the window to match.
         .onChange(of: core.paletteIsCollapsed) { core.syncPaletteSize() }
@@ -369,22 +333,9 @@ struct RootPaletteView: View {
                 guard let emoji = screen as? EmojiScreen else { return .ignored }
                 return emoji.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
             }
-            switch vm.mode {
-            case .clipboard:
-                guard command, clipResults.indices.contains(selection) else { return .ignored }
-                core.copyToClipboard(clipResults[selection])
-            case .calculatorHistory:
-                // The inline calc card (index 0 when present) has no secondary action; only stored entries respond.
-                let index = selection - calcCount
-                guard command, histResults.indices.contains(index) else { return .ignored }
-                core.copyHistoryExpression(histResults[index])
-            case .launcher:
-                guard command, let app = selectedAppEntry, app.canRevealInFinder
-                else { return .ignored }
-                core.showInFinder(app)
-            default:
-                return .ignored
-            }
+            guard command, vm.mode == .launcher, let app = selectedAppEntry, app.canRevealInFinder
+            else { return .ignored }
+            core.showInFinder(app)
             return .handled
         }
         .onKeyPress(.escape) {
@@ -408,6 +359,7 @@ struct RootPaletteView: View {
             guard resultCount > 0 else { return .handled }
             // An error calc card is the selection but has no actions — don't open an empty panel.
             if calcCount > 0, selection == 0, calcResult?.isActionable != true { return .handled }
+            if let screen, !screen.hasPrimaryAction(at: selection) { return .handled }
             toggleActions()
             return .handled
         }
@@ -418,22 +370,21 @@ struct RootPaletteView: View {
             if let quicklinks = screen as? QuicklinkListScreen {
                 return quicklinks.delete(at: selection) ? .handled : .ignored
             }
-            switch vm.mode {
-            case .clipboard:
-                deleteSelectedClip()
-            case .calculatorHistory:
-                deleteSelectedHistoryEntry()
-            default:
-                return .ignored
+            if let clipboard = screen as? ClipboardScreen {
+                clipboard.delete(at: selection)
+                return .handled
             }
-            return .handled
+            if let history = screen as? CalculatorHistoryScreen {
+                history.delete(at: selection)
+                return .handled
+            }
+            return .ignored
         }
         // ⌘P pins/unpins the selected clip — mirrors the Actions menu row, and works while that menu is open like the other advertised chords.
         .onKeyPress(keys: ["p"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
-            if vm.mode == .clipboard, clipResults.indices.contains(selection) {
-                core.togglePinnedClip(clipResults[selection])
-                return .handled
+            if let clipboard = screen as? ClipboardScreen {
+                return clipboard.pin(at: selection) ? .handled : .ignored
             }
             if let quicklinks = screen as? QuicklinkListScreen {
                 return quicklinks.pin(at: selection) ? .handled : .ignored
@@ -533,22 +484,20 @@ struct RootPaletteView: View {
 
     @ViewBuilder
     private func content(
-        apps: [AppEntry], clips: [ClipboardItem], hist: [CalcHistoryEntry], calc: CalcResult?,
-        selection: Int, favoriteCount: Int, showSections: Bool
+        apps: [AppEntry], calc: CalcResult?, selection: Int, favoriteCount: Int, showSections: Bool
     ) -> some View {
         if let screen {
             screen.body(selection: selection, scroll: scroll)
         } else {
             modeContent(
-                apps: apps, clips: clips, hist: hist, calc: calc, selection: selection,
-                favoriteCount: favoriteCount, showSections: showSections)
+                apps: apps, calc: calc, selection: selection, favoriteCount: favoriteCount,
+                showSections: showSections)
         }
     }
 
     @ViewBuilder
     private func modeContent(
-        apps: [AppEntry], clips: [ClipboardItem], hist: [CalcHistoryEntry], calc: CalcResult?,
-        selection: Int, favoriteCount: Int, showSections: Bool
+        apps: [AppEntry], calc: CalcResult?, selection: Int, favoriteCount: Int, showSections: Bool
     ) -> some View {
         switch vm.mode {
         case .launcher:
@@ -579,65 +528,6 @@ struct RootPaletteView: View {
                     openActions()
                 }
             )
-        case .clipboard:
-            // Empty history: center one message across the whole panel rather than wedging it into the narrow list column beside a blank preview.
-            if clips.isEmpty {
-                EmptyResults(text: "Clipboard history is empty")
-            } else {
-                let selected = clips.indices.contains(selection) ? clips[selection] : nil
-                HStack(spacing: 0) {
-                    ClipboardList(
-                        results: clips,
-                        selectedID: selected?.id,
-                        scroll: scroll,
-                        onSelect: { item in vm.selection = clips.firstIndex(of: item) ?? 0 },
-                        onActivate: activateSelection,
-                        onActions: { item in
-                            if let index = clips.firstIndex(of: item) { vm.selection = index }
-                            openActions()
-                        }
-                    )
-                    .frame(width: Theme.Size.clipboardListWidth)
-                    Rectangle()
-                        .fill(Theme.Colors.separator)
-                        .frame(width: 1)
-                    ClipboardPreview(item: selected)
-                }
-            }
-        case .calculatorHistory:
-            if hist.isEmpty && calc == nil {
-                EmptyResults(
-                    text: isQueryEmpty ? "No calculations yet" : "No matching calculations")
-            } else {
-                let offset = calc == nil ? 0 : 1
-                let calcSelected = calc != nil && selection == 0
-                let histIndex = selection - offset
-                let selected = hist.indices.contains(histIndex) ? hist[histIndex] : nil
-                CalculatorHistoryList(
-                    results: hist,
-                    selectedID: calcSelected ? nil : selected?.id,
-                    scroll: scroll,
-                    calc: calc,
-                    calcSelected: calcSelected,
-                    onActivateCalc: {
-                        vm.selection = 0
-                        activateSelection()
-                    },
-                    onCalcActions: {
-                        guard let calc, case .value = calc.payload else { return }
-                        vm.selection = 0
-                        openActions()
-                    },
-                    onSelect: { entry in
-                        if let index = hist.firstIndex(of: entry) { vm.selection = index + offset }
-                    },
-                    onActivate: activateSelection,
-                    onActions: { entry in
-                        if let index = hist.firstIndex(of: entry) { vm.selection = index + offset }
-                        openActions()
-                    }
-                )
-            }
         default:
             EmptyView()
         }
@@ -696,21 +586,14 @@ struct RootPaletteView: View {
     /// Pill label for the current selection, derived from the selection already resolved in `body` so it never re-runs the (unmemoized) `appResults` filter/sort.
     private func actionPillLabel(selectedApp: AppEntry?, calcActionable: Bool) -> String {
         if let screen { return screen.primaryActionTitle }
-        switch vm.mode {
-        case .clipboard:
-            return vm.pasteTarget?.pasteTitle ?? "Paste"
-        case .calculatorHistory:
-            return "Copy Answer"
-        default:
-            if calcActionable { return "Copy Answer" }
-            switch selectedApp?.kind {
-            case .systemSettings: return "Open System Setting"
-            case .command: return "Run Command"
-            case .customCommand: return "Run Custom Command"
-            case .systemAction: return "Run System Action"
-            case .quicklink: return "Open Quicklink"
-            default: return "Open Application"
-            }
+        if calcActionable { return "Copy Answer" }
+        switch selectedApp?.kind {
+        case .systemSettings: return "Open System Setting"
+        case .command: return "Run Command"
+        case .customCommand: return "Run Custom Command"
+        case .systemAction: return "Run System Action"
+        case .quicklink: return "Open Quicklink"
+        default: return "Open Application"
         }
     }
 
@@ -746,17 +629,6 @@ struct RootPaletteView: View {
 
     private static func menuTransition(_ anchor: UnitPoint) -> AnyTransition {
         .opacity.combined(with: .scale(scale: 0.96, anchor: anchor))
-    }
-
-    private func deleteSelectedClip() {
-        guard clipResults.indices.contains(selection) else { return }
-        store.remove(clipResults[selection])
-    }
-
-    private func deleteSelectedHistoryEntry() {
-        let index = selection - calcCount  // the inline calc card can't be deleted
-        guard histResults.indices.contains(index) else { return }
-        calcHistory.remove(histResults[index])
     }
 
     // MARK: - Actions
@@ -817,38 +689,16 @@ struct RootPaletteView: View {
             screen.activate(at: selection)
             return
         }
-        switch vm.mode {
-        case .launcher:
-            if let calcResult, selection == 0 {
-                // Error cards no-op — copyCalculatorResult only acts on value payloads.
-                core.copyCalculatorResult(calcResult)
-                return
-            }
-            let index = selection - calcCount
-            guard appResults.indices.contains(index) else { return }
-            core.launch(appResults[index], searchQuery: vm.query)
-        case .clipboard:
-            guard clipResults.indices.contains(selection) else { return }
-            core.paste(clipResults[selection])
-        case .calculatorHistory:
-            if let calcResult, selection == 0 {
-                // A fresh calculation typed into the history search: copy + record like the launcher card (error cards no-op).
-                core.copyCalculatorResult(calcResult)
-                return
-            }
-            let index = selection - calcCount
-            guard histResults.indices.contains(index) else { return }
-            core.copyHistoryEntry(histResults[index])
-        default:
-            break
+        guard vm.mode == .launcher else { return }
+        if let calcResult, selection == 0 {
+            // Error cards no-op — copyCalculatorResult only acts on value payloads.
+            core.copyCalculatorResult(calcResult)
+            return
         }
+        let index = selection - calcCount
+        guard appResults.indices.contains(index) else { return }
+        core.launch(appResults[index], searchQuery: vm.query)
     }
-}
-
-/// Change key for the clipboard list's follow-the-moved-row handler: the newest stored clip (a capture or promote puts a different row there) plus the token an action bumps when it reorders the list (pin/unpin). Deliberately read from the store, not the filtered results, so typing a query never reads as a row that moved.
-private struct ClipFollowKey: Equatable {
-    let id: ClipboardItem.ID?
-    let token: UUID
 }
 
 /// The footer's glass menu circle; hover lives here so a mouse sweep never re-renders the palette body.

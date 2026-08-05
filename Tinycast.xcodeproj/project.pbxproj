@@ -11,6 +11,7 @@
 		0674D8E1567253879EF50150 /* SnippetArgumentsPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F919FBD5F2E0399523AA56 /* SnippetArgumentsPrompt.swift */; };
 		0962E9575CBF40B6F908031C /* UninstallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D08C3AEAFB224866F23C3E /* UninstallView.swift */; };
 		0CAD18A2FE3CE8C5B1C03B2E /* UninstallScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9E18B81A4AA3358DB24FAA /* UninstallScreen.swift */; };
+		0D51C7B6AC7FDC3C50A9F49D /* ClipboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2574CDD57C65CB623FC8F4C7 /* ClipboardScreen.swift */; };
 		0DD808F80666846F4E74BAD8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23591B301A183579098AA019 /* OnboardingView.swift */; };
 		0FBAE98F81ECCE0D7A513EDC /* SystemActionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B78A8741FA55F42BAF5D97F /* SystemActionRunner.swift */; };
 		11C4CC0D767EFD44AB28D6DD /* SearchScopes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA0E1FD530C764A021E6053 /* SearchScopes.swift */; };
@@ -79,6 +80,7 @@
 		72406E09AD9A33B56EA4923D /* CalcParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423CFE8AB90484D0309F24C0 /* CalcParser.swift */; };
 		72ACD144841BF1117CD4E705 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC2DEA0A052116A92F9A539 /* Theme.swift */; };
 		7A2C6032E0DE0346DD10A747 /* DialogRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8745544BFC53B27B0168CA6 /* DialogRequest.swift */; };
+		7CB65E9238B5FC097A84CAAC /* CalculatorHistoryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6117D83A89795049FDCD4B9A /* CalculatorHistoryScreen.swift */; };
 		80F1A591DB0F5385F5C9A06C /* PopoverMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98B7211D27EDF764EC477A0F /* PopoverMenu.swift */; };
 		84096D3843E674F0B12C03D4 /* UninstallSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631D879F03A3A86553E7FFE5 /* UninstallSession.swift */; };
 		854C19458C8A0AE0BD757600 /* EmojiIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F450E10D107C1E30EA2BC6 /* EmojiIndex.swift */; };
@@ -193,6 +195,7 @@
 		1DB0D6E17E2B2D6F2CB47E0D /* HotKeyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyCenter.swift; sourceTree = "<group>"; };
 		23591B301A183579098AA019 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		24F31E587DD4EAA1D7BD39AF /* UninstallProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallProtection.swift; sourceTree = "<group>"; };
+		2574CDD57C65CB623FC8F4C7 /* ClipboardScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardScreen.swift; sourceTree = "<group>"; };
 		25B8A7D8DBB0CE2ACEDB3979 /* CalcUnits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalcUnits.swift; sourceTree = "<group>"; };
 		26CCC54FC861BB11AB24357E /* QuicklinkArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuicklinkArchive.swift; sourceTree = "<group>"; };
 		286B7598B81017C746558C7C /* ShellCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellCommandRunner.swift; sourceTree = "<group>"; };
@@ -244,6 +247,7 @@
 		5D57B0AE44D21035163BD422 /* CommandRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandRegistry.swift; sourceTree = "<group>"; };
 		5E08668A3C8418E2F0970300 /* CurrencyData.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyData.generated.swift; sourceTree = "<group>"; };
 		5F3AA7727C7F5F511E7F1EF1 /* ShortcutRecorderPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderPopover.swift; sourceTree = "<group>"; };
+		6117D83A89795049FDCD4B9A /* CalculatorHistoryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorHistoryScreen.swift; sourceTree = "<group>"; };
 		6185011A02366B30B48B5B6C /* Paster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paster.swift; sourceTree = "<group>"; };
 		6256CC7C3F15BA05A216E820 /* VolumeHUDController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHUDController.swift; sourceTree = "<group>"; };
 		631D879F03A3A86553E7FFE5 /* UninstallSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallSession.swift; sourceTree = "<group>"; };
@@ -351,6 +355,7 @@
 		005F026A8F7D5E209B1CE917 /* Clipboard */ = {
 			isa = PBXGroup;
 			children = (
+				2574CDD57C65CB623FC8F4C7 /* ClipboardScreen.swift */,
 				52ADC36002F1A5B04D61B4D3 /* ClipboardView.swift */,
 			);
 			path = Clipboard;
@@ -486,6 +491,7 @@
 		356F452DB0F8F9834817455B /* Calculator */ = {
 			isa = PBXGroup;
 			children = (
+				6117D83A89795049FDCD4B9A /* CalculatorHistoryScreen.swift */,
 				68BD5E61831CB92150C62E1F /* CalculatorHistoryView.swift */,
 			);
 			path = Calculator;
@@ -832,11 +838,13 @@
 				FC934E5AE6A933F5BC7AC4DD /* CalcQuantity.swift in Sources */,
 				9EC89A6398BD075275FECC9E /* CalcUnits.swift in Sources */,
 				DB04CC2AFEDD69D0676CA1D1 /* CalculatorCardView.swift in Sources */,
+				7CB65E9238B5FC097A84CAAC /* CalculatorHistoryScreen.swift in Sources */,
 				42828BD1C5E4E6E7AA1BF103 /* CalculatorHistoryStore.swift in Sources */,
 				FE6A9C75F87C3495F413E66E /* CalculatorHistoryView.swift in Sources */,
 				E8B6ADBCECD7CA81BC67EE78 /* CalloutPlacement.swift in Sources */,
 				4F8C9F202EE37D39C1AC13EF /* CalloutShape.swift in Sources */,
 				B1B3F5715BE7A092F0CEFA09 /* ClipboardManager.swift in Sources */,
+				0D51C7B6AC7FDC3C50A9F49D /* ClipboardScreen.swift in Sources */,
 				1F39D145DBE2290532C93614 /* ClipboardSettingsView.swift in Sources */,
 				441CF705AE1D03F6E236A61E /* ClipboardStore.swift in Sources */,
 				34E5FF0B3C9FD2FFE504D87A /* ClipboardView.swift in Sources */,

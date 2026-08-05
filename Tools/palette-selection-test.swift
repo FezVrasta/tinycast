@@ -239,6 +239,51 @@ struct PaletteRowIndexTests {
         expect(argumentFreeText.clamped(0) == 0, "selection stays at zero with no choices")
         expect(argumentFreeText.clamped(5) == 0, "a stale selection clamps back to zero")
 
+        // The clipboard screen: a Pinned section above the date buckets, and no calculator card.
+        let clipboard = PaletteRowIndex(sectionCounts: [2, 5, 3])
+        expect(clipboard.count == 10, "the clipboard indexes pinned and dated entries alike")
+        expect(clipboard.row(at: 1), .element(section: 0, offset: 1), "the last pinned entry")
+        expect(
+            clipboard.row(at: 2), .element(section: 1, offset: 0),
+            "the first dated entry follows the Pinned section")
+        expect(
+            clipboard.index(section: 0, offset: 0), 0,
+            "pinning lifts a row to the head of the whole list")
+        expectRoundTrip(clipboard, "clipboard shape")
+
+        // Calculator History: the live answer card, then one section per date bucket.
+        let historyCard = PaletteRowIndex(hasCalculator: true, sectionCounts: [3, 2])
+        expect(historyCard.count == 6, "the card plus five stored entries")
+        expect(historyCard.row(at: 0), .calculator, "a typed calculation leads the history")
+        expect(
+            historyCard.row(at: 1), .element(section: 0, offset: 0),
+            "the newest stored entry follows the card")
+        expect(
+            historyCard.row(at: 4), .element(section: 1, offset: 0),
+            "crossing into the next bucket accounts for the card")
+        expect(historyCard.index(section: 1, offset: 1), 5, "the oldest entry is the last index")
+        expectRoundTrip(historyCard, "history with a card")
+
+        // ⌘⌫ resolves through this index, so only an `.element` is ever a deletion target.
+        for flat in 0..<historyCard.count {
+            expect(
+                (historyCard.row(at: flat) == .calculator) == (flat == 0),
+                "history: index \(flat) is the card only at 0")
+        }
+
+        // Clearing the field drops the card, and index 0 becomes the newest stored entry.
+        let historyNoCard = PaletteRowIndex(sectionCounts: [3, 2])
+        expect(historyNoCard.count == 5, "without a card the stored entries are the whole list")
+        expect(historyNoCard.row(at: 0), .element(section: 0, offset: 0), "the newest entry leads")
+        expectRoundTrip(historyNoCard, "history without a card")
+
+        // A calculation typed with no history yet: the card is the only selectable row.
+        let historyCardOnly = PaletteRowIndex(hasCalculator: true, sectionCounts: [0])
+        expect(historyCardOnly.count == 1, "a card with no stored entries is one row")
+        expect(historyCardOnly.row(at: 0), .calculator, "the card is the whole list")
+        expect(historyCardOnly.row(at: 1), nil, "nothing follows a lone card")
+        expect(historyCardOnly.clamped(4) == 0, "a stale selection clamps back onto the card")
+
         // The emoji grid: sections of 8, 20 and 5 cells over 8 columns, as the picker renders them.
         let emoji = PaletteRowIndex(sectionCounts: [8, 20, 5])
         expect(emoji.count == 33, "the grid indexes every cell of every section")
