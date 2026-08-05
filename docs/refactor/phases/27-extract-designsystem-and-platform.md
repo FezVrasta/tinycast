@@ -102,14 +102,14 @@ XcodeGen derives sources from `sources: - path: Tinycast`, so moves are free at 
    extractions: `AppIndex.swift` / `IconCache.swift` and `Theme.swift` / `KeyCapChip.swift`.
 3. `EdgeDissolve.swift` and `ThinScrollbar.swift` show 100 % similarity — zero content change.
 4. `callout-test` and `snippets-test` command lines updated in `docs/development.md` and `AGENTS.md`.
-5. All 18 harnesses pass.
+5. All 17 harnesses pass.
 6. Debug **and** Release builds succeed.
 7. Zero behaviour change; UI pixel-identical.
 
 ## Manual verification checklist
 
 - [ ] `checklists/build.md` including the **Release build**
-- [ ] `checklists/testing.md` — **all 18 harnesses**, with the updated command lines
+- [ ] `checklists/testing.md` — **all 17 harnesses**, with the updated command lines
 - [ ] `checklists/regression.md` — Core sweep + **Clean install**
 - [ ] `git diff -M --stat` reviewed for similarity percentages
 - [ ] Screenshot the palette (expanded, with results) before and after → pixel-identical
@@ -122,7 +122,7 @@ XcodeGen derives sources from `sources: - path: Tinycast`, so moves are free at 
 
 | Risk                                                            | Mitigation                                                                 |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| A harness command line is missed → red suite                    | AC4/AC5, run all 18                                                        |
+| A harness command line is missed → red suite                    | AC4/AC5, run all 17                                                        |
 | `EdgeDissolve` / `ThinScrollbar` get an "unused import" cleanup | AC3 — 100 % similarity required                                            |
 | `IconCache` extraction changes cache behaviour                  | `git diff` the extracted enum against the original hunk                    |
 | The `.xcodeproj` is not regenerated and CI/local builds diverge | AC6 + running `xcodegen` twice                                             |
@@ -157,7 +157,7 @@ updated in the same commit.
 
 - All acceptance criteria met
 - Similarity percentages verified
-- All 18 harnesses green with updated paths
+- All 17 harnesses green with updated paths
 - Merged
 
 ## Estimated difficulty

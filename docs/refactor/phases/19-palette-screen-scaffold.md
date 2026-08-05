@@ -71,12 +71,12 @@ load-bearing rule in the app and a violation is silent — the highlight is simp
    sections; selection clamped at both ends.
 5. `docs/development.md`, `AGENTS.md` and `checklists/testing.md` all list the new harness.
 6. `RootPaletteView.swift` is byte-identical to before.
-7. All 18 harnesses pass.
+7. All 17 harnesses pass.
 
 ## Manual verification checklist
 
 - [ ] `checklists/build.md`
-- [ ] `checklists/testing.md` — all 18, including the new one
+- [ ] `checklists/testing.md` — all 17, including the new one
 - [ ] `checklists/regression.md` — Core sweep (should be trivially unchanged)
 - [ ] Run `palette-selection-test` and read its output — confirm it actually asserts something
 - [ ] Deliberately break the pure index type in a scratch edit → the harness **fails**. Revert the break.

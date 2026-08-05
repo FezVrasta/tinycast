@@ -36,7 +36,7 @@ xcodebuild build -project Tinycast.xcodeproj -scheme Tinycast -configuration Deb
 grep -rn "AppCore.shared" Tinycast     # exactly 3 results, all listed above
 ```
 
-Run all 18 harnesses.
+Run all 17 harnesses.
 
 **Then run the app and open ALL 14 Settings panes, plus About and Onboarding.** This is the phase where
 "it builds" is worth the least — `@Environment` failures are runtime, per-view, and invisible until that

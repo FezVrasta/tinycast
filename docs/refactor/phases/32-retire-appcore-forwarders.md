@@ -17,6 +17,10 @@ every view talks to — which is exactly the coupling C-1 set out to remove.
 
 Separately, 21 view files reach `AppCore.shared` despite `AppCore` already being in the environment.
 
+AC5's ~250 lines is reachable only as the last of three subtractions, and this is where the arithmetic
+lands: 746 after phase 25, −195 in 25b, −99 when phase 28 extracts the three palette types, −~180 of
+forwarders here.
+
 ## Architecture Review reference
 
 **§2.3** · **C-1** · Roadmap W7.3
@@ -31,7 +35,7 @@ Separately, 21 view files reach `AppCore.shared` despite `AppCore` already being
 
 | File                                                  | Change                                                                            |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `App/AppCore.swift`                                   | Delete the ~25 forwarders.                                                        |
+| `App/AppCore.swift`                                   | Delete the ~40 forwarders (25 from phases 24–25, ~15 more from 25b).              |
 | `Palette/RootPaletteView.swift`                       | Call coordinators; drop `AppCore.shared`.                                         |
 | Every `Features/*/UI/*Screen.swift`                   | Same.                                                                             |
 | `Features/*/Settings/*SettingsView.swift` (~10 files) | `@ObservedObject … = AppCore.shared.settings` → `@Environment(AppSettings.self)`. |
@@ -80,7 +84,7 @@ Separately, 21 view files reach `AppCore.shared` despite `AppCore` already being
 ## Manual verification checklist
 
 - [ ] `checklists/build.md`
-- [ ] `checklists/testing.md` — all 18
+- [ ] `checklists/testing.md` — all 17
 - [ ] `checklists/regression.md` — **the full document**
 - [ ] **Open every one of the 14 Settings panes.** A missing environment injection crashes on the pane
       that needs it, and only that pane
@@ -125,7 +129,11 @@ environment.
 
 ## Dependencies
 
-**Phases 25 and 29 (hard).**
+**Phases 25b and 29 (hard).**
+
+25b, not 25. This phase points every call site at its owning coordinator, which requires one to exist —
+and phases 24–25 left the launcher, clipboard, emoji and calculator actions on `AppCore` with no owner.
+Without 25b those call sites have nothing to be pointed at, and objective 1 is unachievable for them.
 
 ## Definition of Done
 

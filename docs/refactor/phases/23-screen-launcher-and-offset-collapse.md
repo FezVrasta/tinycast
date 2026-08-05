@@ -92,7 +92,7 @@ Custom Commands, Commands`. Copy it verbatim. **Do not** re-derive it, sort it, 
 
 - [ ] `checklists/build.md` — **including the Release build** (type-checker budget: `LauncherList.rows`
       already carries an annotation because inference times out)
-- [ ] `checklists/testing.md` — **all 18 harnesses**
+- [ ] `checklists/testing.md` — **all 17 harnesses**
 - [ ] `checklists/regression.md` — **the full document, every section**
 - [ ] Empty-query launcher, fully scrolled → screenshot matches the pre-phase screenshot section for
       section, row for row
@@ -155,7 +155,7 @@ Section order is copied verbatim — it must match AppIndex's slice order.
 - **All four ↑/↓ walks completed slowly and by hand**
 - Screenshot comparison attached to the progress file
 - Release build clean
-- All 18 harnesses green
+- All 17 harnesses green
 - Full regression document walked
 - Merged
 

@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 enum PaletteMode: String, CaseIterable, Identifiable {
     case launcher
@@ -144,10 +143,22 @@ final class AppCore {
         clipboardHistory: { [unowned self] in self.snippetExpansion.clipboardHistoryForExpansion() },
         core: self)
 
+    @ObservationIgnored private(set) lazy var paletteCoordinator = PaletteCoordinator(
+        palette: palette, settings: settings, appIndex: appIndex,
+        windowController: windowController, core: self)
+    @ObservationIgnored private(set) lazy var systemActionCoordinator = SystemActionCoordinator(
+        paletteCoordinator: paletteCoordinator, core: self)
+    @ObservationIgnored private(set) lazy var uninstallCoordinator = UninstallCoordinator(
+        session: uninstall, palette: palette, paletteCoordinator: paletteCoordinator,
+        appIndex: appIndex, runningApps: runningApps, hotKeys: hotKeys, favorites: favorites,
+        visibility: visibility, ranking: launcherRanking, core: self)
+    @ObservationIgnored private(set) lazy var customCommandCoordinator = CustomCommandCoordinator(
+        store: customCommands, settings: settings, appIndex: appIndex,
+        paletteCoordinator: paletteCoordinator, hotKeys: hotKeys, favorites: favorites,
+        visibility: visibility, ranking: launcherRanking, core: self)
+
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
-    private let volumeHUD = VolumeHUDController()
-    private let auxWindows = AuxWindowController()
     /// Every confirmation, failure report and value prompt in the app; it also guards against a held hotkey stacking dialogs.
     private let dialogs = DialogController()
     private let healthTicker = HealthTicker()
@@ -181,9 +192,9 @@ final class AppCore {
 
             appIndex.start(settings: settings)
             customCommands.onChange = { [weak self] _ in
-                self?.applyCustomCommandsPresence()
+                self?.customCommandCoordinator.applyCustomCommandsPresence()
             }
-            applyCustomCommandsPresence()
+            customCommandCoordinator.applyCustomCommandsPresence()
             applyWindowCommandsPresence()
             quicklinks.onChange = { [weak self] _ in
                 self?.quicklinkCoordinator.applyQuicklinksPresence()
@@ -201,11 +212,15 @@ final class AppCore {
             hotKeys.doubleTapMonitor.healthTicker = healthTicker
             snippetListener.healthTicker = healthTicker
 
-            hotKeys.onTogglePalette = { [weak self] in self?.togglePalette() }
-            hotKeys.onToggleClipboard = { [weak self] in self?.toggleClipboard() }
-            hotKeys.onToggleEmoji = { [weak self] in self?.toggleEmoji() }
-            hotKeys.onRunCustomCommand = { [weak self] id in self?.runCustomCommand(id: id) }
-            hotKeys.onRunSystemAction = { [weak self] id in self?.runSystemAction(id: id) }
+            hotKeys.onTogglePalette = { [weak self] in self?.paletteCoordinator.togglePalette() }
+            hotKeys.onToggleClipboard = { [weak self] in self?.paletteCoordinator.toggleClipboard() }
+            hotKeys.onToggleEmoji = { [weak self] in self?.paletteCoordinator.toggleEmoji() }
+            hotKeys.onRunCustomCommand = { [weak self] id in
+                self?.customCommandCoordinator.runCustomCommand(id: id)
+            }
+            hotKeys.onRunSystemAction = { [weak self] id in
+                self?.systemActionCoordinator.runSystemAction(id: id)
+            }
             hotKeys.onRunWindowCommand = { [weak self] id in self?.runWindowCommand(id: id) }
             hotKeys.onOpenQuicklink = { [weak self] id in
                 self?.quicklinkCoordinator.openQuicklink(id: id)
@@ -255,7 +270,7 @@ final class AppCore {
         track({
             _ = $0.customCommandsEnabled
             _ = $0.customCommandsShowInLauncher
-        }, reproject: { $0.applyCustomCommandsPresence() })
+        }, reproject: { $0.customCommandCoordinator.applyCustomCommandsPresence() })
         track({
             _ = $0.quicklinksEnabled
             _ = $0.quicklinksShowInLauncher
@@ -282,11 +297,6 @@ final class AppCore {
         }
     }
 
-    private func applyCustomCommandsPresence() {
-        let visible = settings.customCommandsEnabled && settings.customCommandsShowInLauncher
-        appIndex.setCustomCommands(visible ? customCommands.commands : [])
-    }
-
     private func applyWindowCommandsPresence() {
         let visible = settings.windowManagementEnabled && settings.windowManagementShowInLauncher
         appIndex.setWindowCommandsVisible(visible)
@@ -295,109 +305,57 @@ final class AppCore {
     // MARK: - Palette control
 
     func togglePalette() {
-        if windowController.isVisible, palette.mode == .launcher {
-            hidePalette()
-        } else {
-            showPalette(mode: .launcher, restoreAnyMode: true)
-        }
+        paletteCoordinator.togglePalette()
     }
 
     func toggleClipboard() {
-        if windowController.isVisible, palette.mode == .clipboard {
-            hidePalette()
-        } else {
-            showPalette(mode: .clipboard)
-        }
+        paletteCoordinator.toggleClipboard()
     }
 
     func toggleEmoji() {
-        if windowController.isVisible, palette.mode == .emoji {
-            hidePalette()
-        } else {
-            showPalette(mode: .emoji)
-        }
+        paletteCoordinator.toggleEmoji()
     }
 
-    /// Shows the palette, honoring Pop to Root Search: a reopen within the timeout restores the pre-close state — any mode for the generic summon (`restoreAnyMode`), else only when the preserved mode already matches the requested one.
     func showPalette(mode: PaletteMode, restoreAnyMode: Bool = false) {
-        let preserved = windowController.consumePreservedState()
-        if !(preserved && (restoreAnyMode || palette.mode == mode)) {
-            palette.prepare(mode: mode)
-        }
-        windowController.show()
-        // Re-scan on open so an app uninstalled since the last scan drops out of the launcher.
-        if palette.mode == .launcher { Task { await appIndex.refresh() } }
+        paletteCoordinator.showPalette(mode: mode, restoreAnyMode: restoreAnyMode)
     }
 
     func hidePalette(restoreFocus: Bool = true) {
-        windowController.hide(restoreFocus: restoreFocus)
+        paletteCoordinator.hidePalette(restoreFocus: restoreFocus)
     }
 
-    /// True when the palette should render as the slim compact bar: compact mode on, launcher root, empty query, and not force-expanded via the "…" overflow.
-    var paletteIsCollapsed: Bool {
-        settings.compactMode
-            && !palette.forceExpanded
-            && palette.mode == .launcher
-            && palette.query.trimmingCharacters(in: .whitespaces).isEmpty
-    }
+    var paletteIsCollapsed: Bool { paletteCoordinator.paletteIsCollapsed }
 
-    /// The compact bar's "…" overflow: expand into the full favorites-pinned launcher without typing.
     func expandFromCompact() {
-        palette.forceExpanded = true
+        paletteCoordinator.expandFromCompact()
     }
 
-    /// Resize the panel to match the current collapsed state; called by the view when `paletteIsCollapsed` flips while open.
     func syncPaletteSize() {
-        windowController.applyCollapsed(paletteIsCollapsed)
+        paletteCoordinator.syncPaletteSize()
     }
 
-    /// Dock-icon / reopen: focus an open aux window (About/Settings/Onboarding), else summon the launcher. Decoupled from the individual show paths so activation always works.
     func handleReopen() {
-        if auxWindows.focusExisting() { return }
-        showPalette(mode: .launcher, restoreAnyMode: true)
+        paletteCoordinator.handleReopen()
     }
 
-    /// Settings runs in its own window (the SwiftUI `Settings` scene is unreliable for accessory apps). A fresh window mounts directly on `tab` (no first-frame flicker); an already-open one is switched in place.
     func showSettings(tab: SettingsTab = .general) {
-        let isNew = auxWindows.show(
-            id: "settings", title: "Settings", size: CGSize(width: 720, height: 550),
-            seamlessTitleBar: true
-        ) {
-            SettingsRootView(initialTab: tab)
-                .environment(self)
-                .environment(self.appIndex)
-                .environment(self.visibility)
-                .environment(self.customCommands)
-                .environment(self.snippetsStore)
-                .environment(self.quicklinks)
-        }
-        if !isNew {
-            NotificationCenter.default.post(name: .tinycastSelectSettingsTab, object: tab)
-        }
+        paletteCoordinator.showSettings(tab: tab)
     }
 
     func showBackupSettings() {
-        showSettings(tab: .backup)
+        paletteCoordinator.showBackupSettings()
     }
 
     func showAbout() {
-        showSettings(tab: .about)
+        paletteCoordinator.showAbout()
     }
 
-    /// The first-run wizard: palette shortcut, Accessibility, Raycast import. Also re-runnable from Settings.
     func showOnboarding() {
-        auxWindows.show(
-            id: "onboarding", title: "Welcome to Tinycast",
-            size: OnboardingView.windowSize, seamlessTitleBar: true
-        ) {
-            OnboardingView()
-        }
+        paletteCoordinator.showOnboarding()
     }
 
-    /// Final onboarding step: close the wizard and drop straight into the launcher.
     func finishOnboarding() {
-        auxWindows.close(id: "onboarding")
-        showPalette(mode: .launcher)
+        paletteCoordinator.finishOnboarding()
     }
 
     // MARK: - Actions invoked from the palette UI
@@ -464,10 +422,8 @@ final class AppCore {
     /// is the one they want to keep working in.
     func runWindowCommand(id: WindowCommand.ID) {
         guard settings.windowManagementEnabled else { return }
-        let target =
-            windowController.isVisible
-            ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
-        if windowController.isVisible { hidePalette(restoreFocus: true) }
+        let target = paletteCoordinator.targetApp
+        if paletteCoordinator.isVisible { hidePalette(restoreFocus: true) }
         windowMover.perform(
             id, target: target, gap: CGFloat(settings.windowGap),
             cycleOnRepeat: settings.windowCycleOnRepeat)
@@ -475,62 +431,9 @@ final class AppCore {
 
     // MARK: - System actions
 
-    /// The one funnel for both palette activation and an action's global hotkey, so the confirmation
-    /// gate can't be bypassed by either — nor by a favorite slot or the compact bar.
-    ///
-    /// Some actions target the app the user was in (Hide Others, Quit All), so the palette hands back the
-    /// app it displaced; a hotkey pressed with the palette closed targets whatever is frontmost.
     func runSystemAction(id: SystemAction.ID) {
-        let target =
-            windowController.isVisible
-            ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
-        if windowController.isVisible { hidePalette(restoreFocus: false) }
-        Task { await perform(SystemActionCatalog.action(id: id), previousApp: target) }
+        systemActionCoordinator.runSystemAction(id: id)
     }
-
-    private func perform(_ action: SystemAction, previousApp: NSRunningApplication?) async {
-        switch action.confirmation {
-        case .computed:
-            await quitAllApps()
-            return
-        case .required(let title, let message):
-            guard
-                await confirm(
-                    title: title, message: message, symbol: action.sfSymbol,
-                    confirmTitle: action.name)
-            else { return }
-        case .none:
-            break
-        }
-        do {
-            var feedback: SystemActionFeedback?
-            if action.id == .setVolume {
-                let current = try SystemActionRunner.currentVolume()
-                guard let selected = await dialogs.pickVolume(current: current) else { return }
-                try SystemActionRunner.setVolume(selected)
-            } else {
-                feedback = try await SystemActionRunner.run(action.id, previousApp: previousApp)
-            }
-            if Self.showsVolumeFeedback.contains(action.id) {
-                let state = try SystemActionRunner.outputState()
-                volumeHUD.show(level: state.level, muted: state.muted)
-            } else if let feedback {
-                messageHUD.show(
-                    message: feedback.title, tone: feedback.isNoOp ? .neutral : .success)
-            }
-        } catch let failure as SystemActionFailure {
-            await presentFailure(action: action, failure: failure)
-        } catch {
-            await presentFailure(
-                action: action, failure: SystemActionFailure(error.localizedDescription))
-        }
-    }
-
-    /// Actions that change the output level or mute state; macOS only draws its own HUD for real media keys, so these get Tinycast's.
-    private static let showsVolumeFeedback: Set<SystemAction.ID> = [
-        .setVolume, .volumeUp, .volumeDown, .toggleMute,
-        .volume0, .volume25, .volume50, .volume75, .volume100
-    ]
 
     // MARK: - Dialogs
     //
@@ -565,28 +468,13 @@ final class AppCore {
         messageHUD.show(message: message, tone: tone)
     }
 
-    /// Sync entry point for the runner's own async completion handlers, which can't await.
-    func presentSystemActionFailure(id: SystemAction.ID, failure: SystemActionFailure) {
-        Task { await presentFailure(action: SystemActionCatalog.action(id: id), failure: failure) }
+    /// The volume slider, so `dialogs` stays the single owner of every prompt in the app.
+    func pickVolume(current: Float32) async -> Float32? {
+        await dialogs.pickVolume(current: current)
     }
 
-    private func presentFailure(action: SystemAction, failure: SystemActionFailure) async {
-        guard
-            await dialogs.reportFailure(
-                title: "“\(action.name)” Failed", message: failure.message,
-                symbol: action.sfSymbol,
-                recovery: failure.settings == nil ? nil : "Open System Settings…"),
-            let settings = failure.settings
-        else { return }
-        let pane: String
-        switch settings {
-        case .accessibility: pane = "Privacy_Accessibility"
-        case .automation: pane = "Privacy_Automation"
-        case .bluetooth: pane = "Privacy_Bluetooth"
-        }
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
-            NSWorkspace.shared.open(url)
-        }
+    func presentSystemActionFailure(id: SystemAction.ID, failure: SystemActionFailure) {
+        systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
     }
 
     // MARK: - Quicklinks
@@ -650,101 +538,24 @@ final class AppCore {
 
     @discardableResult
     func addCustomCommand(_ draft: CustomCommand) throws -> CustomCommand {
-        try customCommands.add(draft)
+        try customCommandCoordinator.addCustomCommand(draft)
     }
 
     func updateCustomCommand(_ draft: CustomCommand) throws {
-        try customCommands.update(draft)
+        try customCommandCoordinator.updateCustomCommand(draft)
     }
 
     func deleteCustomCommand(id: UUID) {
-        guard let command = customCommands.command(id: id) else { return }
-        removeCustomCommandReferences(ids: [id], entryIDs: [command.entryID])
-        customCommands.remove(id: id)
+        customCommandCoordinator.deleteCustomCommand(id: id)
     }
 
     @discardableResult
     func replaceCustomCommands(_ commands: [CustomCommand]) -> Int {
-        let previous = Dictionary(uniqueKeysWithValues: customCommands.commands.map { ($0.id, $0) })
-        let count = customCommands.replace(with: commands)
-        let liveIDs = Set(customCommands.commands.map(\.id))
-        let removed = Set(previous.keys).subtracting(liveIDs)
-        let removedEntryIDs = Set(removed.compactMap { previous[$0]?.entryID })
-        removeCustomCommandReferences(ids: removed, entryIDs: removedEntryIDs)
-        return count
+        customCommandCoordinator.replaceCustomCommands(commands)
     }
 
-    /// The one funnel for both palette activation and the command's global hotkey, so the confirmation gate can't be bypassed by either.
     func runCustomCommand(id: UUID) {
-        // Also the feature switch: with custom commands off a still-registered global hotkey must not run anything.
-        guard settings.customCommandsEnabled else { return }
-        guard let command = customCommands.command(id: id) else { return }
-        if windowController.isVisible { hidePalette(restoreFocus: false) }
-        Task {
-            if command.requiresConfirmation {
-                guard
-                    // Neutral, not destructive: running a shell command the user wrote themselves is
-                    // not a warning, it just wants a deliberate second tap.
-                    await confirm(
-                        title: command.name,
-                        message: "Are you sure you want to run this command?\n\n\(command.command)",
-                        symbol: CustomCommand.sfSymbol, confirmTitle: "Run",
-                        tone: .neutral, confirmRole: .standard)
-                else { return }
-            }
-            let outcome = await ShellCommandRunner.run(
-                command.command, loadingShellEnvironment: command.loadsShellEnvironment)
-            guard outcome != .success else {
-                // Fires when the command finishes, not when it starts, so a slow one confirms late rather than lying early.
-                if command.showsConfirmation {
-                    self.messageHUD.show(message: "Ran \(command.name)")
-                }
-                return
-            }
-            await presentCustomCommandFailure(command: command, outcome: outcome)
-        }
-    }
-
-    private func removeCustomCommandReferences(ids: Set<UUID>, entryIDs: Set<String>) {
-        for id in ids {
-            let action = HotKeyAction.customCommand(id: id)
-            if hotKeys.recordingAction == action { hotKeys.recordingAction = nil }
-            hotKeys.setBinding(nil, for: action)
-        }
-        favorites.remove(keys: entryIDs)
-        visibility.removeItemKeys(entryIDs)
-        for entryID in entryIDs {
-            launcherRanking.reset(itemKey: entryID)
-        }
-    }
-
-    private func presentCustomCommandFailure(
-        command: CustomCommand, outcome: ShellCommandOutcome
-    ) async {
-        let message: String
-        // `127` is the shell's "command not found", so an alias or function that only exists in the user's config lands here.
-        var suggestsShellEnvironment = false
-        switch outcome {
-        case .success:
-            return
-        case .launchFailure(let detail):
-            message = "The shell could not be started.\n\n\(detail)"
-        case .nonZeroExit(let status, let stderr):
-            suggestsShellEnvironment = status == 127 && !command.loadsShellEnvironment
-            message =
-                "The command exited with status \(status)."
-                + (stderr.map { "\n\n" + $0 } ?? "")
-                + (suggestsShellEnvironment
-                    ? "\n\nIf this is a shell alias or function, turn on Load Shell Environment for "
-                        + "this command." : "")
-        }
-        guard
-            await dialogs.reportFailure(
-                title: "“\(command.name)” Failed", message: message,
-                symbol: CustomCommand.sfSymbol,
-                recovery: suggestsShellEnvironment ? "Open Settings…" : nil)
-        else { return }
-        showSettings(tab: .commands)
+        customCommandCoordinator.runCustomCommand(id: id)
     }
 
     /// Quits the app behind an entry; a no-op (palette stays put) when it isn't running.
@@ -758,110 +569,24 @@ final class AppCore {
 
     // MARK: - Uninstall
 
-    /// The palette is already up when this runs, so it swaps the sub-screen in place rather than re-showing the window.
     func beginUninstall(_ app: AppEntry) {
-        guard app.kind == .application else { return }
-        // What stops a name or a shared bundle-ID namespace being misattributed; see `UninstallIdentity`.
-        let others = appIndex.apps.filter { $0.kind == .application && $0.id != app.id }
-        uninstall.begin(
-            app: app, otherAppNames: others.map(\.name),
-            otherBundleIDs: others.compactMap(\.bundleID), isRunning: runningApps.isRunning(app))
-        palette.prepare(mode: .uninstall)
+        uninstallCoordinator.beginUninstall(app)
     }
 
-    /// The one funnel for the screen's ↵ and its Actions row, so neither can skip the confirmation.
     func performUninstall() {
-        guard let app = uninstall.app, let plan = uninstall.plan, uninstall.canConfirm else { return }
-        let items = uninstall.selectedCandidates
-        guard !items.isEmpty else { return }
-        Task {
-            let running = plan.isTargetRunning || runningApps.isRunning(app)
-            let size = MeasuredSize(bytes: items.reduce(0) { $0 + $1.size.bytes }).formatted
-            let count = items.count == 1 ? "1 item" : "\(items.count) items"
-            guard
-                await confirm(
-                    title: "Uninstall “\(app.name)”?",
-                    message: "\(count) (\(size)) will be moved to the Trash, where you can put them "
-                        + "back." + (running ? " \(app.name) will quit first." : ""),
-                    symbol: "trash", confirmTitle: "Move to Trash")
-            else { return }
-
-            if running, let bundleID = app.bundleID { _ = AppLauncher.quit(bundleID: bundleID) }
-            uninstall.setTrashing(true)
-            let report = await UninstallRunner.moveToTrash(items)
-            uninstall.setTrashing(false)
-
-            if report.removedBundle {
-                removeUninstalledReferences(app)
-                await appIndex.refresh()
-            }
-            palette.prepare(mode: .launcher)
-            await presentUninstallReport(report)
-        }
+        uninstallCoordinator.performUninstall()
     }
 
-    /// Stays on the screen: losing a whole scan to copy one path is a poor trade.
     func copyUninstallPath(_ candidate: UninstallCandidate) {
-        Paster.copyPlainText(candidate.path)
-        messageHUD.show(message: "Copied path")
+        uninstallCoordinator.copyUninstallPath(candidate)
     }
 
     func showUninstallItemInFinder(_ candidate: UninstallCandidate) {
-        hidePalette(restoreFocus: false)
-        AppLauncher.showInFinder(candidate.url)
+        uninstallCoordinator.showUninstallItemInFinder(candidate)
     }
 
     func showUninstallItemInfo(_ candidate: UninstallCandidate) {
-        hidePalette(restoreFocus: false)
-        Task {
-            guard !AppLauncher.showInfoInFinder(candidate.url) else { return }
-            await showNotice(
-                title: "Couldn’t Open Get Info",
-                message: "Allow Tinycast to control Finder in System Settings › Privacy & Security "
-                    + "› Automation, then try again.",
-                symbol: "info.circle", tone: .danger)
-        }
-    }
-
-    private func removeUninstalledReferences(_ app: AppEntry) {
-        if let action = app.hotKeyAction {
-            if hotKeys.recordingAction == action { hotKeys.recordingAction = nil }
-            hotKeys.setBinding(nil, for: action)
-        }
-        favorites.remove(keys: [app.preferenceKey])
-        visibility.removeItemKeys([app.preferenceKey])
-        launcherRanking.reset(itemKey: app.preferenceKey)
-    }
-
-    private func presentUninstallReport(_ report: UninstallReport) async {
-        guard report.hasFailures else {
-            guard report.trashedCount > 0 else { return }
-            let count = report.trashedCount == 1 ? "1 item" : "\(report.trashedCount) items"
-            let freed = MeasuredSize(bytes: report.freedBytes).formatted
-            messageHUD.show(message: "Moved \(count) to the Trash · \(freed)")
-            return
-        }
-        let listed = report.failed.prefix(5).map { "\($0.name) — \($0.reason)" }
-        let remaining = report.failed.count - listed.count
-        await showNotice(
-            title: report.trashedCount > 0 ? "Some Items Weren’t Moved" : "Nothing Was Moved",
-            message: listed.joined(separator: "\n")
-                + (remaining > 0 ? "\nand \(remaining) more." : ""),
-            symbol: "trash", tone: .danger)
-    }
-
-    /// Quit All: the one action whose blast radius reaches outside Tinycast, so it confirms first. The target list is resolved once and both counted and terminated, so the set the user approves is the set that quits.
-    private func quitAllApps() async {
-        let targets = AppLauncher.quitAllTargets()
-        guard !targets.isEmpty,
-            await confirm(
-                title: targets.count == 1
-                    ? "Quit 1 application?" : "Quit \(targets.count) applications?",
-                message: "Applications with unsaved changes will ask you to save.",
-                symbol: SystemActionCatalog.action(id: .quitAllApps).sfSymbol,
-                confirmTitle: "Quit All")
-        else { return }
-        for app in targets { app.terminate() }
+        uninstallCoordinator.showUninstallItemInfo(candidate)
     }
 
     private func runCommand(_ entry: AppEntry) {

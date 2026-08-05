@@ -27,7 +27,7 @@ Pure moves, plus three extractions:
   a HUD reports, and `AGENTS.md` says a new HUD means a new presenter, not a second shape on an existing
   controller.
 - Do not reorganise `Features/` — phase 29.
-- Verify no harness references a file moving in this phase before assuming it, then confirm all 18 pass.
+- Verify no harness references a file moving in this phase before assuming it, then confirm all 17 pass.
 
 ## Verify before you summarise
 
@@ -39,7 +39,7 @@ git diff -M --stat
 xcodegen generate      # twice; stable
 ```
 
-Run all 18 harnesses.
+Run all 17 harnesses.
 
 **Then run the app**: open Settings **from the menu bar** specifically, and confirm the window is key
 (you can type in it immediately). Close the last aux window and confirm the Dock icon disappears.

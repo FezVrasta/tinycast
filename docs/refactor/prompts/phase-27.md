@@ -43,7 +43,7 @@ git diff -M --stat      # every move should read 100%, except AppIndex.swift and
 xcodegen generate       # run twice; the second must produce no further diff
 ```
 
-Run **all 18** harnesses using the **updated** command lines, copy-pasted fresh from
+Run **all 17** harnesses using the **updated** command lines, copy-pasted fresh from
 `docs/development.md`.
 
 ## Summarise

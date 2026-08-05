@@ -89,13 +89,13 @@ Every file referencing a renamed type — roughly 20 — plus `AGENTS.md`.
    consumer moved with it. Verified by the changed-literal grep, not by assumption.
 4. `AGENTS.md` contains the ten-suffix table plus the three documented exceptions
    (`Launcher`, `Repository`, and the domain terms).
-5. All 18 harnesses pass.
+5. All 17 harnesses pass.
 6. Zero behaviour change on a clean install.
 
 ## Manual verification checklist
 
 - [ ] `checklists/build.md`
-- [ ] `checklists/testing.md` — all 18
+- [ ] `checklists/testing.md` — all 17
 - [ ] `checklists/regression.md` — Core sweep + **Clipboard** + **Hotkeys** + **Clean install**
 - [ ] **Wipe the Dev channel, launch, and use the app properly for five minutes**
 - [ ] Copy something → it is captured
@@ -112,7 +112,7 @@ Every file referencing a renamed type — roughly 20 — plus `AGENTS.md`.
 | **A persisted key is renamed on one side only** — the writer moves, the reader does not. Now the real risk, since renaming itself is allowed. | AC3 + the changed-literal grep, read line by line            |
 | The pasteboard marker changes in the writer but not the poller → Tinycast re-captures its own pastes in a loop                                | The paste-then-check test                                    |
 | `SettingsKey.showInMenuBar` moves in `AppSettings` but not in `TinycastApp`'s `@AppStorage` → the menu-bar toggle silently stops working      | Toggle it and watch the icon                                 |
-| A rename lands in a `Tools/` harness assertion string                                                                                         | All 18 harnesses                                             |
+| A rename lands in a `Tools/` harness assertion string                                                                                         | All 17 harnesses                                             |
 | A Raycast field name is renamed → import breaks against a real export                                                                         | `RaycastImport*` on the must-not-change list; `raycast-test` |
 
 ## Rollback strategy

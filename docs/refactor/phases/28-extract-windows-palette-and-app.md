@@ -73,7 +73,7 @@ file for one of the three windows it serves.
 - `AboutView.swift` keeps `AboutLink` and `AboutLinkRow` — only `AuxWindowController` leaves it.
 - `AppCore.swift` moves to `App/` and loses three types to `Palette/`. Nothing else about it changes.
 - No harness references any file in this phase — verify that claim before assuming it, then confirm all
-  18 still pass.
+  17 still pass.
 - Do not reorganise `Features/` — phase 29.
 - Do not merge `Windows/Dialog/` and `Windows/HUD/`. They are deliberately separate: a dialog asks, a
   HUD reports, and `AGENTS.md` says a new HUD means a new presenter rather than a second shape on an
@@ -87,13 +87,13 @@ file for one of the three windows it serves.
 4. `PaletteViewModel`, `PaletteMode` and `PasteTarget` are out of `AppCore.swift`; `AppCore.swift` is
    correspondingly shorter.
 5. `PaletteWindowController` contents are byte-identical.
-6. All 18 harnesses pass; no command line changed.
+6. All 17 harnesses pass; no command line changed.
 7. Debug and Release builds succeed; UI pixel-identical.
 
 ## Manual verification checklist
 
 - [ ] `checklists/build.md` including the **Release build**
-- [ ] `checklists/testing.md` — all 18
+- [ ] `checklists/testing.md` — all 17
 - [ ] `checklists/regression.md` — Core sweep + **Settings & backup** + **System actions**
 - [ ] Open Settings, About and Onboarding → each window appears, is key, and is centred
 - [ ] Close the last aux window → the Dock icon disappears (activation policy returns to `.accessory`)
@@ -140,7 +140,7 @@ palette state types extracted from AppCore. Contents unchanged.
 
 - All acceptance criteria met
 - The three aux windows verified individually
-- All 18 harnesses green
+- All 17 harnesses green
 - Merged
 
 ## Estimated difficulty

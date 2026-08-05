@@ -38,7 +38,7 @@ xcodebuild build -project Tinycast.xcodeproj -scheme Tinycast -configuration Deb
 git diff --name-only | grep RootPaletteView    # must be empty
 ```
 
-Run all 18 harnesses including the new one.
+Run all 17 harnesses including the new one.
 
 **Then prove the harness can fail:** deliberately break the pure index type, run it, confirm it fails,
 and revert the break. A test that cannot fail is not a test, and phases 20–23 will be relying on it.

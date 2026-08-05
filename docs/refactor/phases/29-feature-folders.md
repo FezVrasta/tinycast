@@ -33,10 +33,10 @@ removed the shared-file slices; this one co-locates what remains.
 
 | Feature              | Model (pure)                                                                             | Service (effects)                                                                                                             | UI                                                                                           | Settings                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Launcher**         | `AppEntry`, `SearchRelevance`, `SearchScopes`, `LauncherRankingStore`, `CommandRegistry` | `AppIndex`, `AppLauncher`, `SpotlightNames`, `SettingsPaneScanner`, `FavoritesStore`, `VisibilityStore`, `RunningAppsMonitor` | `LauncherScreen`, `LauncherList`, `SectionHeader`, `AppRow`, `AppIconView`, `AppActionsMenu` | `ApplicationsSettingsView`, `SystemSettingsSettingsView`, `LauncherItemsCard`, `SearchScopesCard` |
-| **Clipboard**        | `ClipboardStore`                                                                         | `ClipboardManager`, `Paster`                                                                                                  | `ClipboardScreen`, `ClipboardList`, `ClipboardPreview`, `ClipboardActionsMenu`               | `ClipboardSettingsView`, `AppPickerPopover`                                                       |
-| **Calculator**       | `Calculator/*`, `CurrencyData.generated`                                                 | `CurrencyRateStore`, `CalculatorHistoryStore`                                                                                 | `CalculatorHistoryScreen`, `CalculatorCardView`                                              | `MiscellaneousSettingsView` — see below                                                           |
-| **Emoji**            | `EmojiCatalog`, `EmojiGridGeometry`, `EmojiData.generated`                               | `EmojiIndex`, `FrequentEmojiStore`                                                                                            | `EmojiScreen`                                                                                | `EmojiSettingsView`                                                                               |
+| **Launcher**         | `AppEntry`, `SearchRelevance`, `SearchScopes`, `LauncherRankingStore`, `CommandRegistry` | `AppIndex`, `AppLauncher`, `SpotlightNames`, `SettingsPaneScanner`, `FavoritesStore`, `VisibilityStore`, `RunningAppsMonitor` | `LauncherCoordinator`, `LauncherScreen`, `LauncherList`, `SectionHeader`, `AppRow`, `AppIconView`, `AppActionsMenu` | `ApplicationsSettingsView`, `SystemSettingsSettingsView`, `LauncherItemsCard`, `SearchScopesCard` |
+| **Clipboard**        | `ClipboardStore`                                                                         | `ClipboardManager`, `Paster`                                                                                                  | `ClipboardCoordinator`, `ClipboardScreen`, `ClipboardList`, `ClipboardPreview`, `ClipboardActionsMenu`               | `ClipboardSettingsView`, `AppPickerPopover`                                                       |
+| **Calculator**       | `Calculator/*`, `CurrencyData.generated`                                                 | `CurrencyRateStore`, `CalculatorHistoryStore`                                                                                 | `CalculatorCoordinator`, `CalculatorHistoryScreen`, `CalculatorCardView`                                              | `MiscellaneousSettingsView` — see below                                                           |
+| **Emoji**            | `EmojiCatalog`, `EmojiGridGeometry`, `EmojiData.generated`                               | `EmojiIndex`, `FrequentEmojiStore`                                                                                            | `EmojiCoordinator`, `EmojiScreen`                                                                                | `EmojiSettingsView`                                                                               |
 | **Quicklinks**       | `Quicklink`, `QuicklinkDestination`, `QuicklinkStore`, `QuicklinkArchive`                | `QuicklinkLauncher`, `QuicklinkArgumentSession`                                                                               | screens + `QuicklinkCoordinator`                                                             | `QuicklinksSettingsView`, `QuicklinkEditorSheet`                                                  |
 | **Snippets**         | `Snippets/*` pure                                                                        | `SnippetTextInjector`, `SnippetKeywordListener`                                                                               | `SnippetArgumentsPrompt` + coordinator                                                       | `SnippetsSettingsView`                                                                            |
 | **WindowManagement** | `WindowCommand`, `WindowLayout`, `WindowActionMemory`                                    | `WindowMover`                                                                                                                 | —                                                                                            | `WindowManagementSettingsView`                                                                    |
@@ -123,8 +123,8 @@ for it. That is what keeps `Features/` navigable at fifty features instead of th
 2. `git diff -M --stat` shows 100 % similarity for every move. The three split files are the only
    exception, and for those the **concatenation** of the new files must equal the old file's
    declarations exactly — verify with `git show HEAD~1:<old path>` and a diff of the sorted bodies.
-3. All 18 harness command lines updated in all three places (`docs/development.md`, `AGENTS.md`,
-   `checklists/testing.md`) and all 18 pass.
+3. All 17 harness command lines updated in all three places (`docs/development.md`, `AGENTS.md`,
+   `checklists/testing.md`) and all 17 pass.
 4. Every file path referenced in `AGENTS.md`'s Critical Invariants section is correct.
 5. `Settings/` contains exactly `SettingsRootView.swift`, `SettingsTab.swift`, `AppSettings.swift` and
    `Panes/` — and `Panes/` contains exactly `GeneralSettingsView.swift` and
@@ -139,7 +139,7 @@ for it. That is what keeps `Features/` navigable at fifty features instead of th
 ## Manual verification checklist
 
 - [ ] `checklists/build.md` including the **Release build**
-- [ ] `checklists/testing.md` — **all 18**, using the updated command lines, copy-pasted fresh from
+- [ ] `checklists/testing.md` — **all 17**, using the updated command lines, copy-pasted fresh from
       `docs/development.md` to prove that file is correct
 - [ ] `checklists/regression.md` — **the full document**
 - [ ] Read `AGENTS.md`'s Critical Invariants section end to end; every path resolves
@@ -188,7 +188,7 @@ AGENTS.md. Contents unchanged.
 ## Definition of Done
 
 - All acceptance criteria met
-- All 18 harnesses green from freshly copy-pasted command lines
+- All 17 harnesses green from freshly copy-pasted command lines
 - `AGENTS.md` invariant paths all correct
 - Merged
 

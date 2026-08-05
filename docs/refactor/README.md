@@ -44,7 +44,7 @@ place to edit, one place to read.
 
 ---
 
-## The 35 phases at a glance
+## The 37 phases at a glance
 
 Nine milestones' worth of work, sequenced so that **stopping after any completed phase leaves a
 shippable app**. See `ROADMAP.md` for the dependency graph.
@@ -53,9 +53,9 @@ shippable app**. See `ROADMAP.md` for the dependency graph.
 | --------- | ------ | ------------------------------------------------------------------------- |
 | **M0**    | 01     | Baselines — measure before changing anything                              |
 | **M1**    | 02–10  | Zero-risk performance and hygiene wins                                    |
-| **M2**    | 11–18  | Observation (`@Observable`) migration                                     |
+| **M2**    | 11–18b | Observation (`@Observable`) migration                                     |
 | **M3**    | 19–23  | Palette decomposition (`PaletteScreen`)                                   |
-| **M4**    | 24–26  | `AppCore` decomposition into coordinators                                 |
+| **M4**    | 24–26  | `AppCore` decomposition into coordinators (includes 25b)                  |
 | **M5**    | 27–29  | Folder restructure                                                        |
 | **M6**    | 30–33  | Naming, exhaustiveness, harness coverage                                  |
 | **M7**    | 34–35  | Comment budget, final measurement, docs, retiring dead compatibility code |

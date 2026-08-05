@@ -49,7 +49,7 @@ git diff -U0 | grep '^[-+].*"'    # inspect EVERY changed string literal
 
 Account for **every** line that grep returns — each needs its counterpart moved too.
 
-Run all 18 harnesses. Then wipe the Dev channel, launch, and use the app for five minutes: copy, paste,
+Run all 17 harnesses. Then wipe the Dev channel, launch, and use the app for five minutes: copy, paste,
 set a hotkey, favourite an app, quit, relaunch.
 
 ## Summarise
