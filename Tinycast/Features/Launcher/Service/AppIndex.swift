@@ -10,6 +10,52 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case systemAction
         case windowCommand
         case quicklink
+
+        var descriptor: KindDescriptor {
+            switch self {
+            case .application:
+                return KindDescriptor(
+                    label: "Application", sectionTitle: "Applications",
+                    openVerb: "Open Application", canRevealInFinder: true, isSymbolIcon: false)
+            case .systemSettings:
+                return KindDescriptor(
+                    label: "System Setting", sectionTitle: "System Settings",
+                    openVerb: "Open System Setting", canRevealInFinder: true, isSymbolIcon: false)
+            case .command:
+                return KindDescriptor(
+                    label: "Command", sectionTitle: "Commands",
+                    openVerb: "Run Command", canRevealInFinder: false, isSymbolIcon: true)
+            case .customCommand:
+                return KindDescriptor(
+                    label: "Custom Command", sectionTitle: "Custom Commands",
+                    openVerb: "Run Custom Command", canRevealInFinder: false, isSymbolIcon: true)
+            case .snippet:
+                return KindDescriptor(
+                    label: "Snippet", sectionTitle: "Snippets",
+                    openVerb: "Paste Snippet", canRevealInFinder: true, isSymbolIcon: true)
+            case .systemAction:
+                return KindDescriptor(
+                    label: "System Action", sectionTitle: "System Actions",
+                    openVerb: "Run System Action", canRevealInFinder: false, isSymbolIcon: true)
+            case .windowCommand:
+                return KindDescriptor(
+                    label: "Window Command", sectionTitle: "Window Management",
+                    openVerb: "Move Window", canRevealInFinder: false, isSymbolIcon: true)
+            case .quicklink:
+                return KindDescriptor(
+                    label: "Quicklink", sectionTitle: "Quicklinks",
+                    openVerb: "Open Quicklink", canRevealInFinder: false, isSymbolIcon: true)
+            }
+        }
+    }
+
+    /// Everything that is fixed per kind. A new `Kind` case fails to build until it names all five.
+    struct KindDescriptor: Sendable {
+        let label: String
+        let sectionTitle: String
+        let openVerb: String
+        let canRevealInFinder: Bool
+        let isSymbolIcon: Bool
     }
 
     let id: String  // file path (or "command:…" id) — always unique
@@ -35,18 +81,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             bundleID: bundleID, executableName: executableName)
     }
 
-    var kindLabel: String {
-        switch kind {
-        case .application: return "Application"
-        case .systemSettings: return "System Setting"
-        case .command: return "Command"
-        case .customCommand: return "Custom Command"
-        case .snippet: return "Snippet"
-        case .systemAction: return "System Action"
-        case .windowCommand: return "Window Command"
-        case .quicklink: return "Quicklink"
-        }
-    }
+    var kindLabel: String { kind.descriptor.label }
 
     /// The global-hotkey action for this entry, or `nil` for built-in commands and unaddressable bundles.
     var hotKeyAction: HotKeyAction? {
@@ -70,10 +105,10 @@ struct AppEntry: Identifiable, Hashable, Sendable {
 
     /// Synthetic command entries have no file behind them to reveal. A quicklink's own entry is
     /// synthetic too — revealing the *destination* is an action on the record, in its own menu.
-    var canRevealInFinder: Bool { kind == .application || kind == .systemSettings || kind == .snippet }
+    var canRevealInFinder: Bool { kind.descriptor.canRevealInFinder }
 
     /// Synthetic entries draw an SF Symbol tile; everything else uses its file icon.
-    var isSymbolIcon: Bool { kind != .application && kind != .systemSettings }
+    var isSymbolIcon: Bool { kind.descriptor.isSymbolIcon }
 
     var symbolIconName: String {
         if let symbolName { return symbolName }

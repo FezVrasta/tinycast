@@ -9,7 +9,8 @@ enum AppActionsMenu {
     ) -> PopoverMenuContent {
         var items: [PopoverMenuItem] = [
             PopoverMenuItem(
-                title: openTitle(app), systemImage: "list.bullet.rectangle", shortcut: "↵"
+                title: app.kind.descriptor.openVerb, systemImage: "list.bullet.rectangle",
+                shortcut: "↵"
             ) { core.launch(app, searchQuery: searchQuery) }
         ]
         if favorites.isFavorite(app) {
@@ -55,18 +56,5 @@ enum AppActionsMenu {
                 })
         }
         return PopoverMenuContent(header: app.name, items: items)
-    }
-
-    private static func openTitle(_ app: AppEntry) -> String {
-        switch app.kind {
-        case .application: return "Open Application"
-        case .systemSettings: return "Open System Setting"
-        case .command: return "Run Command"
-        case .customCommand: return "Run Custom Command"
-        case .snippet: return "Paste Snippet"
-        case .systemAction: return "Run System Action"
-        case .windowCommand: return "Move Window"
-        case .quicklink: return "Open Quicklink"
-        }
     }
 }

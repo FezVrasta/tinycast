@@ -53,16 +53,19 @@ struct LauncherList: View {
         // commands, then built-in commands by the AppIndex sort invariant, so filtering by kind
         // keeps row order identical and the flat selection index valid.
         // Annotated: with this many sections the inference pass times out.
+        func section(_ kind: AppEntry.Kind) -> (String, [AppEntry]) {
+            (kind.descriptor.sectionTitle, rest.filter { $0.kind == kind })
+        }
         let sections: [(String, [AppEntry])] = [
             ("Favorites", Array(favorites)),
-            ("Applications", rest.filter { $0.kind == .application }),
-            ("System Settings", rest.filter { $0.kind == .systemSettings }),
-            ("Quicklinks", rest.filter { $0.kind == .quicklink }),
-            ("Snippets", rest.filter { $0.kind == .snippet }),
-            ("System Actions", rest.filter { $0.kind == .systemAction }),
-            ("Window Management", rest.filter { $0.kind == .windowCommand }),
-            ("Custom Commands", rest.filter { $0.kind == .customCommand }),
-            ("Commands", rest.filter { $0.kind == .command })
+            section(.application),
+            section(.systemSettings),
+            section(.quicklink),
+            section(.snippet),
+            section(.systemAction),
+            section(.windowCommand),
+            section(.customCommand),
+            section(.command)
         ]
         for (title, group) in sections where !group.isEmpty {
             rows.append(.header(title))
