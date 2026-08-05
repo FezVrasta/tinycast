@@ -27,28 +27,17 @@ struct RootPaletteView: View {
     /// The pending scroll request for whichever list or grid is mounted (modes are exclusive, so one piece of state serves all of them). Set only by keyboard nav and resets; mouse selection targets a visible row, so it leaves this and the scroll position put.
     @State private var scroll = ScrollIntent(kind: .top)
 
-    private var isQueryEmpty: Bool { vm.query.trimmingCharacters(in: .whitespaces).isEmpty }
-
     /// Slim compact bar vs. full window — the single source of truth lives on `AppCore` so the window controller and this view can never disagree.
     private var isCollapsed: Bool { core.paletteIsCollapsed }
 
-    /// Favorite slots shown in the compact bar: up to 5 launchable apps, or the first 4 plus an overflow "…" that expands the window. Evaluated only in the compact render and on the rare ⌘N keypress.
-    private var compactFavoriteSlots: [CompactFavoriteSlot] {
-        let ordered = appIndex.orderedResults(
-            query: "", visibility: visibility, favorites: favorites)
-        let favs = ordered.prefix(while: favorites.isFavorite)
-        if favs.count <= 5 { return favs.map(CompactFavoriteSlot.app) }
-        return favs.prefix(4).map(CompactFavoriteSlot.app) + [.more]
-    }
-
-    /// Ordered launcher results (the single source of truth for list, selection and activation): empty query pins favorites to the top, otherwise plain ranked matches.
-    private var appResults: [AppEntry] {
-        appIndex.orderedResults(query: vm.query, visibility: visibility, favorites: favorites)
-    }
-
-    /// The migrated modes' screen; nil while a mode is still one of the switch arms below.
-    private var screen: (any PaletteScreen)? {
+    /// The current mode's screen: its rows are the visible order the flat selection indexes.
+    private var screen: any PaletteScreen {
         switch vm.mode {
+        case .launcher:
+            return LauncherScreen(
+                appIndex: appIndex, favorites: favorites, visibility: visibility,
+                currencyRates: currencyRates, core: core, vm: vm, running: selectionIsRunning,
+                openActions: openActions)
         case .uninstall:
             return UninstallScreen(
                 session: uninstall, core: core, vm: vm, openActions: openActions)
@@ -71,69 +60,19 @@ struct RootPaletteView: View {
             return CalculatorHistoryScreen(
                 history: calcHistory, currencyRates: currencyRates, core: core, vm: vm,
                 openActions: openActions)
-        default:
-            return nil
         }
     }
 
-    /// Inline calculator answer for the current launcher query; when present it occupies flat selection index 0 so rows shift by `calcCount`.
-    private var calcResult: CalcResult? {
-        vm.mode == .launcher ? CalcMemo.evaluate(vm.query, currency: currencyRates.source) : nil
-    }
-    private var calcCount: Int { calcResult == nil ? 0 : 1 }
-
-    private var resultCount: Int {
-        if let screen { return screen.rows.count }
-        return vm.mode == .launcher ? appResults.count + calcCount : 0
-    }
+    private var resultCount: Int { screen.rows.count }
     /// Selection clamped into the current results — the single source of truth for highlight, preview and activation so the list and preview can never disagree.
     private var selection: Int { resultCount == 0 ? 0 : min(max(vm.selection, 0), resultCount - 1) }
 
     private var menuOpen: Bool { showActions || showAppMenu }
 
     // MARK: - Popover menu content
-    //
-    // These resolve the current selection for whichever menu is open. They are evaluated only inside the
-    // menu overlays (menu visible) or on a keypress (rare), so re-running the unmemoized `appResults`
-    // filter here is fine — the same idiom the other rare event handlers use.
-
-    /// The inline calc card sits at flat index 0 when present; only value payloads have a Copy action.
-    private var calcActionableResult: CalcResult? {
-        guard calcCount > 0, selection == 0, let calc = calcResult, calc.isActionable else {
-            return nil
-        }
-        return calc
-    }
-    private var selectedAppEntry: AppEntry? {
-        let index = selection - calcCount
-        return appResults.indices.contains(index) ? appResults[index] : nil
-    }
 
     /// The bottom-right Actions menu content for the current mode's selection, or nil when the selection has no actions.
-    private var actionsContent: PopoverMenuContent? {
-        if let screen { return screen.actions(at: selection) }
-        switch vm.mode {
-        case .launcher:
-            if let calc = calcActionableResult {
-                return CalcActionsMenu.content(result: calc, core: core)
-            }
-            if let app = selectedAppEntry {
-                return AppActionsMenu.content(
-                    app: app, searchQuery: vm.query, core: core, favorites: favorites,
-                    running: selectionIsRunning,
-                    onResetRanking: {
-                        core.resetRanking(for: app)
-                        // Reset can move the item; keep the highlight on the item whose action ran.
-                        if let index = appResults.firstIndex(of: app) {
-                            vm.selection = index + calcCount
-                        }
-                    })
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
+    private var actionsContent: PopoverMenuContent? { screen.actions(at: selection) }
 
     /// The bottom-left app menu content (About / Settings).
     private var appMenuContent: PopoverMenuContent {
@@ -155,45 +94,28 @@ struct RootPaletteView: View {
     }
 
     var body: some View {
-        // Filter once per render for the active mode only, so the matcher/search doesn't run several times per render (rare event handlers use the computed properties above).
-        let apps = vm.mode == .launcher ? appResults : []
-        let screenRows = screen?.rows.count ?? 0
-        // Every count/selection below derives from this one calc/offset pair — the flat selection index must always match the visible row order, calc card included.
-        let calc = calcResult
-        let offset = calc == nil ? 0 : 1
-        // Only the active mode is non-empty.
-        let count = apps.count + offset + screenRows
+        // Resolve the screen once per render: its rows are the visible order, so the flat selection index can't drift from what's drawn.
+        let screen = screen
+        let count = screen.rows.count
         let sel = count == 0 ? 0 : min(max(vm.selection, 0), count - 1)
-        let calcSelected = calc != nil && sel == 0
-        // An error card is selectable but has no action: it must not drive the Copy Answer pill, ⌘K menu, or Enter.
-        let calcActionable = calcSelected && calc?.isActionable == true
-        let showSections = vm.mode == .launcher && isQueryEmpty
-        let favoriteCount =
-            showSections ? apps.prefix(while: { favorites.isFavorite($0) }).count : 0
-        let selectedApp = apps.indices.contains(sel - offset) ? apps[sel - offset] : nil
-        // Derive the footer label from the already-resolved selection so `bottomBar` doesn't re-run `appResults` (its filter/sort aren't memoized). The primary/Actions group is hidden when there's nothing to act on: no results in any mode, or an error calc card (selectable but action-less).
-        let pillLabel = actionPillLabel(selectedApp: selectedApp, calcActionable: calcActionable)
         // The argument form has no rows to count when its argument takes free text, but ↵ still
         // does something — and the pill is the only thing that says what.
         let showActionGroup =
-            (count > 0 || vm.mode == .quicklinkArguments) && !(calcSelected && !calcActionable)
-            && (screen?.hasPrimaryAction(at: sel) ?? true)
+            (count > 0 || vm.mode == .quicklinkArguments) && screen.hasPrimaryAction(at: sel)
 
         // The `header` (and its single search field) is always attached in the same position via safeAreaInset so its focus survives the compact↔expanded swap — only the results below it toggle. Collapsed shows the bar alone; expanded floats header + action bar over the list with edge-dissolve (see docs/ui.md).
         return Group {
             if isCollapsed {
                 Color.clear
             } else {
-                content(
-                    apps: apps, calc: calc, selection: sel, favoriteCount: favoriteCount,
-                    showSections: showSections
-                )
+                screen.body(selection: sel, scroll: scroll)
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) { header }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !isCollapsed {
-                bottomBar(pillLabel: pillLabel, showActionGroup: showActionGroup)
+                bottomBar(
+                    pillLabel: screen.primaryActionTitle, showActionGroup: showActionGroup)
             }
         }
         // Menus are in-window overlays anchored to a bottom corner, so they stay clipped inside the panel — never a system popover spilling outside the window.
@@ -275,9 +197,10 @@ struct RootPaletteView: View {
         .onKeyPress(keys: ["1", "2", "3", "4", "5"], phases: .down) { press in
             guard isCollapsed, settings.showFavoritesInCompactMode,
                 press.modifiers.contains(.command),
-                let digit = press.key.character.wholeNumberValue
+                let digit = press.key.character.wholeNumberValue,
+                let launcher = screen as? LauncherScreen
             else { return .ignored }
-            let slots = compactFavoriteSlots
+            let slots = launcher.compactFavoriteSlots
             let index = digit - 1
             guard slots.indices.contains(index) else { return .ignored }
             switch slots[index] {
@@ -328,15 +251,9 @@ struct RootPaletteView: View {
                 return .handled
             }
             guard command || option else { return .ignored }
-            if let screen {
-                if command { return screen.secondary(at: selection) ? .handled : .ignored }
-                guard let emoji = screen as? EmojiScreen else { return .ignored }
-                return emoji.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
-            }
-            guard command, vm.mode == .launcher, let app = selectedAppEntry, app.canRevealInFinder
-            else { return .ignored }
-            core.showInFinder(app)
-            return .handled
+            if command { return screen.secondary(at: selection) ? .handled : .ignored }
+            guard let emoji = screen as? EmojiScreen else { return .ignored }
+            return emoji.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
         }
         .onKeyPress(.escape) {
             if showActions || showAppMenu {
@@ -358,8 +275,7 @@ struct RootPaletteView: View {
             guard !isCollapsed else { return .handled }
             guard resultCount > 0 else { return .handled }
             // An error calc card is the selection but has no actions — don't open an empty panel.
-            if calcCount > 0, selection == 0, calcResult?.isActionable != true { return .handled }
-            if let screen, !screen.hasPrimaryAction(at: selection) { return .handled }
+            guard screen.hasPrimaryAction(at: selection) else { return .handled }
             toggleActions()
             return .handled
         }
@@ -394,11 +310,9 @@ struct RootPaletteView: View {
         // Both cases are listed because Shift uppercases the reported key. The compact bar is excluded like ⌘K — it shows no selection to aim a destructive action at.
         .onKeyPress(keys: ["q", "Q"], phases: .down) { press in
             guard press.modifiers.contains(.control), press.modifiers.contains(.shift),
-                !isCollapsed, vm.mode == .launcher, let app = selectedAppEntry,
-                app.kind == .application, core.runningApps.isRunning(app)
+                !isCollapsed, let launcher = screen as? LauncherScreen
             else { return .ignored }
-            core.quit(app)
-            return .handled
+            return launcher.quit(at: selection) ? .handled : .ignored
         }
     }
 
@@ -424,8 +338,9 @@ struct RootPaletteView: View {
             }
             searchField
             // Compact bar pins favorites to the right of the field; expanded shows them as list rows instead.
-            if isCollapsed, settings.showFavoritesInCompactMode {
-                let slots = compactFavoriteSlots
+            if isCollapsed, settings.showFavoritesInCompactMode,
+                let launcher = screen as? LauncherScreen {
+                let slots = launcher.compactFavoriteSlots
                 if !slots.isEmpty {
                     CompactFavoritesRow(
                         slots: slots,
@@ -482,57 +397,6 @@ struct RootPaletteView: View {
             .accessibilityLabel(Text(searchPrompt))
     }
 
-    @ViewBuilder
-    private func content(
-        apps: [AppEntry], calc: CalcResult?, selection: Int, favoriteCount: Int, showSections: Bool
-    ) -> some View {
-        if let screen {
-            screen.body(selection: selection, scroll: scroll)
-        } else {
-            modeContent(
-                apps: apps, calc: calc, selection: selection, favoriteCount: favoriteCount,
-                showSections: showSections)
-        }
-    }
-
-    @ViewBuilder
-    private func modeContent(
-        apps: [AppEntry], calc: CalcResult?, selection: Int, favoriteCount: Int, showSections: Bool
-    ) -> some View {
-        switch vm.mode {
-        case .launcher:
-            let offset = calc == nil ? 0 : 1
-            let calcSelected = calc != nil && selection == 0
-            let appIndex = selection - offset
-            let selectedID = apps.indices.contains(appIndex) ? apps[appIndex].id : nil
-            LauncherList(
-                results: apps,
-                selectedID: calcSelected ? nil : selectedID,
-                favoriteCount: favoriteCount,
-                showSections: showSections,
-                scroll: scroll,
-                calc: calc,
-                calcSelected: calcSelected,
-                onActivateCalc: {
-                    vm.selection = 0
-                    activateSelection()
-                },
-                onCalcActions: {
-                    guard let calc, case .value = calc.payload else { return }
-                    vm.selection = 0
-                    openActions()
-                },
-                onActivate: { core.launch($0, searchQuery: vm.query) },
-                onActions: { app in
-                    if let index = apps.firstIndex(of: app) { vm.selection = index + offset }
-                    openActions()
-                }
-            )
-        default:
-            EmptyView()
-        }
-    }
-
     /// The Uninstall screen's primary action is destructive, so its pill isn't white.
     private var pillTint: Color {
         vm.mode == .uninstall ? Theme.Colors.destructive : .primary
@@ -583,28 +447,9 @@ struct RootPaletteView: View {
         .frosted(in: Capsule())
     }
 
-    /// Pill label for the current selection, derived from the selection already resolved in `body` so it never re-runs the (unmemoized) `appResults` filter/sort.
-    private func actionPillLabel(selectedApp: AppEntry?, calcActionable: Bool) -> String {
-        if let screen { return screen.primaryActionTitle }
-        if calcActionable { return "Copy Answer" }
-        switch selectedApp?.kind {
-        case .systemSettings: return "Open System Setting"
-        case .command: return "Run Command"
-        case .customCommand: return "Run Custom Command"
-        case .systemAction: return "Run System Action"
-        case .quicklink: return "Open Quicklink"
-        default: return "Open Application"
-        }
-    }
-
     /// The single path that opens the Actions menu: samples the state its rows depend on, then shows it. Callers set `vm.selection` first, so the sample matches the row the menu is for.
     private func openActions() {
-        // Only the launcher's menu carries a Quit row, so the other modes skip the (unmemoized) `appResults` walk entirely.
-        if vm.mode == .launcher, let app = selectedAppEntry {
-            selectionIsRunning = core.runningApps.isRunning(app)
-        } else {
-            selectionIsRunning = false
-        }
+        selectionIsRunning = (screen as? LauncherScreen)?.isRunning(at: selection) ?? false
         withAnimation(Self.menuAnimation) { showActions = true }
     }
 
@@ -641,7 +486,7 @@ struct RootPaletteView: View {
 
     /// ↑/↓: the screen's own move (the emoji grid's, so far), else a linear step through the rows.
     private func moveVertically(_ delta: Int) {
-        guard let next = screen?.move(delta, axis: .vertical, from: selection) else {
+        guard let next = screen.move(delta, axis: .vertical, from: selection) else {
             move(delta)
             return
         }
@@ -651,7 +496,7 @@ struct RootPaletteView: View {
 
     /// ←/→: consumed only by a screen that navigates horizontally; otherwise the caret keeps them.
     private func moveHorizontally(_ delta: Int) -> Bool {
-        guard let next = screen?.move(delta, axis: .horizontal, from: selection) else {
+        guard let next = screen.move(delta, axis: .horizontal, from: selection) else {
             return false
         }
         vm.selection = next
@@ -685,19 +530,7 @@ struct RootPaletteView: View {
     private func activateSelection() {
         // Nothing is visibly selected in the collapsed compact bar; launch only via ⌘1–⌘5 or by typing.
         guard !isCollapsed else { return }
-        if let screen {
-            screen.activate(at: selection)
-            return
-        }
-        guard vm.mode == .launcher else { return }
-        if let calcResult, selection == 0 {
-            // Error cards no-op — copyCalculatorResult only acts on value payloads.
-            core.copyCalculatorResult(calcResult)
-            return
-        }
-        let index = selection - calcCount
-        guard appResults.indices.contains(index) else { return }
-        core.launch(appResults[index], searchQuery: vm.query)
+        screen.activate(at: selection)
     }
 }
 

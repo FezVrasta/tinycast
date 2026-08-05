@@ -98,6 +98,7 @@
 		94620E1BB1049C5D8B45392E /* UninstallSearchRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C56920811CA9A5F0FA04441 /* UninstallSearchRoot.swift */; };
 		97A195E9D6480418D4944560 /* AppCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A64EF5A07D459753998F78C /* AppCore.swift */; };
 		9969E6858C4FDC5CCCDEB5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C45190564C9D9F1722E83943 /* Assets.xcassets */; };
+		99FA1235E66BDC098563957A /* LauncherScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF4175BB6E94B42AD90660D /* LauncherScreen.swift */; };
 		9A254BEE278D7B78B76553A9 /* Scrypt.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDE0C0DC05F958A4B4DCAA8C /* Scrypt.swift */; };
 		9A3972BE11AE353EFBB839A0 /* PalettePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555E9C7EA62BDB40891A5751 /* PalettePanel.swift */; };
 		9EC89A6398BD075275FECC9E /* CalcUnits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25B8A7D8DBB0CE2ACEDB3979 /* CalcUnits.swift */; };
@@ -257,6 +258,7 @@
 		68BD5E61831CB92150C62E1F /* CalculatorHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorHistoryView.swift; sourceTree = "<group>"; };
 		6A6941F59D6E8014A22F1FF7 /* UninstallTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallTarget.swift; sourceTree = "<group>"; };
 		6BB7C545EFD9589A77AD7BE2 /* LauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherView.swift; sourceTree = "<group>"; };
+		6BF4175BB6E94B42AD90660D /* LauncherScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherScreen.swift; sourceTree = "<group>"; };
 		6E7DD73DC688DBFAFC4B04AC /* WindowManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManagementSettingsView.swift; sourceTree = "<group>"; };
 		6EA607D74B37C51BABA2B33A /* QuicklinkArgumentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuicklinkArgumentsView.swift; sourceTree = "<group>"; };
 		6EB4BA1A385F78B9C5E7EBCF /* UninstallRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallRules.swift; sourceTree = "<group>"; };
@@ -559,6 +561,7 @@
 			isa = PBXGroup;
 			children = (
 				C64C87569634E26E1BE99A91 /* CalculatorCardView.swift */,
+				6BF4175BB6E94B42AD90660D /* LauncherScreen.swift */,
 				6BB7C545EFD9589A77AD7BE2 /* LauncherView.swift */,
 			);
 			path = Launcher;
@@ -887,6 +890,7 @@
 				A0DB31CA35D9A980CA984EDE /* LaunchAtLogin.swift in Sources */,
 				FBA8548636E1F1EABCC3A8CA /* LauncherItemsCard.swift in Sources */,
 				3FEBE1C993C5BD92F1C3D95B /* LauncherRankingStore.swift in Sources */,
+				99FA1235E66BDC098563957A /* LauncherScreen.swift in Sources */,
 				DCC36924E538C11136CEC060 /* LauncherView.swift in Sources */,
 				AA332C5CB997A54E7A0EA2E9 /* Memo.swift in Sources */,
 				5DD58D999A421873EF3F2204 /* MessageHUDController.swift in Sources */,
