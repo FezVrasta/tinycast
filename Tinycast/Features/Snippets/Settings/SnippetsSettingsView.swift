@@ -3,14 +3,14 @@ import SwiftUI
 struct SnippetsSettingsView: View {
     @Environment(AppCore.self) private var core
     @Environment(SnippetsStore.self) private var snippetsStore
-    @Bindable private var settings = AppCore.shared.settings
-    private let keywordListener = AppCore.shared.snippetListener
+    @Environment(AppSettings.self) private var settings
 
     @State private var editor: EditorTarget?
     @State private var pendingDeletion: StoredSnippet?
 
     var body: some View {
-        SettingsPane(
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "Snippets",
             subtitle:
                 "Create reusable text templates and expand them from the launcher or with a keyword."
@@ -25,10 +25,10 @@ struct SnippetsSettingsView: View {
                 // Enabling is also keyword-expansion consent, so it funnels through the confirming setter.
                 isEnabled: Binding(
                     get: { settings.snippetsEnabled },
-                    set: { core.setSnippetsEnabled($0) }),
+                    set: { core.snippetExpansion.setSnippetsEnabled($0) }),
                 showsInLauncher: $settings.snippetsShowInLauncher)
 
-            if settings.snippetsEnabled, keywordListener.status == .needsAccessibility {
+            if settings.snippetsEnabled, core.snippetListener.status == .needsAccessibility {
                 SettingsCallout(
                     title: "Keyword expansion needs the Accessibility permission.",
                     message: "The same grant pasting uses. Launcher search keeps working meanwhile.",
@@ -102,7 +102,7 @@ struct SnippetsSettingsView: View {
                 systemImage: "folder",
                 tint: .green
             ) {
-                Button("Open Folder", action: core.revealSnippetsInFinder)
+                Button("Open Folder", action: core.snippetExpansion.revealSnippetsInFinder)
                     .controlSize(.small)
                     .accessibilityHint("Reveals this Tinycast channel’s snippets folder in Finder.")
             }
@@ -240,6 +240,7 @@ private struct SnippetEditorSheet: View {
     let record: StoredSnippet?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SnippetsStore.self) private var store
     @FocusState private var isTemplateFocused: Bool
     @State private var name: String
     @State private var keyword: String
@@ -422,7 +423,6 @@ private struct SnippetEditorSheet: View {
         isSaving = true
         Task {
             defer { isSaving = false }
-            let store = AppCore.shared.snippetsStore
             do {
                 // Saving keeps the file and its revision, so an external edit in between is reported as a conflict rather than overwritten.
                 if var updated = record {

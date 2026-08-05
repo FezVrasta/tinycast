@@ -14,6 +14,7 @@ struct QuicklinkEditorSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppIndex.self) private var appIndex
+    @Environment(AppCore.self) private var core
     @State private var name: String
     @State private var link: String
     @State private var iconSymbol: String?
@@ -231,9 +232,9 @@ struct QuicklinkEditorSheet: View {
             createdAt: existing?.createdAt ?? Date())
         do {
             if existing == nil {
-                try AppCore.shared.addQuicklink(draft)
+                try core.quicklinkCoordinator.addQuicklink(draft)
             } else {
-                try AppCore.shared.updateQuicklink(draft)
+                try core.quicklinkCoordinator.updateQuicklink(draft)
             }
             dismiss()
         } catch {

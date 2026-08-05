@@ -41,7 +41,7 @@ struct QuicklinkArgumentsScreen: PaletteScreen {
             guard options.indices.contains(selection) else { return }
             value = options[selection]
         }
-        core.submitQuicklinkArgument(value)
+        core.quicklinkCoordinator.submitQuicklinkArgument(value)
         // More arguments to go: clear the field for the next one and reset the choice list.
         if session.isActive {
             vm.query = ""

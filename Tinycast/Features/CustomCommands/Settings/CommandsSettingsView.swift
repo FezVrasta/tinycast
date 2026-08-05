@@ -3,7 +3,8 @@ import SwiftUI
 /// Both flavours of command in one pane: Tinycast's own built-ins, then the shell commands the user writes.
 struct CommandsSettingsView: View {
     @Environment(CustomCommandStore.self) private var store
-    @Bindable private var settings = AppCore.shared.settings
+    @Environment(AppCore.self) private var core
+    @Environment(AppSettings.self) private var settings
     @State private var editor: EditorTarget?
     @State private var pendingDeletion: CustomCommand?
 
@@ -27,7 +28,7 @@ struct CommandsSettingsView: View {
                 title: Text("Delete “\(command.name)”?"),
                 message: Text("Its global shortcut and launcher references will also be removed."),
                 primaryButton: .destructive(Text("Delete")) {
-                    AppCore.shared.deleteCustomCommand(id: command.id)
+                    core.customCommandCoordinator.deleteCustomCommand(id: command.id)
                 },
                 secondaryButton: .cancel())
         }
@@ -35,6 +36,7 @@ struct CommandsSettingsView: View {
 
     @ViewBuilder
     private var customCommands: some View {
+        @Bindable var settings = settings
         FeatureSwitchCard(
             header: "Custom Commands",
             enableTitle: "Enable custom commands",

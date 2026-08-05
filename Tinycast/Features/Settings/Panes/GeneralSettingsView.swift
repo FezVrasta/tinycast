@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct GeneralSettingsView: View {
-    @Bindable private var settings = AppCore.shared.settings
-    private let hyperTap = AppCore.shared.hyperKeyTap
-    private let launcherRanking = AppCore.shared.launcherRanking
+    @Environment(AppCore.self) private var core
+    @Environment(AppSettings.self) private var settings
+    private var hyperTap: HyperKeyTap { core.hyperKeyTap }
+    private var launcherRanking: LauncherRankingStore { core.launcherRanking }
     // Same UserDefaults key the `App` binds its `MenuBarExtra(isInserted:)` to — toggling here updates the menu-bar icon live, with no shared observable between them.
     @AppStorage(SettingsKey.showInMenuBar) private var showInMenuBar = true
     @State private var confirmingRankingReset = false
@@ -36,7 +37,8 @@ struct GeneralSettingsView: View {
     }
 
     var body: some View {
-        SettingsPane(
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "General",
             subtitle: "Global shortcuts and startup behaviour."
         ) {
@@ -229,7 +231,7 @@ struct GeneralSettingsView: View {
                     systemImage: "sparkles",
                     tint: .yellow
                 ) {
-                    Button("Show…") { AppCore.shared.showOnboarding() }
+                    Button("Show…") { core.paletteCoordinator.showOnboarding() }
                         .controlSize(.small)
                 }
             }

@@ -152,6 +152,7 @@ private struct EmojiGridRowView: View {
     let onActivate: () -> Void
     let onActions: (Int) -> Void
 
+    @Environment(PaletteState.self) private var palette
     @State private var hoveredColumn: Int?
     @State private var width: CGFloat = 0
 
@@ -196,7 +197,7 @@ private struct EmojiGridRowView: View {
         .onContinuousHover(coordinateSpace: .local) { phase in
             switch phase {
             case .active(let point):
-                hoveredColumn = AppCore.shared.palette.hoverHighlightArmed ? column(at: point) : nil
+                hoveredColumn = palette.hoverHighlightArmed ? column(at: point) : nil
             case .ended:
                 hoveredColumn = nil
             }

@@ -111,7 +111,9 @@ final class PaletteCoordinator {
         ) {
             SettingsRootView(initialTab: tab)
                 .environment(self.core)
+                .environment(self.settings)
                 .environment(self.appIndex)
+                .environment(self.core.hotKeys)
                 .environment(self.core.visibility)
                 .environment(self.core.customCommands)
                 .environment(self.core.snippetsStore)
@@ -137,6 +139,9 @@ final class PaletteCoordinator {
             size: OnboardingView.windowSize, seamlessTitleBar: true
         ) {
             OnboardingView()
+                .environment(self.core)
+                .environment(self.settings)
+                .environment(self.core.hotKeys)
         }
     }
 

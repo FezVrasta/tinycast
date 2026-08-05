@@ -5,6 +5,7 @@ struct CustomCommandEditorSheet: View {
     let command: CustomCommand?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppCore.self) private var core
     @State private var name: String
     @State private var shellCommand: String
     @State private var loadsShellEnvironment: Bool
@@ -112,9 +113,9 @@ struct CustomCommandEditorSheet: View {
             showsConfirmation: showsConfirmation)
         do {
             if command == nil {
-                try AppCore.shared.addCustomCommand(draft)
+                try core.customCommandCoordinator.addCustomCommand(draft)
             } else {
-                try AppCore.shared.updateCustomCommand(draft)
+                try core.customCommandCoordinator.updateCustomCommand(draft)
             }
             dismiss()
         } catch {

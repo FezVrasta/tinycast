@@ -80,7 +80,7 @@ struct LauncherScreen: PaletteScreen {
             return AppActionsMenu.content(
                 app: app, searchQuery: vm.query, core: core, favorites: favorites, running: running,
                 onResetRanking: {
-                    core.resetRanking(for: app)
+                    core.launcherCoordinator.resetRanking(for: app)
                     // Reset can move the item; keep the highlight on the item whose action ran.
                     if let index = rows.firstIndex(of: .entry(app)) { vm.selection = index }
                 })
@@ -92,8 +92,8 @@ struct LauncherScreen: PaletteScreen {
     func activate(at selection: Int) {
         switch row(at: selection) {
         // Error cards no-op — copyCalculatorResult only acts on value payloads.
-        case .calc(let result): core.copyCalculatorResult(result)
-        case .entry(let app): core.launch(app, searchQuery: vm.query)
+        case .calc(let result): core.calculatorCoordinator.copyCalculatorResult(result)
+        case .entry(let app): core.launcherCoordinator.launch(app, searchQuery: vm.query)
         case nil: break
         }
     }
@@ -101,7 +101,7 @@ struct LauncherScreen: PaletteScreen {
     /// ⌘↵ — only an entry backed by a file on disk has somewhere to be revealed.
     func secondary(at selection: Int) -> Bool {
         guard let app = entry(at: selection), app.canRevealInFinder else { return false }
-        core.showInFinder(app)
+        core.launcherCoordinator.showInFinder(app)
         return true
     }
 
@@ -110,7 +110,7 @@ struct LauncherScreen: PaletteScreen {
         guard let app = entry(at: selection), app.kind == .application,
             core.runningApps.isRunning(app)
         else { return false }
-        core.quit(app)
+        core.launcherCoordinator.quit(app)
         return true
     }
 
@@ -156,7 +156,7 @@ struct LauncherScreen: PaletteScreen {
                 vm.selection = 0
                 openActions()
             },
-            onActivate: { core.launch($0, searchQuery: vm.query) },
+            onActivate: { core.launcherCoordinator.launch($0, searchQuery: vm.query) },
             onActions: { app in
                 if let index = rows.firstIndex(of: .entry(app)) { vm.selection = index }
                 openActions()

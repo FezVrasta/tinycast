@@ -13,7 +13,8 @@ struct ShortcutRecorderAnchorKey: PreferenceKey {
 struct ShortcutRecorderPopover: View {
     let placement: CalloutPlacement
 
-    private let capture = AppCore.shared.hotKeys.capture
+    @Environment(HotKeyManager.self) private var hotKeys
+    private var capture: ShortcutCaptureSession { hotKeys.capture }
 
     private struct State {
         let caps: [String]
@@ -72,7 +73,7 @@ struct ShortcutRecorderPopover: View {
 
 /// Draws the open recorder's callout over the pane, where the pane's `ScrollView` can't clip it.
 private struct ShortcutRecorderPopoverHost: ViewModifier {
-    private let hotKeys = AppCore.shared.hotKeys
+    @Environment(HotKeyManager.self) private var hotKeys
 
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(ShortcutRecorderAnchorKey.self) { anchor in

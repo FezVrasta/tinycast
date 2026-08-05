@@ -67,8 +67,8 @@ struct CalculatorHistoryScreen: PaletteScreen {
     func activate(at selection: Int) {
         switch row(at: selection) {
         // A fresh calculation typed into the history search: copy + record like the launcher card (error cards no-op).
-        case .calc(let result): core.copyCalculatorResult(result)
-        case .entry(let entry): core.copyHistoryEntry(entry)
+        case .calc(let result): core.calculatorCoordinator.copyCalculatorResult(result)
+        case .entry(let entry): core.calculatorCoordinator.copyHistoryEntry(entry)
         case nil: break
         }
     }
@@ -76,7 +76,7 @@ struct CalculatorHistoryScreen: PaletteScreen {
     /// ⌘↵ — the inline card has no expression to copy separately; only stored entries respond.
     func secondary(at selection: Int) -> Bool {
         guard let entry = entry(at: selection) else { return false }
-        core.copyHistoryExpression(entry)
+        core.calculatorCoordinator.copyHistoryExpression(entry)
         return true
     }
 
@@ -135,12 +135,12 @@ enum CalcHistoryActionsMenu {
             header: entry.expression,
             items: [
                 PopoverMenuItem(title: "Copy Answer", systemImage: "doc.on.doc", shortcut: "↵") {
-                    core.copyHistoryEntry(entry)
+                    core.calculatorCoordinator.copyHistoryEntry(entry)
                 },
                 PopoverMenuItem(
                     title: "Copy Expression", systemImage: "doc.on.doc.fill", shortcut: "⌘↵"
                 ) {
-                    core.copyHistoryExpression(entry)
+                    core.calculatorCoordinator.copyHistoryExpression(entry)
                 },
                 PopoverMenuItem(title: "Delete Entry", systemImage: "trash", isDestructive: true) {
                     calcHistory.remove(entry)

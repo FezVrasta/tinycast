@@ -16,7 +16,7 @@ struct RootPaletteView: View {
     @Environment(UninstallSession.self) private var uninstall
     @Environment(QuicklinkStore.self) private var quicklinks
     @Environment(QuicklinkArgumentSession.self) private var quicklinkArguments
-    private let settings = AppCore.shared.settings
+    @Environment(AppSettings.self) private var settings
     @FocusState private var searchFocused: Bool
     @State private var showActions = false
     @State private var showAppMenu = false
@@ -28,7 +28,7 @@ struct RootPaletteView: View {
     @State private var scroll = ScrollIntent(kind: .top)
 
     /// Slim compact bar vs. full window — the single source of truth lives on `AppCore` so the window controller and this view can never disagree.
-    private var isCollapsed: Bool { core.paletteIsCollapsed }
+    private var isCollapsed: Bool { core.paletteCoordinator.paletteIsCollapsed }
 
     /// The current mode's screen: its rows are the visible order the flat selection indexes.
     private var screen: any PaletteScreen {
@@ -78,10 +78,10 @@ struct RootPaletteView: View {
     private var appMenuContent: PopoverMenuContent {
         PopoverMenuContent(items: [
             PopoverMenuItem(title: "About Tinycast", systemImage: "info.circle") {
-                core.showAbout()
+                core.paletteCoordinator.showAbout()
             },
             PopoverMenuItem(title: "Settings", systemImage: "gearshape", shortcut: "⌘,") {
-                core.showSettings()
+                core.paletteCoordinator.showSettings()
             }
         ])
     }
@@ -169,7 +169,7 @@ struct RootPaletteView: View {
             // Every way out of the Uninstall screen: back chevron, bare backspace, a fresh summon.
             if vm.mode != .uninstall { uninstall.cancel() }
             // Same for a half-filled argument form: leaving the screen abandons the pending open.
-            if vm.mode != .quicklinkArguments { core.cancelQuicklinkArguments() }
+            if vm.mode != .quicklinkArguments { core.quicklinkCoordinator.cancelQuicklinkArguments() }
         }
         // Pop-to-root: `prepare` clears query/selection, but if both were already at their defaults the handlers above never fire — this intent guarantees the scroll itself snaps back to the origin.
         .onChange(of: vm.resetToken) {
@@ -192,7 +192,9 @@ struct RootPaletteView: View {
         }
         .onAppear { searchFocused = true }
         // Typing/clearing/overflow/settings all flip `paletteIsCollapsed`; resize the window to match.
-        .onChange(of: core.paletteIsCollapsed) { core.syncPaletteSize() }
+        .onChange(of: core.paletteCoordinator.paletteIsCollapsed) {
+            core.paletteCoordinator.syncPaletteSize()
+        }
         // ⌘1–⌘5 launch the compact bar's favorite slots (or expand, for the "…" overflow slot).
         .onKeyPress(keys: ["1", "2", "3", "4", "5"], phases: .down) { press in
             guard isCollapsed, settings.showFavoritesInCompactMode,
@@ -204,8 +206,8 @@ struct RootPaletteView: View {
             let index = digit - 1
             guard slots.indices.contains(index) else { return .ignored }
             switch slots[index] {
-            case .app(let app): core.launch(app)
-            case .more: core.expandFromCompact()
+            case .app(let app): core.launcherCoordinator.launch(app)
+            case .more: core.paletteCoordinator.expandFromCompact()
             }
             return .handled
         }
@@ -214,7 +216,7 @@ struct RootPaletteView: View {
                 // The compact bar has no visible selection; Down reveals the list at its first row
                 // while the shared search field stays mounted and focused.
                 vm.selection = 0
-                core.expandFromCompact()
+                core.paletteCoordinator.expandFromCompact()
                 return .handled
             }
             if menuOpen {
@@ -260,7 +262,7 @@ struct RootPaletteView: View {
                 closeMenus()
                 return .handled
             }
-            core.hidePalette()
+            core.paletteCoordinator.hidePalette()
             return .handled
         }
         .onKeyPress(.tab) {
@@ -344,8 +346,8 @@ struct RootPaletteView: View {
                 if !slots.isEmpty {
                     CompactFavoritesRow(
                         slots: slots,
-                        onLaunch: { core.launch($0) },
-                        onOverflow: { core.expandFromCompact() }
+                        onLaunch: { core.launcherCoordinator.launch($0) },
+                        onOverflow: { core.paletteCoordinator.expandFromCompact() }
                     )
                 }
             }
@@ -575,15 +577,24 @@ private struct BarButton<Label: View>: View {
     }
 }
 
+private struct ArmedHover: ViewModifier {
+    @Environment(PaletteState.self) private var palette
+    @Binding var hovered: Bool
+
+    func body(content: Content) -> some View {
+        content.onContinuousHover(coordinateSpace: .local) { phase in
+            switch phase {
+            case .active: hovered = palette.hoverHighlightArmed
+            case .ended: hovered = false
+            }
+        }
+    }
+}
+
 extension View {
     /// Faint mouse-hover highlight for a palette row, lit only while the pointer is physically moving (`hoverHighlightArmed`) so it never fires on open or when rows slide under a still pointer during keyboard nav. Independent of the keyboard selection, so both coexist.
     func armedHover(_ hovered: Binding<Bool>) -> some View {
-        onContinuousHover(coordinateSpace: .local) { phase in
-            switch phase {
-            case .active: hovered.wrappedValue = AppCore.shared.palette.hoverHighlightArmed
-            case .ended: hovered.wrappedValue = false
-            }
-        }
+        modifier(ArmedHover(hovered: hovered))
     }
 }
 

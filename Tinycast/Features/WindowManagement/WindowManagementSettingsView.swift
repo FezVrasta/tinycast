@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct WindowManagementSettingsView: View {
-    @Bindable private var settings = AppCore.shared.settings
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
-        SettingsPane(
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "Window Management",
             subtitle:
                 "Snap, resize and move the frontmost window from the launcher or a global shortcut."
@@ -30,7 +31,8 @@ struct WindowManagementSettingsView: View {
     }
 
     private var optionsCard: some View {
-        SettingsCard(header: "Options") {
+        @Bindable var settings = settings
+        return SettingsCard(header: "Options") {
             SettingsRow(
                 title: "Cycle sizes on repeat",
                 subtitle:

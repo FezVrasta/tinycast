@@ -30,19 +30,19 @@ struct EmojiScreen: PaletteScreen {
 
     func activate(at selection: Int) {
         guard let entry = entry(at: selection) else { return }
-        core.pasteEmoji(entry)
+        core.emojiCoordinator.pasteEmoji(entry)
     }
 
     func secondary(at selection: Int) -> Bool {
         guard let entry = entry(at: selection) else { return false }
-        core.copyEmoji(entry)
+        core.emojiCoordinator.copyEmoji(entry)
         return true
     }
 
     /// ⌥↵ — the one chord that leaves the palette up, so a run of emoji can be pasted in a row.
     func pasteKeepingWindowOpen(at selection: Int) -> Bool {
         guard let entry = entry(at: selection) else { return false }
-        core.pasteEmojiKeepingWindowOpen(entry)
+        core.emojiCoordinator.pasteEmojiKeepingWindowOpen(entry)
         return true
     }
 
@@ -101,17 +101,17 @@ enum EmojiActionsMenu {
                     title: target?.pasteTitle ?? "Paste",
                     icon: .paste(target, fallback: "doc.on.clipboard"), shortcut: "↵"
                 ) {
-                    core.pasteEmoji(entry)
+                    core.emojiCoordinator.pasteEmoji(entry)
                 },
                 PopoverMenuItem(
                     title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵"
                 ) {
-                    core.copyEmoji(entry)
+                    core.emojiCoordinator.copyEmoji(entry)
                 },
                 PopoverMenuItem(
                     title: "Paste & Keep Window Open", icon: .paste(target, fallback: "macwindow")
                 ) {
-                    core.pasteEmojiKeepingWindowOpen(entry)
+                    core.emojiCoordinator.pasteEmojiKeepingWindowOpen(entry)
                 }
             ]
         )

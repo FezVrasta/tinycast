@@ -4,9 +4,9 @@ import SwiftUI
 struct ShortcutRecorder: View {
     let action: HotKeyAction
 
-    private let hotKeys = AppCore.shared.hotKeys
+    @Environment(HotKeyManager.self) private var hotKeys
     /// Observed so a bound double-tap surfaces its Accessibility warning the moment the grant changes.
-    private let doubleTapMonitor = AppCore.shared.hotKeys.doubleTapMonitor
+    private var doubleTapMonitor: DoubleTapMonitor { hotKeys.doubleTapMonitor }
     @State private var hovered = false
 
     private var isRecording: Bool { hotKeys.recordingAction == action }

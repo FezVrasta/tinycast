@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 struct BackupSettingsView: View {
-    private let runningApps = AppCore.shared.runningApps
+    @Environment(AppCore.self) private var core
+    private var runningApps: RunningAppsMonitor { core.runningApps }
     @State private var raycastFile: URL?
     @State private var passphrase = ""
     @State private var importing = false

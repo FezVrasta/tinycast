@@ -32,7 +32,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             // Re-resolve the anchor for wherever the user is summoning now, then hold it for the whole session so compact↔expanded resizes never move the window.
             anchor = nil
             // Size + place the panel to the current collapsed state before ordering front, so a compact summon never flashes at full size.
-            positionPanel(panel, collapsed: core.paletteIsCollapsed)
+            positionPanel(panel, collapsed: core.paletteCoordinator.paletteIsCollapsed)
             // Flush the hosting view's first-mount layout while still off-screen, so the one-time safe-area settle of the `safeAreaInset` header doesn't nudge the search placeholder on the first visible frame.
             panel.contentView?.layoutSubtreeIfNeeded()
             // The `.nonactivatingPanel` takes key focus without activating the app, so summoning the palette never raises the app's Settings/onboarding windows behind it.
@@ -112,6 +112,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         if let panel { return panel }
         let root = RootPaletteView()
             .environment(core)
+            .environment(core.settings)
             .environment(core.palette)
             .environment(core.appIndex)
             .environment(core.clipboardStore)
@@ -158,10 +159,10 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             guard let character = event.charactersIgnoringModifiers?.lowercased() else { return false }
             switch character {
             case ",":
-                self.core.showSettings()
+                self.core.paletteCoordinator.showSettings()
                 return true
             case "w":
-                self.core.hidePalette()
+                self.core.paletteCoordinator.hidePalette()
                 return true
             default:
                 return false

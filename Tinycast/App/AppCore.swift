@@ -147,7 +147,7 @@ final class AppCore {
                 (settings.hyperKey, settings.hyperKeyReplacesGlyph, settings.hyperKeyIncludesShift)
             }
             SystemActionRunner.onAsyncFailure = { [weak self] id, failure in
-                self?.presentSystemActionFailure(id: id, failure: failure)
+                self?.systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
             }
             hotKeys.start(
                 customCommandIDs: Set(customCommands.commands.map(\.id)),
@@ -171,7 +171,7 @@ final class AppCore {
             // First launch has no palette hotkey bound and shows nothing but the menu-bar icon; guide the user once. Marker is written at show-time so it stays one-time even if they Cmd-Q mid-flow.
             if !OnboardingState.hasOnboarded {
                 OnboardingState.markShown()
-                showOnboarding()
+                paletteCoordinator.showOnboarding()
             }
         }
     }
@@ -245,18 +245,6 @@ final class AppCore {
 
     // MARK: - Palette control
 
-    func togglePalette() {
-        paletteCoordinator.togglePalette()
-    }
-
-    func toggleClipboard() {
-        paletteCoordinator.toggleClipboard()
-    }
-
-    func toggleEmoji() {
-        paletteCoordinator.toggleEmoji()
-    }
-
     func showPalette(mode: PaletteMode, restoreAnyMode: Bool = false) {
         paletteCoordinator.showPalette(mode: mode, restoreAnyMode: restoreAnyMode)
     }
@@ -265,48 +253,12 @@ final class AppCore {
         paletteCoordinator.hidePalette(restoreFocus: restoreFocus)
     }
 
-    var paletteIsCollapsed: Bool { paletteCoordinator.paletteIsCollapsed }
-
-    func expandFromCompact() {
-        paletteCoordinator.expandFromCompact()
-    }
-
-    func syncPaletteSize() {
-        paletteCoordinator.syncPaletteSize()
-    }
-
     func handleReopen() {
         paletteCoordinator.handleReopen()
     }
 
     func showSettings(tab: SettingsTab = .general) {
         paletteCoordinator.showSettings(tab: tab)
-    }
-
-    func showBackupSettings() {
-        paletteCoordinator.showBackupSettings()
-    }
-
-    func showAbout() {
-        paletteCoordinator.showAbout()
-    }
-
-    func showOnboarding() {
-        paletteCoordinator.showOnboarding()
-    }
-
-    func finishOnboarding() {
-        paletteCoordinator.finishOnboarding()
-    }
-
-    // MARK: - Actions invoked from the palette UI
-
-    func launch(_ app: AppEntry, searchQuery: String? = nil) {
-        launcherCoordinator.launch(app, searchQuery: searchQuery)
-    }
-
-    func resetRanking(for app: AppEntry) {
-        launcherCoordinator.resetRanking(for: app)
     }
 
     // MARK: - Window commands
@@ -325,12 +277,6 @@ final class AppCore {
         windowMover.perform(
             id, target: target, gap: CGFloat(settings.windowGap),
             cycleOnRepeat: settings.windowCycleOnRepeat)
-    }
-
-    // MARK: - System actions
-
-    func runSystemAction(id: SystemAction.ID) {
-        systemActionCoordinator.runSystemAction(id: id)
     }
 
     // MARK: - Dialogs
@@ -369,176 +315,5 @@ final class AppCore {
     /// The volume slider, so `dialogs` stays the single owner of every prompt in the app.
     func pickVolume(current: Float32) async -> Float32? {
         await dialogs.pickVolume(current: current)
-    }
-
-    func presentSystemActionFailure(id: SystemAction.ID, failure: SystemActionFailure) {
-        systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
-    }
-
-    // MARK: - Quicklinks
-
-    func openQuicklink(id: UUID, forcingDefaultApp: Bool = false) {
-        quicklinkCoordinator.openQuicklink(id: id, forcingDefaultApp: forcingDefaultApp)
-    }
-
-    @discardableResult
-    func submitQuicklinkArgument(_ value: String) -> Bool {
-        quicklinkCoordinator.submitQuicklinkArgument(value)
-    }
-
-    func cancelQuicklinkArguments() {
-        quicklinkCoordinator.cancelQuicklinkArguments()
-    }
-
-    @discardableResult
-    func addQuicklink(_ draft: Quicklink) throws -> Quicklink {
-        try quicklinkCoordinator.addQuicklink(draft)
-    }
-
-    func updateQuicklink(_ draft: Quicklink) throws {
-        try quicklinkCoordinator.updateQuicklink(draft)
-    }
-
-    func deleteQuicklink(id: UUID, confirming: Bool = true) async {
-        await quicklinkCoordinator.deleteQuicklink(id: id, confirming: confirming)
-    }
-
-    func toggleQuicklinkPinned(id: UUID) {
-        quicklinkCoordinator.toggleQuicklinkPinned(id: id)
-    }
-
-    func setQuicklinkShowsInRootSearch(_ shows: Bool, id: UUID) {
-        quicklinkCoordinator.setQuicklinkShowsInRootSearch(shows, id: id)
-    }
-
-    func duplicateQuicklink(id: UUID) {
-        quicklinkCoordinator.duplicateQuicklink(id: id)
-    }
-
-    func editQuicklink(_ quicklink: Quicklink?) {
-        quicklinkCoordinator.editQuicklink(quicklink)
-    }
-
-    @discardableResult
-    func replaceQuicklinks(_ incoming: [Quicklink]) -> Int {
-        quicklinkCoordinator.replaceQuicklinks(incoming)
-    }
-
-    func exportQuicklinks() async {
-        await quicklinkCoordinator.exportQuicklinks()
-    }
-
-    func importQuicklinks() async {
-        await quicklinkCoordinator.importQuicklinks()
-    }
-
-    // MARK: - Custom commands
-
-    @discardableResult
-    func addCustomCommand(_ draft: CustomCommand) throws -> CustomCommand {
-        try customCommandCoordinator.addCustomCommand(draft)
-    }
-
-    func updateCustomCommand(_ draft: CustomCommand) throws {
-        try customCommandCoordinator.updateCustomCommand(draft)
-    }
-
-    func deleteCustomCommand(id: UUID) {
-        customCommandCoordinator.deleteCustomCommand(id: id)
-    }
-
-    @discardableResult
-    func replaceCustomCommands(_ commands: [CustomCommand]) -> Int {
-        customCommandCoordinator.replaceCustomCommands(commands)
-    }
-
-    func runCustomCommand(id: UUID) {
-        customCommandCoordinator.runCustomCommand(id: id)
-    }
-
-    func quit(_ app: AppEntry) {
-        launcherCoordinator.quit(app)
-    }
-
-    // MARK: - Uninstall
-
-    func beginUninstall(_ app: AppEntry) {
-        uninstallCoordinator.beginUninstall(app)
-    }
-
-    func performUninstall() {
-        uninstallCoordinator.performUninstall()
-    }
-
-    func copyUninstallPath(_ candidate: UninstallCandidate) {
-        uninstallCoordinator.copyUninstallPath(candidate)
-    }
-
-    func showUninstallItemInFinder(_ candidate: UninstallCandidate) {
-        uninstallCoordinator.showUninstallItemInFinder(candidate)
-    }
-
-    func showUninstallItemInfo(_ candidate: UninstallCandidate) {
-        uninstallCoordinator.showUninstallItemInfo(candidate)
-    }
-
-    func copyCalculatorResult(_ result: CalcResult) {
-        calculatorCoordinator.copyCalculatorResult(result)
-    }
-
-    func copyHistoryEntry(_ entry: CalcHistoryEntry) {
-        calculatorCoordinator.copyHistoryEntry(entry)
-    }
-
-    func copyHistoryExpression(_ entry: CalcHistoryEntry) {
-        calculatorCoordinator.copyHistoryExpression(entry)
-    }
-
-    func showInFinder(_ app: AppEntry) {
-        launcherCoordinator.showInFinder(app)
-    }
-
-    func paste(_ item: ClipboardItem) {
-        clipboardCoordinator.paste(item)
-    }
-
-    func pasteKeepingWindowOpen(_ item: ClipboardItem) {
-        clipboardCoordinator.pasteKeepingWindowOpen(item)
-    }
-
-    func copyToClipboard(_ item: ClipboardItem) {
-        clipboardCoordinator.copyToClipboard(item)
-    }
-
-    func revealClipboardImage(_ item: ClipboardItem) {
-        clipboardCoordinator.revealClipboardImage(item)
-    }
-
-    func togglePinnedClip(_ item: ClipboardItem) {
-        clipboardCoordinator.togglePinnedClip(item)
-    }
-
-    // MARK: - Emoji
-
-    func pasteEmoji(_ entry: EmojiEntry) {
-        emojiCoordinator.pasteEmoji(entry)
-    }
-
-    func copyEmoji(_ entry: EmojiEntry) {
-        emojiCoordinator.copyEmoji(entry)
-    }
-
-    func pasteEmojiKeepingWindowOpen(_ entry: EmojiEntry) {
-        emojiCoordinator.pasteEmojiKeepingWindowOpen(entry)
-    }
-
-    // MARK: - Snippets
-
-    func revealSnippetsInFinder() {
-        snippetExpansion.revealSnippetsInFinder()
-    }
-
-    func setSnippetsEnabled(_ enabled: Bool) {
-        snippetExpansion.setSnippetsEnabled(enabled)
     }
 }

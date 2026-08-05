@@ -149,11 +149,11 @@ extension SettingsBackup {
         var summary = ApplySummary()
         if let s = settings { summary.settingsFields = applySettings(s, to: core) }
         if let customCommands {
-            summary.customCommands = core.replaceCustomCommands(customCommands)
+            summary.customCommands = core.customCommandCoordinator.replaceCustomCommands(customCommands)
         }
         // Before the hotkeys, so a restored binding has its quicklink to attach to.
         if let quicklinks {
-            summary.quicklinks = core.replaceQuicklinks(quicklinks)
+            summary.quicklinks = core.quicklinkCoordinator.replaceQuicklinks(quicklinks)
         }
         if let hotkeys { summary.hotkeys = applyHotkeys(hotkeys, to: core) }
         if let favoriteApps {

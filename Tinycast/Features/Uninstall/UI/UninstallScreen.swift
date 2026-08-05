@@ -38,7 +38,7 @@ struct UninstallScreen: PaletteScreen {
 
     /// The primary action trashes the session's checked set, not the highlighted row.
     func activate(at selection: Int) {
-        core.performUninstall()
+        core.uninstallCoordinator.performUninstall()
     }
 
     func secondary(at selection: Int) -> Bool {
@@ -96,7 +96,7 @@ enum UninstallActionsMenu {
                 PopoverMenuItem(
                     title: "Uninstall Application", systemImage: "trash", shortcut: "↵",
                     isDestructive: true
-                ) { core.performUninstall() })
+                ) { core.uninstallCoordinator.performUninstall() })
         }
         if !candidate.isLocked {
             let checked = session.selection?.isChecked(candidate.id) ?? false
@@ -108,16 +108,16 @@ enum UninstallActionsMenu {
         }
         items.append(
             PopoverMenuItem(title: "Copy Path", systemImage: "doc.on.clipboard", shortcut: "⌥⌘C") {
-                core.copyUninstallPath(candidate)
+                core.uninstallCoordinator.copyUninstallPath(candidate)
             })
         items.append(
             PopoverMenuItem(title: "Show in Finder", systemImage: "folder", shortcut: "⇧⌘O") {
-                core.showUninstallItemInFinder(candidate)
+                core.uninstallCoordinator.showUninstallItemInFinder(candidate)
             })
         items.append(
             PopoverMenuItem(title: "Show Info in Finder", systemImage: "info.circle", shortcut: "⇧⌘I")
             {
-                core.showUninstallItemInfo(candidate)
+                core.uninstallCoordinator.showUninstallItemInfo(candidate)
             })
         return PopoverMenuContent(header: session.app?.name ?? candidate.name, items: items)
     }

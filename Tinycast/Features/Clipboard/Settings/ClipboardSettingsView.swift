@@ -2,12 +2,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ClipboardSettingsView: View {
-    @Bindable private var settings = AppCore.shared.settings
+    @Environment(AppCore.self) private var core
+    @Environment(AppSettings.self) private var settings
     @State private var confirmingClear = false
     @State private var showingAppPicker = false
 
     var body: some View {
-        SettingsPane(
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "Clipboard",
             subtitle: "Control how much history Tinycast keeps and which apps are recorded."
         ) {
@@ -37,7 +39,7 @@ struct ClipboardSettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                     .onChange(of: settings.clipboardRetention) {
-                        let store = AppCore.shared.clipboardStore
+                        let store = core.clipboardStore
                         store.maxAge = settings.clipboardRetention.maxAge
                         store.enforceLimits()
                     }
@@ -93,7 +95,7 @@ struct ClipboardSettingsView: View {
             titleVisibility: .visible
         ) {
             Button("Clear History", role: .destructive) {
-                AppCore.shared.clipboardStore.clearAll()
+                core.clipboardStore.clearAll()
             }
             Button("Cancel", role: .cancel) {}
         } message: {

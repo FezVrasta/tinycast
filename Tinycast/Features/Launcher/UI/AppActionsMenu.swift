@@ -11,7 +11,7 @@ enum AppActionsMenu {
             PopoverMenuItem(
                 title: app.kind.descriptor.openVerb, systemImage: "list.bullet.rectangle",
                 shortcut: "↵"
-            ) { core.launch(app, searchQuery: searchQuery) }
+            ) { core.launcherCoordinator.launch(app, searchQuery: searchQuery) }
         ]
         if favorites.isFavorite(app) {
             items.append(
@@ -35,7 +35,7 @@ enum AppActionsMenu {
                 PopoverMenuItem(
                     title: "Show in Finder", systemImage: "folder", shortcut: "⌘↵"
                 ) {
-                    core.showInFinder(app)
+                    core.launcherCoordinator.showInFinder(app)
                 })
         }
         if running, app.kind == .application {
@@ -44,7 +44,7 @@ enum AppActionsMenu {
                     title: "Quit Application", systemImage: "power", shortcut: "⌃⇧Q",
                     isDestructive: true
                 ) {
-                    core.quit(app)
+                    core.launcherCoordinator.quit(app)
                 })
         }
         if app.kind == .application {
@@ -52,7 +52,7 @@ enum AppActionsMenu {
                 PopoverMenuItem(
                     title: "Uninstall Application", systemImage: "trash", isDestructive: true
                 ) {
-                    core.beginUninstall(app)
+                    core.uninstallCoordinator.beginUninstall(app)
                 })
         }
         return PopoverMenuContent(header: app.name, items: items)

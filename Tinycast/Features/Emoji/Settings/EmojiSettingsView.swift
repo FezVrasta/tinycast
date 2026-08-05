@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct EmojiSettingsView: View {
-    @Bindable private var settings = AppCore.shared.settings
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
-        SettingsPane(
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "Emoji & Symbols",
             subtitle: "Search emoji and symbols, and paste them into any app."
         ) {

@@ -25,20 +25,20 @@ struct ClipboardScreen: PaletteScreen {
 
     func activate(at selection: Int) {
         guard let item = item(at: selection) else { return }
-        core.paste(item)
+        core.clipboardCoordinator.paste(item)
     }
 
     /// ⌘↵ — copy without pasting, leaving the frontmost app's own clipboard use alone.
     func secondary(at selection: Int) -> Bool {
         guard let item = item(at: selection) else { return false }
-        core.copyToClipboard(item)
+        core.clipboardCoordinator.copyToClipboard(item)
         return true
     }
 
     /// ⌘P — mirrors the Actions menu row; pinning lifts the row into the Pinned section.
     func pin(at selection: Int) -> Bool {
         guard let item = item(at: selection) else { return false }
-        core.togglePinnedClip(item)
+        core.clipboardCoordinator.togglePinnedClip(item)
         return true
     }
 
@@ -117,32 +117,32 @@ enum ClipboardActionsMenu {
                 title: target?.pasteTitle ?? "Paste",
                 icon: .paste(target, fallback: "doc.on.clipboard"), shortcut: "↵"
             ) {
-                core.paste(item)
+                core.clipboardCoordinator.paste(item)
             },
             PopoverMenuItem(title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵") {
-                core.copyToClipboard(item)
+                core.clipboardCoordinator.copyToClipboard(item)
             },
             PopoverMenuItem(
                 title: "Paste & Keep Window Open", icon: .paste(target, fallback: "macwindow")
             ) {
-                core.pasteKeepingWindowOpen(item)
+                core.clipboardCoordinator.pasteKeepingWindowOpen(item)
             }
         ]
         if item.isPinned {
             items.append(
                 PopoverMenuItem(title: "Unpin Entry", systemImage: "pin.slash", shortcut: "⌘P") {
-                    core.togglePinnedClip(item)
+                    core.clipboardCoordinator.togglePinnedClip(item)
                 })
         } else {
             items.append(
                 PopoverMenuItem(title: "Pin Entry", systemImage: "pin", shortcut: "⌘P") {
-                    core.togglePinnedClip(item)
+                    core.clipboardCoordinator.togglePinnedClip(item)
                 })
         }
         if item.kind == .image {
             items.append(
                 PopoverMenuItem(title: "Show in Finder", systemImage: "folder") {
-                    core.revealClipboardImage(item)
+                    core.clipboardCoordinator.revealClipboardImage(item)
                 })
         }
         items.append(

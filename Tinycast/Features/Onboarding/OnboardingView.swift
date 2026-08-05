@@ -6,8 +6,9 @@ import SwiftUI
 struct OnboardingView: View {
     @State private var step = 0
     @State private var model = OnboardingModel()
-    @Bindable private var settings = AppCore.shared.settings
-    private let hotKeys = AppCore.shared.hotKeys
+    @Environment(AppCore.self) private var core
+    @Environment(AppSettings.self) private var settings
+    @Environment(HotKeyManager.self) private var hotKeys
 
     @State private var accessibilityTrusted = Permissions.isAccessibilityTrusted()
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -129,7 +130,8 @@ struct OnboardingView: View {
     }
 
     private var shortcutStep: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+        @Bindable var settings = settings
+        return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             SettingsCard {
                 SettingsRow(
                     title: "App Launcher",
@@ -284,7 +286,7 @@ struct OnboardingView: View {
         case 2 where !model.didImport:
             model.run()
         case Self.lastStep:
-            AppCore.shared.finishOnboarding()
+            core.paletteCoordinator.finishOnboarding()
         default:
             advance()
         }

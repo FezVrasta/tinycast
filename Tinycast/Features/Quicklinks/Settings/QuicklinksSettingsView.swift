@@ -3,13 +3,15 @@ import SwiftUI
 /// The quicklink library plus the behaviour that applies to all of them.
 struct QuicklinksSettingsView: View {
     @Environment(QuicklinkStore.self) private var store
-    @Bindable private var core = AppCore.shared
-    @Bindable private var settings = AppCore.shared.settings
+    @Environment(AppCore.self) private var core
+    @Environment(AppSettings.self) private var settings
     @State private var query = ""
     @State private var pendingDeletion: Quicklink?
 
     var body: some View {
-        SettingsPane(
+        @Bindable var core = core
+        @Bindable var settings = settings
+        return SettingsPane(
             title: "Quicklinks",
             subtitle: "Turn a URL, search, file, folder or deeplink into its own command."
         ) {
@@ -43,7 +45,7 @@ struct QuicklinksSettingsView: View {
                 title: Text("Delete “\(quicklink.name)”?"),
                 message: Text("Its global shortcut and launcher references will also be removed."),
                 primaryButton: .destructive(Text("Delete")) {
-                    Task { await AppCore.shared.deleteQuicklink(id: quicklink.id, confirming: false) }
+                    Task { await core.quicklinkCoordinator.deleteQuicklink(id: quicklink.id, confirming: false) }
                 },
                 secondaryButton: .cancel())
         }
@@ -83,7 +85,7 @@ struct QuicklinksSettingsView: View {
                     if index > 0 { SettingsDivider() }
                     QuicklinkSettingsRow(
                         quicklink: quicklink,
-                        onEdit: { core.editQuicklink(quicklink) },
+                        onEdit: { core.quicklinkCoordinator.editQuicklink(quicklink) },
                         onDelete: { pendingDeletion = quicklink })
                 }
             }
@@ -95,14 +97,15 @@ struct QuicklinksSettingsView: View {
                 systemImage: "plus.circle",
                 tint: .green
             ) {
-                Button("Add…") { core.editQuicklink(nil) }
+                Button("Add…") { core.quicklinkCoordinator.editQuicklink(nil) }
                     .controlSize(.small)
             }
         }
     }
 
     private var behaviour: some View {
-        SettingsCard(header: "Behaviour") {
+        @Bindable var settings = settings
+        return SettingsCard(header: "Behaviour") {
             SettingsRow(
                 title: "Open in a new window",
                 subtitle:
@@ -148,7 +151,7 @@ struct QuicklinksSettingsView: View {
                 systemImage: "square.and.arrow.down",
                 tint: .teal
             ) {
-                Button("Import…") { Task { await core.importQuicklinks() } }
+                Button("Import…") { Task { await core.quicklinkCoordinator.importQuicklinks() } }
                     .controlSize(.small)
             }
             SettingsDivider()
@@ -158,7 +161,7 @@ struct QuicklinksSettingsView: View {
                 systemImage: "square.and.arrow.up",
                 tint: .teal
             ) {
-                Button("Export…") { Task { await core.exportQuicklinks() } }
+                Button("Export…") { Task { await core.quicklinkCoordinator.exportQuicklinks() } }
                     .controlSize(.small)
                     .disabled(store.quicklinks.isEmpty)
             }
