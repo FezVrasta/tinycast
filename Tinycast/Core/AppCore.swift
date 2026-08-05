@@ -132,8 +132,17 @@ final class AppCore {
 
     /// Set when a quicklink editor should open as the Settings window appears; the pane consumes it.
     var pendingQuicklinkEdit: QuicklinkEditRequest?
-    /// Carries the menu's default-app override across the quicklink argument prompt.
-    private var pendingQuicklinkForcesDefaultApp = false
+
+    @ObservationIgnored private(set) lazy var snippetExpansion = SnippetExpansionCoordinator(
+        store: snippetsStore, listener: snippetListener, injector: snippetTextInjector,
+        clipboardStore: clipboardStore, appIndex: appIndex, settings: settings,
+        showMessage: { [unowned self] in self.showMessage($0) })
+    @ObservationIgnored private(set) lazy var quicklinkCoordinator = QuicklinkCoordinator(
+        store: quicklinks, argumentSession: quicklinkArguments, settings: settings,
+        appIndex: appIndex, injector: snippetTextInjector, hotKeys: hotKeys, favorites: favorites,
+        visibility: visibility, ranking: launcherRanking, windowController: windowController,
+        clipboardHistory: { [unowned self] in self.snippetExpansion.clipboardHistoryForExpansion() },
+        core: self)
 
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
@@ -177,13 +186,13 @@ final class AppCore {
             applyCustomCommandsPresence()
             applyWindowCommandsPresence()
             quicklinks.onChange = { [weak self] _ in
-                self?.applyQuicklinksPresence()
+                self?.quicklinkCoordinator.applyQuicklinksPresence()
             }
             // Loaded even while the feature is off, and before `hotKeys.start`: its stale-binding prune
             // reads this list, so an unloaded store would look like "every quicklink was deleted" and
             // throw away the user's shortcuts. The library is small, so this is one short read.
             quicklinks.load()
-            applyQuicklinksPresence()
+            quicklinkCoordinator.applyQuicklinksPresence()
             Task { await appIndex.refresh() }
             Task { await emojiIndex.load() }
             currencyRates.start()
@@ -198,7 +207,9 @@ final class AppCore {
             hotKeys.onRunCustomCommand = { [weak self] id in self?.runCustomCommand(id: id) }
             hotKeys.onRunSystemAction = { [weak self] id in self?.runSystemAction(id: id) }
             hotKeys.onRunWindowCommand = { [weak self] id in self?.runWindowCommand(id: id) }
-            hotKeys.onOpenQuicklink = { [weak self] id in self?.openQuicklink(id: id) }
+            hotKeys.onOpenQuicklink = { [weak self] id in
+                self?.quicklinkCoordinator.openQuicklink(id: id)
+            }
             hotKeys.start(
                 customCommandIDs: Set(customCommands.commands.map(\.id)),
                 quicklinkIDs: Set(quicklinks.quicklinks.map(\.id)))
@@ -207,13 +218,13 @@ final class AppCore {
 
             snippetsStore.onSnapshot = { [weak self] snapshot in
                 guard let self else { return }
-                self.applySnippetsLauncherPresence()
+                self.snippetExpansion.applySnippetsLauncherPresence()
                 self.snippetListener.update(snapshot.records)
             }
             // Off out of the box, so a user who never enables snippets pays for no load, no watcher and no tap.
             if settings.snippetsEnabled {
                 Task { await snippetsStore.start() }
-                startSnippetKeywordListener()
+                snippetExpansion.startSnippetKeywordListener()
             }
 
             observeFeatureSwitches()
@@ -248,9 +259,11 @@ final class AppCore {
         track({
             _ = $0.quicklinksEnabled
             _ = $0.quicklinksShowInLauncher
-        }, reproject: { $0.applyQuicklinksPresence() })
-        track({ _ = $0.snippetsEnabled }, reproject: { $0.applySnippetsEnabled() })
-        track({ _ = $0.snippetsShowInLauncher }, reproject: { $0.applySnippetsLauncherPresence() })
+        }, reproject: { $0.quicklinkCoordinator.applyQuicklinksPresence() })
+        track({ _ = $0.snippetsEnabled }, reproject: { $0.snippetExpansion.applySnippetsEnabled() })
+        track(
+            { _ = $0.snippetsShowInLauncher },
+            reproject: { $0.snippetExpansion.applySnippetsLauncherPresence() })
     }
 
     /// Fires synchronously on main before the write lands, so the task re-arms and re-reads.
@@ -277,35 +290,6 @@ final class AppCore {
     private func applyWindowCommandsPresence() {
         let visible = settings.windowManagementEnabled && settings.windowManagementShowInLauncher
         appIndex.setWindowCommandsVisible(visible)
-    }
-
-    /// The launcher section and the Quicklinks commands move together with the feature switch;
-    /// "show in launcher" hides only the section, leaving the commands reachable.
-    private func applyQuicklinksPresence() {
-        let enabled = settings.quicklinksEnabled
-        appIndex.setQuicklinks(
-            enabled && settings.quicklinksShowInLauncher ? quicklinks.quicklinks : [],
-            commandsVisible: enabled)
-    }
-
-    private func applySnippetsLauncherPresence() {
-        let visible = settings.snippetsEnabled && settings.snippetsShowInLauncher
-        appIndex.updateSnippets(visible ? snippetsStore.snippets : [])
-    }
-
-    /// Reconciles everything the snippets switch owns. Off tears down in dependency order; hotkey-free, so nothing else needs unwinding.
-    private func applySnippetsEnabled() {
-        if settings.snippetsEnabled {
-            Task { await snippetsStore.start() }
-            // A stop/start round-trip over an unchanged library publishes no snapshot, so re-project the records the store already holds.
-            applySnippetsLauncherPresence()
-            startSnippetKeywordListener()
-            return
-        }
-        snippetListener.stop()
-        snippetTextInjector.cancelAutomaticExpansion()
-        snippetsStore.stop()
-        appIndex.updateSnippets([])
     }
 
     // MARK: - Palette control
@@ -446,7 +430,7 @@ final class AppCore {
         // to ask for it, and only then opens.
         if app.kind == .quicklink {
             guard let id = Quicklink.id(fromEntryID: app.id) else { return }
-            openQuicklink(id: id)
+            quicklinkCoordinator.openQuicklink(id: id)
             return
         }
         let previous = windowController.previousApp
@@ -459,7 +443,7 @@ final class AppCore {
             AppLauncher.openSettingsPane(bundleID: bundleID)
         case .snippet:
             let snippetID = String(app.id.dropFirst("snippet:".count))
-            expandSnippet(id: snippetID, targetApp: previous)
+            snippetExpansion.expandSnippet(id: snippetID, targetApp: previous)
         case .command, .customCommand, .systemAction, .windowCommand, .quicklink:
             break  // handled above
         }
@@ -568,6 +552,19 @@ final class AppCore {
             confirmRole: confirmRole)
     }
 
+    /// A failure with one usable second option; `true` when the user takes it.
+    func reportFailure(title: String, message: String, symbol: String, recovery: String?) async
+        -> Bool
+    {
+        await dialogs.reportFailure(
+            title: title, message: message, symbol: symbol, recovery: recovery)
+    }
+
+    /// The transient success/info pill, so `messageHUD` stays single-owned alongside `dialogs`.
+    func showMessage(_ message: String, tone: DialogTone = .success) {
+        messageHUD.show(message: message, tone: tone)
+    }
+
     /// Sync entry point for the runner's own async completion handlers, which can't await.
     func presentSystemActionFailure(id: SystemAction.ID, failure: SystemActionFailure) {
         Task { await presentFailure(action: SystemActionCatalog.action(id: id), failure: failure) }
@@ -594,241 +591,59 @@ final class AppCore {
 
     // MARK: - Quicklinks
 
-    /// The one funnel for palette activation, the ⌘K menu and a quicklink's global shortcut, so
-    /// neither the feature switch nor the argument prompt can be bypassed.
-    ///
-    /// `forcingDefaultApp` is the menu's "Open With Default App": it bypasses the saved handler for
-    /// one open without changing what the quicklink is saved as.
     func openQuicklink(id: UUID, forcingDefaultApp: Bool = false) {
-        guard settings.quicklinksEnabled, let quicklink = quicklinks.quicklink(id: id) else {
-            return
-        }
-        // With the palette closed a shortcut still reads the selection from whatever is frontmost,
-        // exactly as a system action targets the window a palette launch would have.
-        let target =
-            windowController.isVisible
-            ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
-        let encoding: SnippetTemplateEngine.ValueEncoding =
-            QuicklinkDestination.usesURLEncoding(quicklink.link) ? .percentEncoding : .none
-        var context = snippetTextInjector.captureExpansionContext(
-            targetApp: target, clipboardHistory: clipboardHistoryForExpansion())
-        var arguments: [SnippetTemplateEngine.MissingArgument] = []
-
-        // An unreadable selection is a missing value, not an empty one: substitute the clipboard, or
-        // collect it through the same prompt the template's own arguments use.
-        if context.selection.isEmpty, SnippetTemplateEngine.usesSelection(quicklink.link) {
-            switch settings.quicklinkSelectionFallback {
-            case .clipboard:
-                context = context.replacingSelection(with: context.clipboard)
-            case .ask:
-                arguments.append(Self.selectionArgument)
-            }
-        }
-
-        let expansion = SnippetTemplateEngine.expand(
-            text: quicklink.link, context: context, encoding: encoding)
-        arguments += expansion.missingArguments
-        guard arguments.isEmpty else {
-            quicklinkArguments.begin(
-                quicklink: quicklink, context: context, encoding: encoding, arguments: arguments)
-            pendingQuicklinkForcesDefaultApp = forcingDefaultApp
-            // Never `restoreAnyMode`: this screen is always a fresh prompt, never a restored one.
-            showPalette(mode: .quicklinkArguments)
-            return
-        }
-        performQuicklinkOpen(
-            quicklink, link: expansion.text, forcingDefaultApp: forcingDefaultApp)
+        quicklinkCoordinator.openQuicklink(id: id, forcingDefaultApp: forcingDefaultApp)
     }
 
-    /// `{selection}` promoted to an argument when there is nothing to read and the setting says ask.
-    private static let selectionArgument = SnippetTemplateEngine.MissingArgument(
-        name: "Selected Text", options: [])
-
-    /// ↵ in the argument form. Returns false while more arguments remain.
     @discardableResult
     func submitQuicklinkArgument(_ value: String) -> Bool {
-        guard let request = quicklinkArguments.request else { return false }
-        guard let values = quicklinkArguments.submit(value) else { return false }
-
-        var context = request.context
-        if let selection = values[Self.selectionArgument.name] {
-            context = context.replacingSelection(with: selection)
-        }
-        let expansion = SnippetTemplateEngine.expand(
-            text: request.quicklink.link, context: context, userArguments: values,
-            encoding: request.encoding)
-        let forcesDefault = pendingQuicklinkForcesDefaultApp
-        cancelQuicklinkArguments()
-        performQuicklinkOpen(
-            request.quicklink, link: expansion.text, forcingDefaultApp: forcesDefault)
-        return true
+        quicklinkCoordinator.submitQuicklinkArgument(value)
     }
 
     func cancelQuicklinkArguments() {
-        quicklinkArguments.cancel()
-        pendingQuicklinkForcesDefaultApp = false
+        quicklinkCoordinator.cancelQuicklinkArguments()
     }
-
-    private func performQuicklinkOpen(
-        _ quicklink: Quicklink, link: String, forcingDefaultApp: Bool
-    ) {
-        if windowController.isVisible { hidePalette(restoreFocus: false) }
-        let openWith = forcingDefaultApp ? nil : quicklink.openWithBundleID
-        Task {
-            do throws(QuicklinkLauncher.Failure) {
-                try await QuicklinkLauncher.open(
-                    link, openWithBundleID: openWith,
-                    inNewWindow: settings.quicklinkOpensNewWindow)
-            } catch {
-                await presentQuicklinkFailure(quicklink, link: link, failure: error)
-            }
-        }
-    }
-
-    private func presentQuicklinkFailure(
-        _ quicklink: Quicklink, link: String, failure: QuicklinkLauncher.Failure
-    ) async {
-        let symbol = quicklink.iconSymbol ?? Quicklink.sfSymbol
-        guard let bundleID = failure.missingApplicationBundleID else {
-            await showNotice(
-                title: "Couldn’t Open \(quicklink.name)",
-                message: failure.localizedDescription, symbol: symbol, tone: .danger)
-            return
-        }
-        // The only failure with a usable second option, so it offers it rather than dead-ending.
-        let name = applicationName(forBundleID: bundleID) ?? bundleID
-        guard
-            await dialogs.reportFailure(
-                title: "Couldn’t Open \(quicklink.name)",
-                message: "\(name) isn’t installed any more.", symbol: symbol,
-                recovery: "Open with Default")
-        else { return }
-        performQuicklinkOpen(quicklink, link: link, forcingDefaultApp: true)
-    }
-
-    private func applicationName(forBundleID bundleID: String) -> String? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
-            .flatMap { FileManager.default.displayName(atPath: $0.path) }
-    }
-
-    // MARK: - Quicklink library
 
     @discardableResult
     func addQuicklink(_ draft: Quicklink) throws -> Quicklink {
-        try quicklinks.add(draft)
+        try quicklinkCoordinator.addQuicklink(draft)
     }
 
     func updateQuicklink(_ draft: Quicklink) throws {
-        try quicklinks.update(draft)
+        try quicklinkCoordinator.updateQuicklink(draft)
     }
 
-    /// Confirms unless the user turned the gate off, then deletes and unwinds every reference the
-    /// quicklink owned. `confirming: false` is for the Settings pane, which already asked.
     func deleteQuicklink(id: UUID, confirming: Bool = true) async {
-        guard let quicklink = quicklinks.quicklink(id: id) else { return }
-        if confirming, settings.quicklinkConfirmsBeforeDelete {
-            guard
-                await confirm(
-                    title: "Delete “\(quicklink.name)”?",
-                    message: "Its shortcut, favorite slot and learned ranking go with it.",
-                    symbol: quicklink.iconSymbol ?? Quicklink.sfSymbol, confirmTitle: "Delete")
-            else { return }
-        }
-        removeQuicklinkReferences(ids: [id], entryIDs: [quicklink.entryID])
-        try? quicklinks.remove(id: id)
+        await quicklinkCoordinator.deleteQuicklink(id: id, confirming: confirming)
     }
 
     func toggleQuicklinkPinned(id: UUID) {
-        try? quicklinks.togglePinned(id: id)
+        quicklinkCoordinator.toggleQuicklinkPinned(id: id)
     }
 
     func setQuicklinkShowsInRootSearch(_ shows: Bool, id: UUID) {
-        try? quicklinks.setShowsInRootSearch(shows, id: id)
+        quicklinkCoordinator.setQuicklinkShowsInRootSearch(shows, id: id)
     }
 
     func duplicateQuicklink(id: UUID) {
-        _ = try? quicklinks.duplicate(id: id)
+        quicklinkCoordinator.duplicateQuicklink(id: id)
     }
 
-    /// Opens Settings on the Quicklinks pane with the editor showing `quicklink` (nil for a new one).
     func editQuicklink(_ quicklink: Quicklink?) {
-        pendingQuicklinkEdit = QuicklinkEditRequest(quicklink: quicklink)
-        showSettings(tab: .quicklinks)
+        quicklinkCoordinator.editQuicklink(quicklink)
     }
 
     @discardableResult
     func replaceQuicklinks(_ incoming: [Quicklink]) -> Int {
-        let previous = quicklinks.quicklinks
-        let count = quicklinks.replace(with: incoming)
-        let liveIDs = Set(quicklinks.quicklinks.map(\.id))
-        let removed = previous.filter { !liveIDs.contains($0.id) }
-        removeQuicklinkReferences(
-            ids: Set(removed.map(\.id)), entryIDs: Set(removed.map(\.entryID)))
-        return count
+        quicklinkCoordinator.replaceQuicklinks(incoming)
     }
-
-    private func removeQuicklinkReferences(ids: Set<UUID>, entryIDs: Set<String>) {
-        for id in ids {
-            let action = HotKeyAction.quicklink(id: id)
-            if hotKeys.recordingAction == action { hotKeys.recordingAction = nil }
-            hotKeys.setBinding(nil, for: action)
-        }
-        favorites.remove(keys: entryIDs)
-        visibility.removeItemKeys(entryIDs)
-        for entryID in entryIDs {
-            launcherRanking.reset(itemKey: entryID)
-        }
-    }
-
-    // MARK: - Quicklink import & export
 
     func exportQuicklinks() async {
-        guard !quicklinks.quicklinks.isEmpty else {
-            await showNotice(
-                title: "Nothing to Export", message: "You haven’t created any quicklinks yet.",
-                symbol: Quicklink.sfSymbol, tone: .neutral)
-            return
-        }
-        guard let url = BackupActions.chooseSaveLocation(named: "Tinycast-Quicklinks") else {
-            return
-        }
-        do {
-            try QuicklinkArchive.encode(quicklinks.quicklinks).write(to: url, options: .atomic)
-            messageHUD.show(message: "Exported \(quicklinks.quicklinks.count) Quicklinks")
-        } catch {
-            await showNotice(
-                title: "Export Failed", message: error.localizedDescription,
-                symbol: Quicklink.sfSymbol, tone: .danger)
-        }
+        await quicklinkCoordinator.exportQuicklinks()
     }
 
     func importQuicklinks() async {
-        guard let url = BackupActions.chooseJSONFile() else { return }
-        do {
-            let incoming = try QuicklinkArchive.decode(Data(contentsOf: url))
-            let merge = QuicklinkArchive.merge(incoming, into: quicklinks.quicklinks)
-            let added = quicklinks.append(merge.additions)
-            // Everything the file offered was already here — say so rather than showing "0 imported".
-            guard !added.isEmpty else {
-                await showNotice(
-                    title: "Nothing to Import",
-                    message: "Every quicklink in this file is already in your library.",
-                    symbol: Quicklink.sfSymbol, tone: .neutral)
-                return
-            }
-            let skipped = merge.skipped + (merge.additions.count - added.count)
-            let summary =
-                skipped == 0
-                ? "Imported \(added.count) quicklinks."
-                : "Imported \(added.count) quicklinks. Skipped \(skipped) already in your library."
-            await showNotice(
-                title: "Quicklinks Imported", message: summary, symbol: Quicklink.sfSymbol,
-                tone: .success)
-        } catch {
-            await showNotice(
-                title: "Import Failed", message: error.localizedDescription,
-                symbol: Quicklink.sfSymbol, tone: .danger)
-        }
+        await quicklinkCoordinator.importQuicklinks()
     }
 
     // MARK: - Custom commands
@@ -1173,11 +988,7 @@ final class AppCore {
         frequentEmoji.record(entry.glyph)
         windowController.pasteStringKeepingWindowOpen(entry.display(tone: settings.emojiSkinTone))
     }
-
     // MARK: - Snippets
-
-    /// How far back `{clipboard offset=N}` can reach; deeper offsets aren't a snippet idiom and this keeps the per-expansion sort trivial.
-    private static let clipboardHistoryDepth = 20
 
     func revealSnippetsInFinder() {
         NSWorkspace.shared.open(snippetsStore.snippetsDirectory)
@@ -1206,137 +1017,5 @@ final class AppCore {
             // The one prompt for this feature, raised from the gesture that asked for it.
             Permissions.ensureAccessibility()
         }
-    }
-
-    private func startSnippetKeywordListener() {
-        // `beginAutomaticExpansion` is the gate: it re-checks consent, permission, Secure Event Input and the target on the injector side, so this callback doesn't duplicate it.
-        snippetListener.start { [weak self] id, keyword, keywordLength, targetApp in
-            guard let self,
-                let generation = self.snippetTextInjector.beginAutomaticExpansion(
-                    targetApp: targetApp)
-            else { return }
-            self.expandSnippet(
-                id: id,
-                targetApp: targetApp,
-                expectedKeyword: keyword,
-                keywordLength: keywordLength,
-                automaticGeneration: generation)
-        }
-    }
-
-    /// Recent text copies, newest first, for `{clipboard offset=N}`. The live pasteboard leads because the poller may not have recorded the newest copy yet.
-    private func clipboardHistoryForExpansion() -> [String] {
-        var history = clipboardStore.items
-            .filter { $0.kind == .text }
-            .sorted { $0.createdAt > $1.createdAt }
-            .prefix(Self.clipboardHistoryDepth)
-            .compactMap(\.text)
-        if let current = NSPasteboard.general.string(forType: .string), current != history.first {
-            history.insert(current, at: 0)
-        }
-        return history
-    }
-
-    private func expandSnippet(
-        id: StoredSnippet.ID,
-        targetApp: NSRunningApplication?,
-        expectedKeyword: String? = nil,
-        keywordLength: Int = 0,
-        automaticGeneration: UInt? = nil
-    ) {
-        let records = snippetsStore.snippets
-        guard let record = records.first(where: { $0.id == id }) else {
-            snippetTextInjector.cancelArgumentPrompt(
-                automaticGeneration: automaticGeneration,
-                targetApp: targetApp)
-            return
-        }
-        // The automatic path was gated by `beginAutomaticExpansion` in the same turn, and `deliver` gates both again. Only the interactive path needs a check here: it must fail before the argument prompt, not after it.
-        if automaticGeneration == nil {
-            guard snippetTextInjector.prepareInteractiveExpansion(targetApp: targetApp) else { return }
-        }
-        let confirmation = record.snippet.showsConfirmation ? "Inserted \(record.snippet.name)" : nil
-        let context = snippetTextInjector.captureExpansionContext(
-            targetApp: targetApp,
-            clipboardHistory: clipboardHistoryForExpansion())
-        let result = SnippetTemplateEngine.expand(
-            record,
-            snippets: records,
-            context: context)
-        if !result.missingArguments.isEmpty {
-            promptSnippetArguments(
-                record: record,
-                records: records,
-                context: context,
-                missingArgs: result.missingArguments,
-                targetApp: targetApp,
-                expectedKeyword: expectedKeyword,
-                keywordLength: keywordLength,
-                automaticGeneration: automaticGeneration,
-                confirmation: confirmation)
-            return
-        }
-        completeSnippetExpansion(
-            result,
-            targetApp: targetApp,
-            expectedKeyword: expectedKeyword,
-            keywordLength: keywordLength,
-            automaticGeneration: automaticGeneration,
-            confirmation: confirmation)
-    }
-
-    private func promptSnippetArguments(
-        record: StoredSnippet,
-        records: [StoredSnippet],
-        context: SnippetTemplateEngine.ExpansionContext,
-        missingArgs: [SnippetTemplateEngine.MissingArgument],
-        targetApp: NSRunningApplication?,
-        expectedKeyword: String?,
-        keywordLength: Int,
-        automaticGeneration: UInt?,
-        confirmation: String?
-    ) {
-        guard let arguments = SnippetArgumentsPrompt.run(
-            snippetName: record.snippet.name,
-            arguments: missingArgs)
-        else {
-            snippetTextInjector.cancelArgumentPrompt(
-                automaticGeneration: automaticGeneration,
-                targetApp: targetApp)
-            return
-        }
-
-        let result = SnippetTemplateEngine.expand(
-            record,
-            snippets: records,
-            context: context,
-            userArguments: arguments)
-        completeSnippetExpansion(
-            result,
-            targetApp: targetApp,
-            expectedKeyword: expectedKeyword,
-            keywordLength: keywordLength,
-            automaticGeneration: automaticGeneration,
-            confirmation: confirmation)
-    }
-
-    private func completeSnippetExpansion(
-        _ result: SnippetTemplateEngine.ExpansionResult,
-        targetApp: NSRunningApplication?,
-        expectedKeyword: String?,
-        keywordLength: Int,
-        automaticGeneration: UInt?,
-        confirmation: String?
-    ) {
-        snippetTextInjector.deliver(
-            result,
-            targetApp: targetApp,
-            expectedKeyword: expectedKeyword,
-            keywordLength: keywordLength,
-            automaticGeneration: automaticGeneration,
-            onDelivered: { [weak self] in
-                guard let self, let confirmation else { return }
-                self.messageHUD.show(message: confirmation)
-            })
     }
 }
