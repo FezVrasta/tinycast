@@ -11,6 +11,8 @@ final class SnippetExpansionCoordinator {
     private let settings: AppSettings
     /// Routed out so `MessageHUDController` stays owned by `AppCore`.
     private let showMessage: @MainActor (String) -> Void
+    /// The consent dialog only — never for state this type owns.
+    private unowned let core: AppCore
 
     init(
         store: SnippetsStore,
@@ -19,7 +21,8 @@ final class SnippetExpansionCoordinator {
         clipboardStore: ClipboardStore,
         appIndex: AppIndex,
         settings: AppSettings,
-        showMessage: @escaping @MainActor (String) -> Void
+        showMessage: @escaping @MainActor (String) -> Void,
+        core: AppCore
     ) {
         self.store = store
         self.listener = listener
@@ -28,6 +31,38 @@ final class SnippetExpansionCoordinator {
         self.appIndex = appIndex
         self.settings = settings
         self.showMessage = showMessage
+        self.core = core
+    }
+
+    // MARK: - Feature switch
+
+    func revealSnippetsInFinder() {
+        NSWorkspace.shared.open(store.snippetsDirectory)
+    }
+
+    /// The pane's switch funnels through here so enabling — which is also keyword-expansion consent — confirms first. The settings sink then reconciles the store, listener and launcher presence.
+    func setSnippetsEnabled(_ enabled: Bool) {
+        guard enabled != settings.snippetsEnabled else { return }
+        if !enabled {
+            settings.snippetsEnabled = false
+            return
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        Task {
+            guard
+                await core.confirm(
+                    title: "Enable snippets?",
+                    message:
+                        "Keyword expansion requires the Accessibility permission. Keystrokes stay on this Mac.",
+                    symbol: "curlybraces", confirmTitle: "Continue", tone: .neutral,
+                    confirmRole: .standard)
+            else { return }
+
+            settings.snippetsEnabled = true
+            // The one prompt for this feature, raised from the gesture that asked for it.
+            Permissions.ensureAccessibility()
+        }
     }
 
     // MARK: - Feature presence

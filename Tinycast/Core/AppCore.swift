@@ -135,7 +135,7 @@ final class AppCore {
     @ObservationIgnored private(set) lazy var snippetExpansion = SnippetExpansionCoordinator(
         store: snippetsStore, listener: snippetListener, injector: snippetTextInjector,
         clipboardStore: clipboardStore, appIndex: appIndex, settings: settings,
-        showMessage: { [unowned self] in self.showMessage($0) })
+        showMessage: { [unowned self] in self.showMessage($0) }, core: self)
     @ObservationIgnored private(set) lazy var quicklinkCoordinator = QuicklinkCoordinator(
         store: quicklinks, argumentSession: quicklinkArguments, settings: settings,
         appIndex: appIndex, injector: snippetTextInjector, hotKeys: hotKeys, favorites: favorites,
@@ -156,6 +156,21 @@ final class AppCore {
         store: customCommands, settings: settings, appIndex: appIndex,
         paletteCoordinator: paletteCoordinator, hotKeys: hotKeys, favorites: favorites,
         visibility: visibility, ranking: launcherRanking, core: self)
+
+    @ObservationIgnored private(set) lazy var launcherCoordinator = LauncherCoordinator(
+        ranking: launcherRanking, windowController: windowController,
+        paletteCoordinator: paletteCoordinator,
+        customCommandCoordinator: customCommandCoordinator,
+        systemActionCoordinator: systemActionCoordinator,
+        quicklinkCoordinator: quicklinkCoordinator, snippetExpansion: snippetExpansion, core: self)
+    @ObservationIgnored private(set) lazy var clipboardCoordinator = ClipboardCoordinator(
+        clipboardStore: clipboardStore, palette: palette, windowController: windowController,
+        paletteCoordinator: paletteCoordinator)
+    @ObservationIgnored private(set) lazy var emojiCoordinator = EmojiCoordinator(
+        frequentEmoji: frequentEmoji, settings: settings, windowController: windowController,
+        paletteCoordinator: paletteCoordinator)
+    @ObservationIgnored private(set) lazy var calculatorCoordinator = CalculatorCoordinator(
+        calcHistory: calcHistory, paletteCoordinator: paletteCoordinator)
 
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
@@ -361,54 +376,11 @@ final class AppCore {
     // MARK: - Actions invoked from the palette UI
 
     func launch(_ app: AppEntry, searchQuery: String? = nil) {
-        if let searchQuery {
-            launcherRanking.record(itemKey: app.preferenceKey, query: searchQuery)
-        }
-        // Commands dispatch before the palette hides: mode-switching commands keep it open.
-        if app.kind == .command {
-            runCommand(app)
-            return
-        }
-        if app.kind == .customCommand {
-            guard let id = CustomCommand.id(fromEntryID: app.id) else { return }
-            runCustomCommand(id: id)
-            return
-        }
-        if app.kind == .systemAction {
-            guard let action = SystemActionCatalog.action(forEntryID: app.id) else { return }
-            runSystemAction(id: action.id)
-            return
-        }
-        if app.kind == .windowCommand {
-            guard let command = WindowCommandCatalog.command(forEntryID: app.id) else { return }
-            runWindowCommand(id: command.id)
-            return
-        }
-        // Also before the palette hides: a quicklink with an unfilled argument stays in the palette
-        // to ask for it, and only then opens.
-        if app.kind == .quicklink {
-            guard let id = Quicklink.id(fromEntryID: app.id) else { return }
-            quicklinkCoordinator.openQuicklink(id: id)
-            return
-        }
-        let previous = windowController.previousApp
-        hidePalette(restoreFocus: false)
-        switch app.kind {
-        case .application:
-            AppLauncher.launch(app.url)
-        case .systemSettings:
-            guard let bundleID = app.bundleID else { return }
-            AppLauncher.openSettingsPane(bundleID: bundleID)
-        case .snippet:
-            let snippetID = String(app.id.dropFirst("snippet:".count))
-            snippetExpansion.expandSnippet(id: snippetID, targetApp: previous)
-        case .command, .customCommand, .systemAction, .windowCommand, .quicklink:
-            break  // handled above
-        }
+        launcherCoordinator.launch(app, searchQuery: searchQuery)
     }
 
     func resetRanking(for app: AppEntry) {
-        launcherRanking.reset(itemKey: app.preferenceKey)
+        launcherCoordinator.resetRanking(for: app)
     }
 
     // MARK: - Window commands
@@ -558,13 +530,8 @@ final class AppCore {
         customCommandCoordinator.runCustomCommand(id: id)
     }
 
-    /// Quits the app behind an entry; a no-op (palette stays put) when it isn't running.
     func quit(_ app: AppEntry) {
-        guard app.kind == .application, let bundleID = app.bundleID else { return }
-        // Unlike `launch`, nothing here takes focus on its own — hand it back to where the user was, unless that's the app now on its way out.
-        let quittingPreviousApp = windowController.previousApp?.bundleIdentifier == bundleID
-        guard AppLauncher.quit(bundleID: bundleID) else { return }
-        hidePalette(restoreFocus: !quittingPreviousApp)
+        launcherCoordinator.quit(app)
     }
 
     // MARK: - Uninstall
@@ -589,158 +556,63 @@ final class AppCore {
         uninstallCoordinator.showUninstallItemInfo(candidate)
     }
 
-    private func runCommand(_ entry: AppEntry) {
-        switch CommandRegistry.command(for: entry) {
-        case .calculatorHistory:
-            showPalette(mode: .calculatorHistory)
-        case .clipboardHistory:
-            showPalette(mode: .clipboard)
-        case .searchEmoji:
-            showPalette(mode: .emoji)
-        case .searchQuicklinks:
-            showPalette(mode: .quicklinks)
-        case .createQuicklink:
-            hidePalette(restoreFocus: false)
-            editQuicklink(nil)
-        case .importQuicklinks:
-            hidePalette(restoreFocus: false)
-            Task { await importQuicklinks() }
-        case .exportQuicklinks:
-            hidePalette(restoreFocus: false)
-            Task { await exportQuicklinks() }
-        case .exportSettings:
-            hidePalette(restoreFocus: false)
-            Task { await BackupActions.exportSettings() }
-        case .importSettings:
-            hidePalette(restoreFocus: false)
-            Task { await BackupActions.importSettings() }
-        case .importFromRaycast:
-            hidePalette(restoreFocus: false)
-            showBackupSettings()
-        case .settings:
-            hidePalette(restoreFocus: false)
-            showSettings()
-        case .about:
-            hidePalette(restoreFocus: false)
-            showAbout()
-        case .quit:
-            NSApp.terminate(nil)
-        case nil:
-            break
-        }
-    }
-
-    /// Enter on the inline calculator card: copy the answer, remember the calculation, dismiss.
     func copyCalculatorResult(_ result: CalcResult) {
-        guard case .value(let display, let copyText) = result.payload else { return }
-        calcHistory.record(expression: result.expression, result: display)
-        hidePalette(restoreFocus: false)
-        Paster.copyPlainText(copyText)
+        calculatorCoordinator.copyCalculatorResult(result)
     }
 
-    /// Enter on a Calculator History row: re-copy the stored answer (no re-record).
     func copyHistoryEntry(_ entry: CalcHistoryEntry) {
-        hidePalette(restoreFocus: false)
-        Paster.copyPlainText(entry.result.replacingOccurrences(of: ",", with: ""))
+        calculatorCoordinator.copyHistoryEntry(entry)
     }
 
     func copyHistoryExpression(_ entry: CalcHistoryEntry) {
-        hidePalette(restoreFocus: false)
-        Paster.copyPlainText(entry.expression)
+        calculatorCoordinator.copyHistoryExpression(entry)
     }
 
     func showInFinder(_ app: AppEntry) {
-        hidePalette(restoreFocus: false)
-        AppLauncher.showInFinder(app.url)
+        launcherCoordinator.showInFinder(app)
     }
 
     func paste(_ item: ClipboardItem) {
-        let previous = windowController.previousApp
-        hidePalette(restoreFocus: false)
-        // A successful write promotes the item to the head of its section; follow it so any preserved (pop-to-root) or open clipboard state highlights the row that moved.
-        if Paster.paste(item, store: clipboardStore, previousApp: previous) {
-            selectClip(item)
-        }
+        clipboardCoordinator.paste(item)
     }
 
     func pasteKeepingWindowOpen(_ item: ClipboardItem) {
-        if windowController.pasteKeepingWindowOpen(item, store: clipboardStore) {
-            selectClip(item)
-        }
+        clipboardCoordinator.pasteKeepingWindowOpen(item)
     }
 
     func copyToClipboard(_ item: ClipboardItem) {
-        hidePalette(restoreFocus: false)
-        if Paster.copy(item, store: clipboardStore) {
-            selectClip(item)
-        }
+        clipboardCoordinator.copyToClipboard(item)
     }
 
     func revealClipboardImage(_ item: ClipboardItem) {
-        guard let url = clipboardStore.imageURL(for: item) else { return }
-        hidePalette(restoreFocus: false)
-        AppLauncher.showInFinder(url)
+        clipboardCoordinator.revealClipboardImage(item)
     }
 
-    /// Pin or unpin a clipboard entry: the row jumps into (or out of) the Pinned section at the top, so the selection and the scroll follow it.
     func togglePinnedClip(_ item: ClipboardItem) {
-        clipboardStore.togglePinned(item)
-        selectClip(item)
-        palette.followToken = UUID()
+        clipboardCoordinator.togglePinnedClip(item)
     }
 
-    /// Put the selection on `item`'s row in the list as currently filtered — pinned rows hold the top, so a row that moved isn't always index 0.
-    private func selectClip(_ item: ClipboardItem) {
-        palette.selection = clipboardStore.rowIndex(of: item, in: palette.query) ?? 0
-    }
-
-    // MARK: - Emoji actions (frequency is tallied on the base glyph; the configured tone is applied at copy time)
+    // MARK: - Emoji
 
     func pasteEmoji(_ entry: EmojiEntry) {
-        frequentEmoji.record(entry.glyph)
-        let previous = windowController.previousApp
-        hidePalette(restoreFocus: false)
-        Paster.pasteString(entry.display(tone: settings.emojiSkinTone), previousApp: previous)
+        emojiCoordinator.pasteEmoji(entry)
     }
 
     func copyEmoji(_ entry: EmojiEntry) {
-        frequentEmoji.record(entry.glyph)
-        hidePalette(restoreFocus: false)
-        Paster.copyString(entry.display(tone: settings.emojiSkinTone))
+        emojiCoordinator.copyEmoji(entry)
     }
 
     func pasteEmojiKeepingWindowOpen(_ entry: EmojiEntry) {
-        frequentEmoji.record(entry.glyph)
-        windowController.pasteStringKeepingWindowOpen(entry.display(tone: settings.emojiSkinTone))
+        emojiCoordinator.pasteEmojiKeepingWindowOpen(entry)
     }
+
     // MARK: - Snippets
 
     func revealSnippetsInFinder() {
-        NSWorkspace.shared.open(snippetsStore.snippetsDirectory)
+        snippetExpansion.revealSnippetsInFinder()
     }
 
-    /// The pane's switch funnels through here so enabling — which is also keyword-expansion consent — confirms first. The settings sink then reconciles the store, listener and launcher presence.
     func setSnippetsEnabled(_ enabled: Bool) {
-        guard enabled != settings.snippetsEnabled else { return }
-        if !enabled {
-            settings.snippetsEnabled = false
-            return
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-        Task {
-            guard
-                await confirm(
-                    title: "Enable snippets?",
-                    message:
-                        "Keyword expansion requires the Accessibility permission. Keystrokes stay on this Mac.",
-                    symbol: "curlybraces", confirmTitle: "Continue", tone: .neutral,
-                    confirmRole: .standard)
-            else { return }
-
-            settings.snippetsEnabled = true
-            // The one prompt for this feature, raised from the gesture that asked for it.
-            Permissions.ensureAccessibility()
-        }
+        snippetExpansion.setSnippetsEnabled(enabled)
     }
 }
