@@ -45,7 +45,7 @@ code — come from the global `CLAUDE.md` and are not repeated here. Tinycast ad
 
 Full detail: [`docs/architecture.md`](docs/architecture.md).
 
-- **Single-owner core.** `AppCore.shared` (`Core/AppCore.swift`) is a `@MainActor` singleton owning
+- **Single-owner core.** `AppCore.shared` (`App/AppCore.swift`) is a `@MainActor` singleton owning
   every long-lived manager and the window controllers.
   `AppDelegate.applicationDidFinishLaunching` calls `AppCore.shared.start()` and nothing else — that
   is the one wiring point. Palette / paste / launch actions are methods on `AppCore` that views call.
@@ -206,7 +206,7 @@ Never break these without an explicit task to do so.
   listen-only, installs *only* while something is bound to a double-tap, and never prompts for
   Accessibility. See [hotkeys.md](docs/hotkeys.md).
 - **Tinycast presents its own dialogs, never `NSAlert` / `NSSlider` / system popovers.** Every
-  confirmation, failure report and value prompt goes through `DialogController` (`Core/Dialog/`,
+  confirmation, failure report and value prompt goes through `DialogController` (`Windows/Dialog/`,
   owned by `AppCore`; reachable elsewhere via `AppCore.showNotice` / `confirm`). Presentation is
   `async`, so there is no nested run loop, and the presenter refuses a second dialog while one is up
   — that, not a flag, is what stops a held hotkey stacking dialogs. **↵ runs the primary action,
@@ -244,7 +244,7 @@ Never break these without an explicit task to do so.
 
 ## Project Layout
 
-- `Tinycast/Core/` — managers, stores, windows, AppKit glue (no view bodies beyond hosting).
+- `Tinycast/Core/` — managers, stores and AppKit glue (no view bodies beyond hosting).
   `Core/Calculator/` and `Core/Emoji/` are Foundation-only engines; `Core/Snippets/` is a
   standalone-harness input in full (and owns the template engine both it and Quicklinks expand
   through); `Core/WindowManagement/` is a pure geometry layer plus its one AX file; `Core/Uninstall/`
@@ -256,14 +256,20 @@ Never break these without an explicit task to do so.
   `SettingsComponents`, `Scrolling/` and `Interaction/`.
 - `Tinycast/Platform/` — the system shims: `Permissions`, `LaunchAtLogin`, `CursorScreen`,
   `AppDisplayName`, `NotificationToken`, `AppPaths`, `Signposts` and `Images/`.
-- `Tinycast/Features/` — SwiftUI views: `RootPaletteView`, `Launcher/`, `Clipboard/`, `Calculator/`,
-  `Emoji/`, `Quicklinks/`, `Uninstall/`, `Settings/`, `About/`, `Onboarding/`, plus
-  the `PaletteScreen` protocol and the harness-compiled `PaletteRowIndex`. Each
+- `Tinycast/Palette/` — the palette shell: `PalettePanel`, `PaletteWindowController`,
+  `RootPaletteView`, the `PaletteScreen` protocol, `PaletteCoordinator` and the `PaletteViewModel` /
+  `PaletteMode` / `PasteTarget` state types.
+- `Tinycast/Windows/` — the non-palette AppKit surfaces: `AuxWindowController` (Settings, About,
+  Onboarding), `Dialog/` and `HUD/`, kept separate because a dialog asks and a HUD reports, plus
+  `About/`.
+- `Tinycast/Features/` — SwiftUI views: `Launcher/`, `Clipboard/`, `Calculator/`,
+  `Emoji/`, `Quicklinks/`, `Uninstall/`, `Settings/`, `Onboarding/`, plus
+  the harness-compiled `PaletteRowIndex`. Each
   `SettingsTab` maps to
   one `…SettingsView` built on the `SettingsPane` / `SettingsCard` scaffold in
   `DesignSystem/SettingsComponents.swift`;
   the four launcher-category panes (Applications, System Settings, System Actions, Commands) are thin
   wrappers over the shared `LauncherItemsCard`.
-- `Tinycast/App/` — `@main` app + delegate.
+- `Tinycast/App/` — `@main` app, delegate and `AppCore`, the composition root.
 - `Tools/` — standalone test harnesses and the emoji generator.
 - `.github/workflows/release.yml` — the entire release pipeline (see `docs/development.md`).

@@ -106,7 +106,7 @@ the forced-dark environment). **Selection always beats hover** when a row is bot
 
 ---
 
-## Panel structure — `Core/PalettePanel.swift`, `Features/RootPaletteView.swift`
+## Panel structure — `Palette/PalettePanel.swift`, `Palette/RootPaletteView.swift`
 
 - **`PalettePanel`** is a borderless `NSPanel`: `isOpaque = false`, `backgroundColor = .clear`, `.floating` level, `hasShadow`, `animationBehavior = .none`. It hosts SwiftUI via `NSHostingView`. `PaletteWindowController` centers it slightly above screen center (`+8%`) and dismisses it on `windowDidResignKey`.
 - **The results layer fills the whole panel.** The header and bottom bar attach via `.safeAreaInset(edge: .top/.bottom)` as transparent overlays that float _over_ the list. The list underlaps them and dissolves at the edges.
@@ -170,7 +170,7 @@ Glass is **only** for floating controls, never the main surface.
 
 ---
 
-## Dialogs & HUD `Core/Dialog/`, `Features/Dialog/`, `Core/HUD/`, `Features/HUD/`
+## Dialogs & HUD `Windows/Dialog/`, `Windows/HUD/`
 
 Tinycast owns its dialogs; `NSAlert` is never used. `DialogController` is owned by `AppCore` (the
 sole owner rule) and is the only presenter, so every confirmation in the app looks and behaves alike.
