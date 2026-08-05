@@ -51,14 +51,17 @@ struct LauncherScreen: PaletteScreen {
         }
     }
 
+    /// The pill's verb; must match `AppActionsMenu.openTitle` — same row, same action, same words.
     private static func pillTitle(_ kind: AppEntry.Kind) -> String {
         switch kind {
+        case .application: return "Open Application"
         case .systemSettings: return "Open System Setting"
         case .command: return "Run Command"
         case .customCommand: return "Run Custom Command"
+        case .snippet: return "Paste Snippet"
         case .systemAction: return "Run System Action"
+        case .windowCommand: return "Move Window"
         case .quicklink: return "Open Quicklink"
-        default: return "Open Application"
         }
     }
 
