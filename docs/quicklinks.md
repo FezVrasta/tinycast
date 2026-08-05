@@ -169,8 +169,8 @@ excluding it would be cargo-culting.
 ## Standalone harness
 
 ```sh
-swiftc -swift-version 6 Tinycast/Core/Quicklinks/Quicklink.swift \
-  Tinycast/Core/Quicklinks/QuicklinkDestination.swift \
-  Tinycast/Core/Quicklinks/QuicklinkStore.swift Tinycast/Core/Quicklinks/QuicklinkArchive.swift \
+swiftc -swift-version 6 Tinycast/Features/Quicklinks/Model/Quicklink.swift \
+  Tinycast/Features/Quicklinks/Model/QuicklinkDestination.swift \
+  Tinycast/Features/Quicklinks/Model/QuicklinkStore.swift Tinycast/Features/Quicklinks/Model/QuicklinkArchive.swift \
   Tools/quicklink-test.swift -o /tmp/quicklink-test && /tmp/quicklink-test
 ```

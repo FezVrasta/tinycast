@@ -5,7 +5,7 @@ earliest scope wins).
 
 ## Search scopes
 
-`SearchScopes` (`Core/SearchScopes.swift`) owns the paths; the list is user-editable in General
+`SearchScopes` (`Launcher/Model/SearchScopes.swift`) owns the paths; the list is user-editable in General
 Settings and persisted as `AppSettings.searchScopes`. A scope is either a directory or a single `.app`
 bundle, stored tilde-abbreviated so the UI reads cleanly and a settings backup stays portable.
 
@@ -180,7 +180,7 @@ Only the display name is indexed. Activation resolves the stable UUID through th
 to `ShellCommandRunner`; see [custom-commands.md](custom-commands.md) for persistence, hotkeys and
 execution semantics.
 
-> **Invariant:** `Tools/fuzz-test.swift` compiles the real `Tinycast/Core/SearchRelevance.swift`, so
+> **Invariant:** `Tools/fuzz-test.swift` compiles the real `Tinycast/Features/Launcher/Model/SearchRelevance.swift`, so
 > that file must stay Foundation-only and pure. There is no copy of the scorer to keep in sync.
 
 The ranking harness covers prefix learning, frequency/recency scoring, persistence, and both reset

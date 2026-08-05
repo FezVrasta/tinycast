@@ -80,7 +80,7 @@ CoreAudio, process and Accessibility side effects, while `AppCore` owns confirma
 
 House idioms for the sharp edges:
 
-- Block-observer lifetimes go through the RAII `NotificationToken` (`Core/NotificationToken.swift`)
+- Block-observer lifetimes go through the RAII `NotificationToken` (`Platform/NotificationToken.swift`)
   instead of removal in a `deinit`.
 - `ClipboardStore` uses `isolated deinit` for its SQLite teardown.
 - Raw Carbon / C pointers get decoded to plain values before crossing into actor code (see

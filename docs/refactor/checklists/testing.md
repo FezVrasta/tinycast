@@ -23,25 +23,25 @@ harness change is part of the reviewable diff.
 Use this to decide which harnesses a phase must run. If a phase touches any file in the right column,
 the harness in the left column is **mandatory**.
 
-| Harness                  | Compiles                                                                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fuzz-test`              | `Core/SearchRelevance.swift`                                                                                                                    |
-| `ranking-test`           | `Core/SearchRelevance.swift`, `Core/LauncherRankingStore.swift`                                                                                 |
-| `calc-test`              | `Core/Calculator/*.swift`                                                                                                                       |
-| `clipboard-test`         | `Core/ClipboardStore.swift`                                                                                                                     |
-| `scopes-test`            | `Core/SearchScopes.swift`                                                                                                                       |
-| `raycast-test`           | `Core/Backup/RaycastFormat.swift`, `RaycastV1Decoder.swift`, `Gunzip.swift`, `Core/ClipboardStore.swift`                                        |
-| `emoji-test`             | `Core/Emoji/EmojiCatalog.swift`, `EmojiGridGeometry.swift`, `EmojiData.generated.swift`                                                         |
-| `custom-command-test`    | `Core/CustomCommand.swift`, `Core/ShellCommandRunner.swift`                                                                                     |
-| `snippets-test`          | `Platform/NotificationToken.swift`, `Core/HealthTicker.swift`, `Core/Snippets/*.swift`                                                          |
-| `hotkey-test`            | `Core/HotKey/DoubleTapModifier.swift`, `DoubleTapDetector.swift`                                                                                |
-| `callout-test`           | `DesignSystem/Theme.swift`, `Core/CalloutPlacement.swift`                                                                                       |
-| `system-action-test`     | `Core/SystemAction.swift`                                                                                                                       |
-| `volume-test`            | `Core/VolumeLevel.swift`                                                                                                                        |
-| `window-command-test`    | `Core/WindowManagement/WindowCommand.swift`, `WindowLayout.swift`, `WindowActionMemory.swift`                                                   |
-| `uninstall-test`         | `Core/Uninstall/UninstallTarget.swift`, `UninstallSearchRoot.swift`, `UninstallRules.swift`, `UninstallProtection.swift`, `UninstallPlan.swift` |
-| `quicklink-test`         | `Core/Quicklinks/Quicklink.swift`, `QuicklinkDestination.swift`, `QuicklinkStore.swift`, `QuicklinkArchive.swift`                               |
-| `palette-selection-test` | `Features/PaletteRowIndex.swift` — the flat selection index's map onto visible row order                                                        |
+| Harness                  | Compiles (paths relative to `Tinycast/`, `Features/` prefix implied unless shown)                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fuzz-test`              | `Launcher/Model/SearchRelevance.swift`                                                                                                           |
+| `ranking-test`           | `Launcher/Model/SearchRelevance.swift`, `Launcher/Model/LauncherRankingStore.swift`                                                              |
+| `calc-test`              | `Calculator/Model/*.swift`                                                                                                                       |
+| `clipboard-test`         | `Clipboard/Model/ClipboardStore.swift`                                                                                                           |
+| `scopes-test`            | `Launcher/Model/SearchScopes.swift`                                                                                                              |
+| `raycast-test`           | `Backup/Model/RaycastFormat.swift`, `RaycastV1Decoder.swift`, `Backup/Service/Gunzip.swift`, `Clipboard/Model/ClipboardStore.swift`              |
+| `emoji-test`             | `Emoji/Model/EmojiCatalog.swift`, `EmojiGridGeometry.swift`, `EmojiData.generated.swift`                                                         |
+| `custom-command-test`    | `CustomCommands/Model/CustomCommand.swift`, `CustomCommands/Service/ShellCommandRunner.swift`                                                    |
+| `snippets-test`          | `Platform/NotificationToken.swift`, `Platform/HealthTicker.swift`, `Snippets/Model/*.swift`, `Snippets/Service/*.swift`                          |
+| `hotkey-test`            | `HotKeys/Model/DoubleTapModifier.swift`, `DoubleTapDetector.swift`                                                                               |
+| `callout-test`           | `DesignSystem/Theme.swift`, `HotKeys/UI/CalloutPlacement.swift`                                                                                  |
+| `system-action-test`     | `SystemActions/Model/SystemAction.swift`                                                                                                         |
+| `volume-test`            | `SystemActions/Model/VolumeLevel.swift`                                                                                                          |
+| `window-command-test`    | `WindowManagement/WindowCommand.swift`, `WindowLayout.swift`, `WindowActionMemory.swift`                                                         |
+| `uninstall-test`         | `Uninstall/Model/UninstallTarget.swift`, `UninstallSearchRoot.swift`, `UninstallRules.swift`, `UninstallProtection.swift`, `UninstallPlan.swift` |
+| `quicklink-test`         | `Quicklinks/Model/Quicklink.swift`, `QuicklinkDestination.swift`, `QuicklinkStore.swift`, `QuicklinkArchive.swift`                               |
+| `palette-selection-test` | `Features/PaletteRowIndex.swift`, `Emoji/Model/EmojiGridGeometry.swift` — the flat selection index's map onto visible row order                  |
 
 - [ ] Every harness whose sources this phase touched has been run
 - [ ] Each one printed a pass result and exited 0
@@ -57,10 +57,10 @@ pure file.
 
 - [ ] No pure-layer file gained an AppKit or SwiftUI import
 - [ ] No pure-layer file gained a clock read, a network read or a filesystem read that is not injected
-- [ ] `Core/Calculator/` still takes its clock via `now`/`calendar` and its rates via `rates`
-- [ ] `Core/Uninstall/`'s deciding half still receives directory **names** and a `PathFacts`, never URLs
-- [ ] `Core/HotKey/DoubleTap*` still take the clock as a parameter
-- [ ] `Core/WindowManagement/` geometry still takes no `NSScreen` and no AX call
+- [ ] `Features/Calculator/Model/` still takes its clock via `now`/`calendar` and its rates via `rates`
+- [ ] `Features/Uninstall/Model/`'s deciding half still receives directory **names** and a `PathFacts`, never URLs
+- [ ] `Features/HotKeys/Model/DoubleTap*` still take the clock as a parameter
+- [ ] `Features/WindowManagement/` geometry still takes no `NSScreen` and no AX call
 - [ ] `Features/PaletteRowIndex.swift` still imports Foundation alone, despite living under `Features/`
 
 **This is the most likely way a refactor silently breaks the test suite.** A phase that moves files

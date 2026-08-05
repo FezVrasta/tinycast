@@ -1,6 +1,6 @@
 # Hotkeys (in-house, zero dependencies)
 
-`Core/HotKey/` holds:
+`Features/HotKeys/` holds:
 
 - `KeyShortcut` — Sendable model, Carbon keycode + modifiers, layout-aware glyphs via `UCKeyTranslate`.
 - `HotKeyBinding` — what an action is actually bound to: a `.combo(KeyShortcut)` or a
@@ -85,7 +85,7 @@ modifier — by feeding its `.flagsChanged` / `.keyDown` monitors into the _same
 the global monitor uses, so recording needs no event tap and no permission.
 
 Setting `recordingAction` is what starts and stops the capture, so there is exactly **one**
-`ShortcutCaptureSession` (`Core/HotKey/`) for the app rather than one per row — which is what lets the
+`ShortcutCaptureSession` (`HotKeys/Service/`) for the app rather than one per row — which is what lets the
 callout above the field render the live state from outside the row that opened it. The field itself
 only ever shows the binding; the prompt, the live preview and the conflict message all live in the
 callout. See [ui.md](ui.md#the-shortcut-recorder-callout).
