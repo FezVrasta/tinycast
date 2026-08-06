@@ -189,7 +189,7 @@ struct OnboardingView: View {
                     SecureField("Passphrase", text: $model.passphrase)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 150)
-                        .onSubmit { model.run() }
+                        .onSubmit { model.run(core: core) }
                 }
             }
             RaycastImportSelection(selection: $model.selection, format: model.format)
@@ -284,7 +284,7 @@ struct OnboardingView: View {
         case 1 where !accessibilityTrusted:
             Permissions.openAccessibilitySettings()
         case 2 where !model.didImport:
-            model.run()
+            model.run(core: core)
         case Self.lastStep:
             core.paletteCoordinator.finishOnboarding()
         default:
@@ -386,7 +386,7 @@ final class OnboardingModel {
         status = nil
     }
 
-    func run() {
+    func run(core: AppCore) {
         guard canImport, let file else { return }
         importing = true
         status = nil
@@ -394,7 +394,7 @@ final class OnboardingModel {
             defer { importing = false }
             do {
                 let outcome = try await BackupActions.importRaycast(
-                    file: file, passphrase: passphrase, options: selection)
+                    core: core, file: file, passphrase: passphrase, options: selection)
                 var message = BackupActions.summaryText(outcome.summary)
                 if outcome.clipboardImported > 0 {
                     message += " Imported \(outcome.clipboardImported) clipboard entries."

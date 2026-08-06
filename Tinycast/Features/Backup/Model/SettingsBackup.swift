@@ -73,7 +73,7 @@ struct SettingsBackup: Codable {
 
 @MainActor
 extension SettingsBackup {
-    static func gather(from core: AppCore = .shared) -> SettingsBackup {
+    static func gather(from core: AppCore) -> SettingsBackup {
         let s = core.settings
         var backup = SettingsBackup()
         backup.settings = SettingsData(
@@ -145,7 +145,7 @@ extension SettingsBackup {
     }
 
     @discardableResult
-    func apply(to core: AppCore = .shared) -> ApplySummary {
+    func apply(to core: AppCore) -> ApplySummary {
         var summary = ApplySummary()
         if let s = settings { summary.settingsFields = applySettings(s, to: core) }
         if let customCommands {

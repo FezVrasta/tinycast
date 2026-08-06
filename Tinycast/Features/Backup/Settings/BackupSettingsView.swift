@@ -40,7 +40,7 @@ struct BackupSettingsView: View {
                     systemImage: "square.and.arrow.up",
                     tint: .blue
                 ) {
-                    Button("Export…") { Task { await BackupActions.exportSettings() } }
+                    Button("Export…") { Task { await BackupActions.exportSettings(core: core) } }
                         .controlSize(.small)
                 }
                 SettingsDivider()
@@ -51,7 +51,7 @@ struct BackupSettingsView: View {
                     systemImage: "square.and.arrow.down",
                     tint: .green
                 ) {
-                    Button("Import…") { Task { await BackupActions.importSettings() } }
+                    Button("Import…") { Task { await BackupActions.importSettings(core: core) } }
                         .controlSize(.small)
                 }
             }
@@ -160,7 +160,7 @@ struct BackupSettingsView: View {
             defer { importing = false }
             do {
                 let outcome = try await BackupActions.importRaycast(
-                    file: file, passphrase: passphrase, options: selection)
+                    core: core, file: file, passphrase: passphrase, options: selection)
                 var parts: [String] = []
                 if let applied = BackupActions.appliedText(outcome.summary) { parts.append(applied) }
                 if outcome.clipboardImported > 0 {

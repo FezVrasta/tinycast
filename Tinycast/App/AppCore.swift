@@ -42,6 +42,7 @@ final class AppCore {
         store: quicklinks, argumentSession: quicklinkArguments, settings: settings,
         appIndex: appIndex, injector: snippetTextInjector, hotKeys: hotKeys, favorites: favorites,
         visibility: visibility, ranking: launcherRanking, windowController: windowController,
+        paletteCoordinator: paletteCoordinator,
         clipboardHistory: { [unowned self] in self.snippetExpansion.clipboardHistoryForExpansion() },
         core: self)
 
@@ -54,6 +55,8 @@ final class AppCore {
         session: uninstall, palette: palette, paletteCoordinator: paletteCoordinator,
         appIndex: appIndex, runningApps: runningApps, hotKeys: hotKeys, favorites: favorites,
         visibility: visibility, ranking: launcherRanking, core: self)
+    @ObservationIgnored private(set) lazy var windowCommandCoordinator = WindowCommandCoordinator(
+        settings: settings, paletteCoordinator: paletteCoordinator, windowMover: windowMover)
     @ObservationIgnored private(set) lazy var customCommandCoordinator = CustomCommandCoordinator(
         store: customCommands, settings: settings, appIndex: appIndex,
         paletteCoordinator: paletteCoordinator, hotKeys: hotKeys, favorites: favorites,
@@ -64,7 +67,9 @@ final class AppCore {
         paletteCoordinator: paletteCoordinator,
         customCommandCoordinator: customCommandCoordinator,
         systemActionCoordinator: systemActionCoordinator,
-        quicklinkCoordinator: quicklinkCoordinator, snippetExpansion: snippetExpansion, core: self)
+        quicklinkCoordinator: quicklinkCoordinator,
+        windowCommandCoordinator: windowCommandCoordinator,
+        snippetExpansion: snippetExpansion, core: self)
     @ObservationIgnored private(set) lazy var clipboardCoordinator = ClipboardCoordinator(
         clipboardStore: clipboardStore, palette: palette, windowController: windowController,
         paletteCoordinator: paletteCoordinator)
@@ -138,7 +143,9 @@ final class AppCore {
             hotKeys.onRunSystemAction = { [weak self] id in
                 self?.systemActionCoordinator.runSystemAction(id: id)
             }
-            hotKeys.onRunWindowCommand = { [weak self] id in self?.runWindowCommand(id: id) }
+            hotKeys.onRunWindowCommand = { [weak self] id in
+                self?.windowCommandCoordinator.runWindowCommand(id: id)
+            }
             hotKeys.onOpenQuicklink = { [weak self] id in
                 self?.quicklinkCoordinator.openQuicklink(id: id)
             }
@@ -241,42 +248,6 @@ final class AppCore {
     private func applyWindowCommandsPresence() {
         let visible = settings.windowManagementEnabled && settings.windowManagementShowInLauncher
         appIndex.setWindowCommandsVisible(visible)
-    }
-
-    // MARK: - Palette control
-
-    func showPalette(mode: PaletteMode, restoreAnyMode: Bool = false) {
-        paletteCoordinator.showPalette(mode: mode, restoreAnyMode: restoreAnyMode)
-    }
-
-    func hidePalette(restoreFocus: Bool = true) {
-        paletteCoordinator.hidePalette(restoreFocus: restoreFocus)
-    }
-
-    func handleReopen() {
-        paletteCoordinator.handleReopen()
-    }
-
-    func showSettings(tab: SettingsTab = .general) {
-        paletteCoordinator.showSettings(tab: tab)
-    }
-
-    // MARK: - Window commands
-
-    /// The one funnel for both palette activation and a command's global hotkey, so the feature switch
-    /// can't be bypassed by either — a shortcut stays registered while the feature is off and must move
-    /// nothing.
-    ///
-    /// The command acts on the app the user was in, so the palette hands focus back before dispatching,
-    /// the same dance the paste path does. Focus is restored rather than dropped: the window being moved
-    /// is the one they want to keep working in.
-    func runWindowCommand(id: WindowCommand.ID) {
-        guard settings.windowManagementEnabled else { return }
-        let target = paletteCoordinator.targetApp
-        if paletteCoordinator.isVisible { hidePalette(restoreFocus: true) }
-        windowMover.perform(
-            id, target: target, gap: CGFloat(settings.windowGap),
-            cycleOnRepeat: settings.windowCycleOnRepeat)
     }
 
     // MARK: - Dialogs

@@ -13,9 +13,10 @@ final class QuicklinkCoordinator {
     private let visibility: VisibilityStore
     private let ranking: LauncherRankingStore
     private let windowController: PaletteWindowController
+    private let paletteCoordinator: PaletteCoordinator
     /// `{clipboard offset=N}` reads the history a snippet expansion does; one owner, one depth.
     private let clipboardHistory: @MainActor () -> [String]
-    /// Palette, Settings, dialog and HUD presentation only — never for state this type owns.
+    /// Dialogs, the HUD, and the `pendingQuicklinkEdit` handoff to the Settings pane.
     private unowned let core: AppCore
 
     /// Carries the menu's default-app override across the quicklink argument prompt.
@@ -32,6 +33,7 @@ final class QuicklinkCoordinator {
         visibility: VisibilityStore,
         ranking: LauncherRankingStore,
         windowController: PaletteWindowController,
+        paletteCoordinator: PaletteCoordinator,
         clipboardHistory: @escaping @MainActor () -> [String],
         core: AppCore
     ) {
@@ -45,6 +47,7 @@ final class QuicklinkCoordinator {
         self.visibility = visibility
         self.ranking = ranking
         self.windowController = windowController
+        self.paletteCoordinator = paletteCoordinator
         self.clipboardHistory = clipboardHistory
         self.core = core
     }
@@ -101,7 +104,7 @@ final class QuicklinkCoordinator {
                 quicklink: quicklink, context: context, encoding: encoding, arguments: arguments)
             pendingQuicklinkForcesDefaultApp = forcingDefaultApp
             // Never `restoreAnyMode`: this screen is always a fresh prompt, never a restored one.
-            core.showPalette(mode: .quicklinkArguments)
+            paletteCoordinator.showPalette(mode: .quicklinkArguments)
             return
         }
         performQuicklinkOpen(
@@ -140,7 +143,7 @@ final class QuicklinkCoordinator {
     private func performQuicklinkOpen(
         _ quicklink: Quicklink, link: String, forcingDefaultApp: Bool
     ) {
-        if windowController.isVisible { core.hidePalette(restoreFocus: false) }
+        if windowController.isVisible { paletteCoordinator.hidePalette(restoreFocus: false) }
         let openWith = forcingDefaultApp ? nil : quicklink.openWithBundleID
         Task {
             do throws(QuicklinkLauncher.Failure) {
@@ -221,7 +224,7 @@ final class QuicklinkCoordinator {
     /// Opens Settings on the Quicklinks pane with the editor showing `quicklink` (nil for a new one).
     func editQuicklink(_ quicklink: Quicklink?) {
         core.pendingQuicklinkEdit = QuicklinkEditRequest(quicklink: quicklink)
-        core.showSettings(tab: .quicklinks)
+        paletteCoordinator.showSettings(tab: .quicklinks)
     }
 
     @discardableResult

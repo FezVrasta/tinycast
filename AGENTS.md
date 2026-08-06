@@ -285,7 +285,7 @@ for its job.
 | Suffix        | Means                                                          | Members                                                                        |
 | ------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `Store`       | Owns persisted state and publishes it                          | open (10)                                                                      |
-| `Coordinator` | A feature's action surface, called by `AppCore` and the palette | open (10)                                                                      |
+| `Coordinator` | A feature's action surface, called by `AppCore` and the palette | open (11)                                                                      |
 | `Controller`  | Owns one AppKit window or surface                              | open (5)                                                                       |
 | `Catalog`     | Pure static namespace over a built-in list                     | `CommandCatalog`, `EmojiCatalog`, `SystemActionCatalog`, `WindowCommandCatalog` |
 | `Index`       | A searchable collection, rebuilt as its inputs change          | `AppIndex`, `EmojiIndex`, `PaletteRowIndex`                                    |

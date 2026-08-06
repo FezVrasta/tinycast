@@ -58,6 +58,7 @@
 		4109B5CF37DCA4BCDAE46412 /* ShellCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFE3C41897391C14DB5A55C /* ShellCommandRunner.swift */; };
 		410F1B5FFAA44378AC9EC2DB /* SystemSettingsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 951E746BA1AD25D167A1775F /* SystemSettingsSettingsView.swift */; };
 		42E1CF2605A0E02D84932B26 /* Gunzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1213B069324F16F5364FECD3 /* Gunzip.swift */; };
+		43885792945F28AF3CDE30BC /* WindowCommandCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06125F7DDE68BB4D52065C06 /* WindowCommandCoordinator.swift */; };
 		43DBCE7B5A84D0D6322124F5 /* MessageHUDController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2CB71671625A1F446316A1 /* MessageHUDController.swift */; };
 		4549280508130B232069071E /* BackupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112551581ECF83B53D405334 /* BackupSettingsView.swift */; };
 		4640C7CC8DCA6E6FA49394A8 /* CommandsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D303E193CFEFE455778C150 /* CommandsSettingsView.swift */; };
@@ -199,6 +200,7 @@
 
 /* Begin PBXFileReference section */
 		02BCAB1F3B6930FE0B819F6D /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
+		06125F7DDE68BB4D52065C06 /* WindowCommandCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCommandCoordinator.swift; sourceTree = "<group>"; };
 		0935D49C0A0175E54E69682B /* QuicklinkListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuicklinkListScreen.swift; sourceTree = "<group>"; };
 		09633E6F9C37F89267341D1D /* VolumeHUDController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHUDController.swift; sourceTree = "<group>"; };
 		0966995230FE7B7072C0018B /* EmojiGridGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiGridGeometry.swift; sourceTree = "<group>"; };
@@ -1020,6 +1022,7 @@
 			children = (
 				0A97C1CFD02D55E955AFA72B /* WindowActionMemory.swift */,
 				9B9ADC5C0B42F7EF38F77DE6 /* WindowCommand.swift */,
+				06125F7DDE68BB4D52065C06 /* WindowCommandCoordinator.swift */,
 				E779B6EF738591CB935F3F95 /* WindowLayout.swift */,
 				B21678BAD7BA4A4E300FDA2C /* WindowManagementSettingsView.swift */,
 				AA99178E0DCF6CBB521FB098 /* WindowMover.swift */,
@@ -1404,6 +1407,7 @@
 				1F1AD34A26931AF6E11E13F7 /* VolumeState.swift in Sources */,
 				D44E20726F1EB11C8C297C4D /* WindowActionMemory.swift in Sources */,
 				2C788DCDF146ED245150EF82 /* WindowCommand.swift in Sources */,
+				43885792945F28AF3CDE30BC /* WindowCommandCoordinator.swift in Sources */,
 				19B0314193376FD1E4AC11A5 /* WindowLayout.swift in Sources */,
 				0360C7038877B9CB656DB697 /* WindowManagementSettingsView.swift in Sources */,
 				A6A8CD2B71A15625F47498EA /* WindowMover.swift in Sources */,

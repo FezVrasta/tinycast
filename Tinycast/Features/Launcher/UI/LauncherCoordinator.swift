@@ -9,8 +9,9 @@ final class LauncherCoordinator {
     private let customCommandCoordinator: CustomCommandCoordinator
     private let systemActionCoordinator: SystemActionCoordinator
     private let quicklinkCoordinator: QuicklinkCoordinator
+    private let windowCommandCoordinator: WindowCommandCoordinator
     private let snippetExpansion: SnippetExpansionCoordinator
-    /// Window commands only — that funnel is permanently `AppCore`'s.
+    /// The backup commands only, which need the live stores to gather from and apply to.
     private unowned let core: AppCore
 
     init(
@@ -20,6 +21,7 @@ final class LauncherCoordinator {
         customCommandCoordinator: CustomCommandCoordinator,
         systemActionCoordinator: SystemActionCoordinator,
         quicklinkCoordinator: QuicklinkCoordinator,
+        windowCommandCoordinator: WindowCommandCoordinator,
         snippetExpansion: SnippetExpansionCoordinator,
         core: AppCore
     ) {
@@ -29,6 +31,7 @@ final class LauncherCoordinator {
         self.customCommandCoordinator = customCommandCoordinator
         self.systemActionCoordinator = systemActionCoordinator
         self.quicklinkCoordinator = quicklinkCoordinator
+        self.windowCommandCoordinator = windowCommandCoordinator
         self.snippetExpansion = snippetExpansion
         self.core = core
     }
@@ -56,7 +59,7 @@ final class LauncherCoordinator {
         }
         if app.kind == .windowCommand {
             guard let command = WindowCommandCatalog.command(forEntryID: app.id) else { return }
-            core.runWindowCommand(id: command.id)
+            windowCommandCoordinator.runWindowCommand(id: command.id)
             return
         }
         // Also before the palette hides: a quicklink with an unfilled argument stays in the palette
@@ -103,10 +106,10 @@ final class LauncherCoordinator {
             Task { await quicklinkCoordinator.exportQuicklinks() }
         case .exportSettings:
             paletteCoordinator.hidePalette(restoreFocus: false)
-            Task { await BackupActions.exportSettings() }
+            Task { await BackupActions.exportSettings(core: core) }
         case .importSettings:
             paletteCoordinator.hidePalette(restoreFocus: false)
-            Task { await BackupActions.importSettings() }
+            Task { await BackupActions.importSettings(core: core) }
         case .importFromRaycast:
             paletteCoordinator.hidePalette(restoreFocus: false)
             paletteCoordinator.showBackupSettings()

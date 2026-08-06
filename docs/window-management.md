@@ -114,7 +114,7 @@ when a read fails. Nothing is persisted.
 ## Applying a placement
 
 `WindowMover.perform(_:target:gap:cycleOnRepeat:)` is the only entry point. `target` is **explicit**
-because the palette is frontmost when a command dispatches from it — `AppCore.runWindowCommand` passes
+because the palette is frontmost when a command dispatches from it — `WindowCommandCoordinator` passes
 `windowController.previousApp`, the same recorded app the paste path targets, and restores focus to it
 rather than dropping it. It is synchronous: every AX call is a bounded mach round trip capped by a 1s
 messaging timeout, and `await` would only add reentrancy between a held hotkey's repeats. The timeout
@@ -166,7 +166,7 @@ stock Electron app tiles correctly without it, delete the helper rather than kee
   `KeyboardShortcuts_windowCommandHotkey.<raw-id>`, matching the legacy prefix convention. Unlike
   custom commands there is no bound-ID index to maintain: the catalog is fixed, so `HotKeyManager.start`
   and `conflictOwner` iterate `WindowCommand.ID.allCases` and `register` no-ops on an unbound command.
-- **`AppCore.runWindowCommand(id:)`** is the one funnel for both palette activation and the global
+- **`WindowCommandCoordinator.runWindowCommand(id:)`** is the one funnel for both palette activation and the global
   hotkey, so the feature switch cannot be bypassed by either.
 - **Settings** — `windowManagementEnabled` (off), `windowManagementShowInLauncher` (on), `windowGap`
   (0) and `windowCycleOnRepeat` (off). All four ride in settings backups: unlike `snippetsEnabled` they
