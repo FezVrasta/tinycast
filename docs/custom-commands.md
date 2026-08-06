@@ -15,7 +15,7 @@ without re-registering. "Show in launcher" only hides the section; shortcuts kee
 `CustomCommandStore` is owned by `AppCore` and persists the ordered command array as JSON in
 bundle-scoped `UserDefaults`. Each command has a stable UUID. Its launcher entry id is
 `custom-command:<uuid>`, and its hotkey uses
-`KeyboardShortcuts_customCommandHotkey.<uuid>` plus the `boundCustomCommandIDs` index.
+`hotkey.customCommand.<uuid>` plus the `boundCustomCommandIDs` index.
 
 Editing preserves the UUID and therefore its favorite, visibility, and hotkey references. Deleting
 goes through `AppCore`, which unregisters the hotkey and clears those references before removing the

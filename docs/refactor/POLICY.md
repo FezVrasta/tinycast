@@ -147,29 +147,45 @@ settings take their intended defaults, nothing crashes on an absent key or an ab
 ## Conflicts with `AGENTS.md`
 
 `AGENTS.md` is loaded into every Claude Code session **before** anything the operator pastes, and it
-describes the codebase as it is today. Conflicts with this policy are therefore guaranteed, not
-accidental. Three are known and listed here so they are recorded rather than discovered mid-phase:
+describes the codebase as it is today. Conflicts with this policy were therefore guaranteed, not
+accidental. Three were known, and phase 35 has closed all three:
 
 1. > _"Hotkeys persist under legacy `KeyboardShortcuts_<name>` UserDefaults keys (from the removed
    > KeyboardShortcuts package) so old bindings survive."_
 
-   **Superseded.** Old bindings need not survive.
+   **Closed by phase 35.** The namespace is now `hotkey.<action>`. Old bindings do survive, but via a
+   one-time adoption scheduled for deletion — not by keeping the namespace. See below.
 
 2. > _"Its `Codable` conformance is the compatibility seam — a `.combo` must keep encoding as the bare
    > `{"carbonKeyCode":N,"carbonModifiers":N}` record … or every existing binding and backup breaks."_
 
-   **Superseded.** See phase 35.
+   **Closed by phase 35.** `HotKeyBinding` uses the synthesised conformance; the backup format changed
+   with it, and only export → import within one build is required.
 
 3. > _"`SettingsBackup` … Every field is optional so an import applies only the keys actually present."_
 
    **Retained** — but for a different reason. Optionality supports **partial** files and Raycast
    imports, not old Tinycast versions.
 
-`AGENTS.md` now carries a banner at the top pointing here and stating that structural rules are being
-changed by the refactor — so the correction arrives in the first thing an agent reads, rather than
-depending on the operator pasting the standing prompt.
+The refactor banner that stood at the top of `AGENTS.md` is gone: phase 35 removed it, because the
+refactor ends there and a banner announcing one in progress would be false.
 
-The three clauses above are still **superseded but not yet deleted**. Phase 35 deletes them, amends the
-surrounding text, and **removes the banner** — the refactor is over at that point and the banner would
-become a lie. Until then, this document wins and a phase that trips over one of them should proceed and
-note it.
+## The two scheduled deletions
+
+Phase 35 found the policy's core assumption — "there are no existing users" — to be **false**:
+`v0.7.5` is a shipped stable release, and both objectives would have destroyed real user data on
+update. By operator decision the cleanups shipped anyway, each behind a one-time migration, and each
+migration is scheduled for removal rather than kept.
+
+| What | Migration | Why it was needed |
+| ---- | --------- | ----------------- |
+| `hotkey.<action>` keys and the synthesised `HotKeyBinding.Codable` | `LegacyHotKeyRecords.adopt`, called once from `HotKeyManager.start()` | `v0.7.5` stores a bare `{"carbonKeyCode":N,"carbonModifiers":N}` under `KeyboardShortcuts_<name>`; both the key and the shape changed, so every shipped binding would have read as unbound |
+| `ClipboardStore`'s `source_app` / `pinned_at` columns | the two existing `ALTER TABLE` guards and `columnExists` | `v0.7.5` has no `pinned_at`, so the prepared statements would fail, and the store **deletes a database it cannot open** — the whole clipboard history, silently |
+
+**Delete both** once the release carrying them has been superseded by two further stable releases, so
+no supported upgrade path still starts from `v0.7.5`. Removal is a pure deletion in each case: delete
+`LegacyHotKeyRecords.swift` plus its one call site, and delete the two guards plus `columnExists`.
+Neither carries a version flag or persisted state, so nothing is left behind.
+
+Until then, `grep -rn "ALTER TABLE\|columnExists" Tinycast` returning three hits is **expected**, and
+phase 35's acceptance criterion 4 is knowingly unmet.

@@ -163,7 +163,7 @@ stock Electron app tiles correctly without it, delete the helper rather than kee
   `LauncherView.rows` mirrors that position with a "Window Management" section; the slice order is the
   flat-selection invariant, so the two must move together.
 - **`HotKeyAction.windowCommand(id:)`** — persisted under
-  `KeyboardShortcuts_windowCommandHotkey.<raw-id>`, matching the legacy prefix convention. Unlike
+  `hotkey.windowCommand.<raw-id>`, matching the shared `HotKeyAction.defaultsKey` convention. Unlike
   custom commands there is no bound-ID index to maintain: the catalog is fixed, so `HotKeyManager.start`
   and `conflictOwner` iterate `WindowCommand.ID.allCases` and `register` no-ops on an unbound command.
 - **`WindowCommandCoordinator.runWindowCommand(id:)`** is the one funnel for both palette activation and the global

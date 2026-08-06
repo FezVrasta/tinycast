@@ -145,7 +145,7 @@ Duplicating takes a **new** identity, so the copy can't inherit the original's s
 
 ## Hotkeys
 
-`HotKeyAction.quicklink(id:)` persists under `KeyboardShortcuts_quicklinkHotkey.<uuid>` with a
+`HotKeyAction.quicklink(id:)` persists under `hotkey.quicklink.<uuid>` with a
 `boundQuicklinkIDs` index, the same shape custom commands use — both are per-item rather than
 per-catalog-entry, so both need an index for `start()` to re-register from. The store therefore loads
 **even while the feature is off** and before `hotKeys.start`: the stale-binding prune reads that

@@ -14,8 +14,8 @@ the keycap rendering — only the _engine_ differs.
 
 ## Persistence
 
-Bindings persist as JSON strings under `KeyboardShortcuts_<name>` UserDefaults keys — a **legacy
-format** from the removed KeyboardShortcuts package, kept so old bindings survive. The set of bound
+Bindings persist as JSON strings under `hotkey.<action>` UserDefaults keys, computed in one place —
+`HotKeyAction.defaultsKey`, which doubles as the `HotKeyCenter` registration id. The set of bound
 bundle IDs lives in `boundAppBundleIDs` and is re-registered on launch. System Settings panes use
 `boundPaneBundleIDs`; custom commands and quicklinks use their stable UUIDs in
 `boundCustomCommandIDs` and `boundQuicklinkIDs`. Those two are the per-item case — unlike a fixed
@@ -24,15 +24,20 @@ and to prune bindings whose record was deleted while Tinycast wasn't running. Th
 `QuicklinkStore` loads at launch even when the feature is off
 (see [quicklinks.md](quicklinks.md#hotkeys)).
 
-A `.combo` writes the original `{"carbonKeyCode":N,"carbonModifiers":N}` record and
-`HotKeyBinding.init(from:)` tries that shape first, so nothing needs migrating. A `.doubleTap` writes
-`{"doubleTapModifier":"command"}` — a shape a pre-double-tap build fails to decode and therefore reads
-as _unbound_, which is the intended degradation. The same wrapper is what `SettingsBackup.HotkeyBackup`
-stores, so old backup files import unchanged; a backup containing a double-tap cannot be read by an
-older build, which is what the `version` 3 bump records (`version` 4 adds the quicklinks array).
+`HotKeyBinding` takes the synthesised `Codable`, so a `.combo` writes
+`{"combo":{"_0":{"carbonKeyCode":N,"carbonModifiers":N}}}` and a `.doubleTap` writes
+`{"doubleTap":{"_0":"command"}}`. `KeyShortcut` keeps a hand-written `init(from:)` — not a format seam,
+but the guarantee that every decode runs through the initializer that masks device modifier bits off.
+`SettingsBackup.HotkeyBackup` stores the same values, so the backup file carries this shape too; only
+export → import within one build is guaranteed to round-trip.
+
+`LegacyHotKeyRecords` adopts the records shipped before this namespace existed — `v0.7.5` wrote a bare
+`{"carbonKeyCode":N,"carbonModifiers":N}` under `KeyboardShortcuts_<name>`. It runs once from
+`start()`, consumes each old record, and never overwrites a key the user has already rebound. It is
+scheduled for deletion; see [refactor/POLICY.md](refactor/POLICY.md).
 
 System actions and window commands are the fixed-catalog case: they persist under
-`KeyboardShortcuts_systemActionHotkey.<raw-id>` and `KeyboardShortcuts_windowCommandHotkey.<raw-id>`
+`hotkey.systemAction.<raw-id>` and `hotkey.windowCommand.<raw-id>`
 and need **no** bound-ID index, because `start()` and `conflictOwner` can just iterate `allCases` and
 `register` no-ops on an unbound item. A registered window-command shortcut still runs nothing while the
 feature switch is off — `AppCore.runWindowCommand` re-checks it (see

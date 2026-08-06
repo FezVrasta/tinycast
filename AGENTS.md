@@ -1,21 +1,3 @@
-> ## ⚠ An approved architecture refactor is in progress
->
-> Some **structural** rules in this file — file layout, type ownership, which type does what — are being
-> changed by it. That is deliberate, and a phase contradicting one of them is **not** an error.
->
-> **If you are executing a phase from [`docs/refactor/`](docs/refactor/), the phase document overrides
-> the architectural guidance here.** Read
-> [`docs/refactor/prompts/system-prompt.md`](docs/refactor/prompts/system-prompt.md) for the full
-> precedence ladder, and [`docs/refactor/POLICY.md`](docs/refactor/POLICY.md) for the migration and
-> compatibility rules.
->
-> **Behavioral invariants below always hold** — UI, keyboard behaviour, accessibility, permission and
-> consent flows, Swift 6 data-race safety, and the explicitly off-limits files. A phase that contradicts
-> one of *those* is wrong: stop and say so.
->
-> **If you are not working from a `docs/refactor/` phase**, ignore this box entirely and follow this
-> file as written.
-
 ## Project
 
 Tinycast is a native macOS menu-bar launcher (a minimal Raycast): fuzzy app launcher, global +
@@ -220,13 +202,16 @@ Never break these without an explicit task to do so.
   block observers, `isolated deinit` for `ClipboardStore`'s SQLite teardown, decode raw Carbon / C
   pointers to plain values before crossing into actor code.
 - **Clipboard writes stamp a private `internalType` marker** so the poller skips Tinycast's own writes.
-- **Hotkeys persist under legacy `KeyboardShortcuts_<name>` UserDefaults keys** (from the removed
-  KeyboardShortcuts package) so old bindings survive. `HotKeyBinding` is the one thing an action is
+- **Hotkeys persist as JSON strings under `hotkey.<action>` UserDefaults keys**, and
+  `HotKeyAction.defaultsKey` is the one place that computes a key — it is also the `HotKeyCenter`
+  registration id, so the two can never drift. `HotKeyBinding` is the one thing an action is
   bound to and it has two cases with two engines: a `.combo` is a Carbon registration, a `.doubleTap`
-  is recognized by `DoubleTapMonitor` (Carbon cannot see a lone modifier at all). Its `Codable`
-  conformance is the compatibility seam — a `.combo` must keep encoding as the bare
-  `{"carbonKeyCode":N,"carbonModifiers":N}` record and decoding must keep trying that shape first, or
-  every existing binding and backup breaks. `HotKeys/Model/DoubleTapModifier.swift` and
+  is recognized by `DoubleTapMonitor` (Carbon cannot see a lone modifier at all). Its `Codable` is the
+  synthesised one; `KeyShortcut`'s hand-written `init(from:)` is not a format seam but a correctness
+  one, routing every decode through the initializer that masks device modifier bits off.
+  `LegacyHotKeyRecords` adopts the shipped `KeyboardShortcuts_` records once and is **scheduled for
+  deletion** — see [POLICY.md](docs/refactor/POLICY.md); nothing new may depend on it.
+  `HotKeys/Model/DoubleTapModifier.swift` and
   `DoubleTapDetector.swift` stay Foundation-only and pure with the clock injected as a parameter, for
   `Tools/hotkey-test.swift`; every `CGEvent` call lives in `DoubleTapMonitor.swift`, which is
   listen-only, installs *only* while something is bound to a double-tap, and never prompts for

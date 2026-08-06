@@ -170,20 +170,18 @@ enum HotKeyAction: Hashable, Sendable {
     case windowCommand(id: WindowCommand.ID)
     case quicklink(id: UUID)
 
-    /// The defaults key; the `KeyboardShortcuts_` prefix is a fossil, kept verbatim.
+    /// The UserDefaults key, and the `HotKeyCenter` registration id: one per action.
     var defaultsKey: String {
         switch self {
-        case .togglePalette: "KeyboardShortcuts_togglePalette"
-        case .toggleClipboard: "KeyboardShortcuts_toggleClipboard"
-        case .toggleEmoji: "KeyboardShortcuts_toggleEmoji"
-        case .app(let bundleID): "KeyboardShortcuts_appHotkey." + bundleID
-        case .settingsPane(let bundleID): "KeyboardShortcuts_paneHotkey." + bundleID
-        case .customCommand(let id):
-            "KeyboardShortcuts_customCommandHotkey." + id.uuidString.lowercased()
-        case .systemAction(let id): "KeyboardShortcuts_systemActionHotkey." + id.rawValue
-        case .windowCommand(let id): "KeyboardShortcuts_windowCommandHotkey." + id.rawValue
-        case .quicklink(let id):
-            "KeyboardShortcuts_quicklinkHotkey." + id.uuidString.lowercased()
+        case .togglePalette: "hotkey.togglePalette"
+        case .toggleClipboard: "hotkey.toggleClipboard"
+        case .toggleEmoji: "hotkey.toggleEmoji"
+        case .app(let bundleID): "hotkey.app." + bundleID
+        case .settingsPane(let bundleID): "hotkey.pane." + bundleID
+        case .customCommand(let id): "hotkey.customCommand." + id.uuidString.lowercased()
+        case .systemAction(let id): "hotkey.systemAction." + id.rawValue
+        case .windowCommand(let id): "hotkey.windowCommand." + id.rawValue
+        case .quicklink(let id): "hotkey.quicklink." + id.uuidString.lowercased()
         }
     }
 }

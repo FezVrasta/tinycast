@@ -47,6 +47,7 @@ final class HotKeyManager {
     private let boundQuicklinkKey = "boundQuicklinkIDs"
 
     func start(customCommandIDs: Set<UUID>, quicklinkIDs: Set<UUID>) {
+        LegacyHotKeyRecords.adopt(candidateActions, decoder: decoder, encoder: encoder)
         prune(key: boundCustomCommandKey, live: customCommandIDs) { .customCommand(id: $0) }
         prune(key: boundQuicklinkKey, live: quicklinkIDs) { .quicklink(id: $0) }
         // After the prunes, so a dropped record can't survive in memory this session.
