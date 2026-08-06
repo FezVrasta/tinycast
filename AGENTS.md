@@ -171,6 +171,13 @@ Never break these without an explicit task to do so.
   **cacheless** `URLSession` (`.ephemeral`, `urlCache = nil`), never `URLSession.shared` — a cacheable
   response would leave a second copy in the on-disk `URLCache` that opting out doesn't delete.
   `CurrencyRateStore` is the reference implementation — follow it rather than inventing a second shape.
+- **`SettingsBackup`'s mirror is hand-written, and reflection is never the fix.** `AppSettingsKey` owns
+  every key `AppSettings` persists; `SettingsBackupCoverage` says which of them `SettingsData` carries
+  and which are excluded — today only `snippetsEnabled`, whose omission is a security control, since it
+  doubles as keystroke-listening consent. A `Mirror`, macro or codegen scheme would auto-include the
+  next consent flag and make it backup-restorable, so `Tools/settings-backup-test.swift` fails instead
+  when a key is neither carried nor excluded **with a reason**. Adding a setting means editing
+  `SettingsBackupCoverage` in the same commit. `CurrencyRateStore`'s flag stays outside both by design.
 - **Snippets are channel-isolated and path-identified.** Persist them under
   `~/Library/Application Support/<bundle-id>/Snippets/`; `StoredSnippet.ID` is the standardized source
   path, and external rename is delete + create. The feature ships off and its enable switch doubles as

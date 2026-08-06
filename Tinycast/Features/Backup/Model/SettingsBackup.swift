@@ -13,6 +13,7 @@ struct SettingsBackup: Codable {
 
     /// Enum-backed settings are stored by raw value so the JSON stays legible and forward-compatible (an unknown value is ignored on import rather than failing the whole decode).
     struct SettingsData: Codable {
+        // Adding a field here means adding it to SettingsBackupCoverage too, or the harness fails.
         var clipboardRetentionDays: Int?
         var clipboardDisabledApps: [String]?
         var launchAtLogin: Bool?

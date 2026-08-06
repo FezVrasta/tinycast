@@ -84,3 +84,6 @@ jobs:
             Tinycast/Features/Quicklinks/Model/QuicklinkStore.swift \
             Tinycast/Features/Quicklinks/Model/QuicklinkArchive.swift Tools/quicklink-test.swift \
             -o /tmp/quicklink-test && /tmp/quicklink-test
+          swiftc -swift-version 6 Tinycast/Features/Settings/AppSettingsKey.swift \
+            Tinycast/Features/Backup/Model/SettingsBackupCoverage.swift Tools/settings-backup-test.swift \
+            -o /tmp/settings-backup-test && /tmp/settings-backup-test

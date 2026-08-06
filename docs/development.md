@@ -128,6 +128,9 @@ swiftc -swift-version 6 Tinycast/Features/Quicklinks/Model/Quicklink.swift \
 swiftc -swift-version 6 Tinycast/Features/PaletteRowIndex.swift \
     Tinycast/Features/Emoji/Model/EmojiGridGeometry.swift Tools/palette-selection-test.swift \
     -o /tmp/palette-selection-test && /tmp/palette-selection-test  # palette flat-selection row order
+swiftc -swift-version 6 Tinycast/Features/Settings/AppSettingsKey.swift \
+    Tinycast/Features/Backup/Model/SettingsBackupCoverage.swift Tools/settings-backup-test.swift \
+    -o /tmp/settings-backup-test && /tmp/settings-backup-test    # settings backup mirror coverage
 ```
 
 `Tools/fuzz-test.swift` compiles the real `Tinycast/Features/Launcher/Model/SearchRelevance.swift`, which is why that
@@ -154,6 +157,12 @@ keyword/event/lifecycle policies, AppKit delivery primitives and main-actor stor
 roots and named pasteboards cover identity, per-channel isolation, malformed files, revision
 conflicts, watcher rearming, template determinism, delivery serialization and pasteboard restoration without touching a real snippets library or clipboard. The
 complete subsystem contract is in [snippets.md](snippets.md).
+
+The settings-backup harness compiles the real `AppSettingsKey` and `SettingsBackupCoverage`, and fails
+when a settings key is neither carried by `SettingsBackup.SettingsData` nor listed in
+`deliberatelyExcluded` with a reason. The mirror stays hand-written on purpose: reflection would
+silently sweep the next consent flag into an export, which is why `snippetsEnabled` is excluded by
+name. Adding a setting therefore means editing `SettingsBackupCoverage` in the same commit.
 
 The Raycast harness compiles the real format detector and v1 decoder, so both must stay Foundation +
 CommonCrypto + Carbon (no AppKit). It builds its own v1 files in-process — a small embedded gzip blob

@@ -42,6 +42,7 @@ the harness in the left column is **mandatory**.
 | `uninstall-test`         | `Uninstall/Model/UninstallTarget.swift`, `UninstallSearchRoot.swift`, `UninstallRules.swift`, `UninstallProtection.swift`, `UninstallPlan.swift` |
 | `quicklink-test`         | `Quicklinks/Model/Quicklink.swift`, `QuicklinkDestination.swift`, `QuicklinkStore.swift`, `QuicklinkArchive.swift`                               |
 | `palette-selection-test` | `Features/PaletteRowIndex.swift`, `Emoji/Model/EmojiGridGeometry.swift` — the flat selection index's map onto visible row order                  |
+| `settings-backup-test`   | `Settings/AppSettingsKey.swift`, `Backup/Model/SettingsBackupCoverage.swift` — every settings key backed up or deliberately excluded             |
 
 - [ ] Every harness whose sources this phase touched has been run
 - [ ] Each one printed a pass result and exited 0
@@ -79,7 +80,7 @@ set -euo pipefail
 # …paste the full harness block from docs/development.md…
 ```
 
-- [ ] All 17 (18 from phase 19 onward) harnesses pass
+- [ ] All 18 harnesses pass (17 before phase 33 added `settings-backup-test`)
 - [ ] Result recorded in the progress file
 
 ---
