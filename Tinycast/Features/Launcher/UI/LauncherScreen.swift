@@ -25,7 +25,7 @@ struct LauncherScreen: PaletteScreen {
         }
     }
 
-    /// Ordered launcher results (the single source of truth for list, selection and activation): empty query pins favorites to the top, otherwise plain ranked matches.
+    /// The one ordered result list; an empty query pins favorites above the ranked matches.
     private var results: [AppEntry] {
         appIndex.orderedResults(query: vm.query, visibility: visibility, favorites: favorites)
     }
@@ -120,7 +120,7 @@ struct LauncherScreen: PaletteScreen {
         return core.runningApps.isRunning(app)
     }
 
-    /// Favorite slots shown in the compact bar: up to 5 launchable apps, or the first 4 plus an overflow "…" that expands the window. Evaluated only in the compact render and on the rare ⌘N keypress.
+    /// The compact bar's favorite slots: 5 apps, or 4 plus an overflow that expands.
     var compactFavoriteSlots: [CompactFavoriteSlot] {
         let ordered = appIndex.orderedResults(
             query: "", visibility: visibility, favorites: favorites)

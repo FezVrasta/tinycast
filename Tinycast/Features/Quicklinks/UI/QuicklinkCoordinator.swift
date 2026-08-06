@@ -54,8 +54,7 @@ final class QuicklinkCoordinator {
 
     // MARK: - Feature presence
 
-    /// The launcher section and the Quicklinks commands move together with the feature switch;
-    /// "show in launcher" hides only the section, leaving the commands reachable.
+    /// The switch moves section and commands together; "show in launcher" hides only the section.
     func applyQuicklinksPresence() {
         let enabled = settings.quicklinksEnabled
         appIndex.setQuicklinks(
@@ -65,17 +64,12 @@ final class QuicklinkCoordinator {
 
     // MARK: - Opening
 
-    /// The one funnel for palette activation, the ⌘K menu and a quicklink's global shortcut, so
-    /// neither the feature switch nor the argument prompt can be bypassed.
-    ///
-    /// `forcingDefaultApp` is the menu's "Open With Default App": it bypasses the saved handler for
-    /// one open without changing what the quicklink is saved as.
+    /// The one funnel for every open, so neither the switch nor the prompt can be bypassed.
     func openQuicklink(id: UUID, forcingDefaultApp: Bool = false) {
         guard settings.quicklinksEnabled, let quicklink = store.quicklink(id: id) else {
             return
         }
-        // With the palette closed a shortcut still reads the selection from whatever is frontmost,
-        // exactly as a system action targets the window a palette launch would have.
+        // With the palette closed a shortcut still reads the selection from the frontmost app.
         let target =
             windowController.isVisible
             ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
@@ -85,8 +79,7 @@ final class QuicklinkCoordinator {
             targetApp: target, clipboardHistory: clipboardHistory())
         var arguments: [SnippetTemplateEngine.MissingArgument] = []
 
-        // An unreadable selection is a missing value, not an empty one: substitute the clipboard, or
-        // collect it through the same prompt the template's own arguments use.
+        // An unreadable selection is missing, not empty: substitute the clipboard, or prompt.
         if context.selection.isEmpty, SnippetTemplateEngine.usesSelection(quicklink.link) {
             switch settings.quicklinkSelectionFallback {
             case .clipboard:
@@ -111,7 +104,7 @@ final class QuicklinkCoordinator {
             quicklink, link: expansion.text, forcingDefaultApp: forcingDefaultApp)
     }
 
-    /// `{selection}` promoted to an argument when there is nothing to read and the setting says ask.
+    /// `{selection}` promoted to an argument when unreadable and the setting says ask.
     private static let selectionArgument = SnippetTemplateEngine.MissingArgument(
         name: "Selected Text", options: [])
 
@@ -193,8 +186,7 @@ final class QuicklinkCoordinator {
         try store.update(draft)
     }
 
-    /// Confirms unless the user turned the gate off, then deletes and unwinds every reference the
-    /// quicklink owned. `confirming: false` is for the Settings pane, which already asked.
+    /// Deletes and unwinds every reference; `confirming: false` is for the pane, which asked.
     func deleteQuicklink(id: UUID, confirming: Bool = true) async {
         guard let quicklink = store.quicklink(id: id) else { return }
         if confirming, settings.quicklinkConfirmsBeforeDelete {
@@ -221,7 +213,7 @@ final class QuicklinkCoordinator {
         _ = try? store.duplicate(id: id)
     }
 
-    /// Opens Settings on the Quicklinks pane with the editor showing `quicklink` (nil for a new one).
+    /// Opens the Quicklinks pane with the editor showing `quicklink`; nil is a new one.
     func editQuicklink(_ quicklink: Quicklink?) {
         core.pendingQuicklinkEdit = QuicklinkEditRequest(quicklink: quicklink)
         paletteCoordinator.showSettings(tab: .quicklinks)
@@ -279,7 +271,7 @@ final class QuicklinkCoordinator {
             let incoming = try QuicklinkArchive.decode(Data(contentsOf: url))
             let merge = QuicklinkArchive.merge(incoming, into: store.quicklinks)
             let added = store.append(merge.additions)
-            // Everything the file offered was already here — say so rather than showing "0 imported".
+            // Everything offered was already here, so say so rather than "0 imported".
             guard !added.isEmpty else {
                 await core.showNotice(
                     title: "Nothing to Import",

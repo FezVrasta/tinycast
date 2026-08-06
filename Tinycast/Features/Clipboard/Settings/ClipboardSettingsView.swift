@@ -104,7 +104,7 @@ struct ClipboardSettingsView: View {
     }
 }
 
-/// One excluded app (icon + name + remove button); the stored value is just a bundle ID, so name/icon resolve on the fly via the app index, else LaunchServices, else a placeholder for uninstalled apps.
+/// One excluded app; only the bundle ID is stored, so name and icon resolve on the fly.
 private struct DisabledAppRow: View {
     let bundleID: String
     let onRemove: () -> Void

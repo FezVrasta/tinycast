@@ -22,7 +22,7 @@ struct SnippetsSettingsView: View {
                     "Reusable Markdown templates, expanded from the launcher or a typed keyword.",
                 systemImage: "curlybraces",
                 launcherSubtitle: "Find your snippets in launcher search.",
-                // Enabling is also keyword-expansion consent, so it funnels through the confirming setter.
+                // Enabling is also keyword-expansion consent, so it uses the confirming setter.
                 isEnabled: Binding(
                     get: { settings.snippetsEnabled },
                     set: { core.snippetExpansion.setSnippetsEnabled($0) }),
@@ -44,7 +44,7 @@ struct SnippetsSettingsView: View {
                 snippetsCard
                 libraryNotices
             }
-            // Same dim as ShortcutsSettingsView's hidden-category card; the switch above stays live.
+            // Same dim as the hidden-category card; the switch above stays live.
             .opacity(settings.snippetsEnabled ? 1 : 0.45)
             .disabled(!settings.snippetsEnabled)
         }
@@ -137,7 +137,7 @@ struct SnippetsSettingsView: View {
             .accessibilityElement(children: .contain)
         }
 
-        // The editor shows its own save failures inline, so this covers the ones with no sheet behind them (deleting from the list).
+        // The editor reports its own failures, so this covers the ones with no sheet behind.
         if editor == nil, let operationError = snippetsStore.operationError {
             SettingsCallout(
                 title: "The snippet operation failed",
@@ -332,7 +332,7 @@ private struct SnippetEditorSheet: View {
         }
     }
 
-    /// Every placeholder the engine understands. Parameters and modifiers (`offset=`, `| uppercase`) are documented rather than listed here — see docs/snippets.md.
+    /// Every placeholder the engine understands; parameters are in docs/snippets.md.
     private var placeholderMenu: some View {
         Menu("Insert…") {
             Section("Text") {
@@ -363,7 +363,7 @@ private struct SnippetEditorSheet: View {
         Button(token) { insert(token) }
     }
 
-    /// Replaces the selection, or lands at the caret; appends when there is no usable one (the menu can be used before the editor is ever focused).
+    /// Replaces the selection or lands at the caret; appends when there is no usable one.
     private func insert(_ token: String) {
         if let selection, case .selection(let range) = selection.indices,
             range.lowerBound >= text.startIndex, range.upperBound <= text.endIndex {
@@ -371,7 +371,7 @@ private struct SnippetEditorSheet: View {
         } else {
             text += token
         }
-        // Those indices belong to the string we just replaced, so they must not survive into the next insert.
+        // Those indices belong to the replaced string, so they must not survive the next insert.
         selection = nil
         isTemplateFocused = true
     }
@@ -424,7 +424,7 @@ private struct SnippetEditorSheet: View {
         Task {
             defer { isSaving = false }
             do {
-                // Saving keeps the file and its revision, so an external edit in between is reported as a conflict rather than overwritten.
+                // Saving keeps the revision, so an edit in between conflicts, not clobbers.
                 if var updated = record {
                     updated.snippet = draft
                     try await store.save(updated)

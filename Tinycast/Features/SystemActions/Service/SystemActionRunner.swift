@@ -23,7 +23,7 @@ struct SystemActionFailure: LocalizedError, Sendable {
 
 struct SystemActionFeedback: Sendable {
     let title: String
-    /// Set when the action found nothing to do; it reads as information rather than a completed change.
+    /// Set when there was nothing to do, so it reads as information, not a change.
     let isNoOp: Bool
 
     init(_ title: String, isNoOp: Bool = false) {
@@ -43,8 +43,7 @@ enum SystemActionRunner {
         let stderr: String
     }
 
-    /// What an action reports back once it succeeded. Only actions whose effect is otherwise invisible
-    /// return one, since Show Desktop or Hide Others are their own confirmation.
+    /// What an action reports on success; only the ones whose effect is invisible do.
     static func run(_ id: SystemAction.ID, previousApp: NSRunningApplication?) async throws
         -> SystemActionFeedback? {
         switch id {
@@ -102,7 +101,7 @@ enum SystemActionRunner {
                 "/System/Applications/Mission Control.app/Contents/MacOS/Mission Control",
                 arguments: ["1"])
         case .toggleAppearance:
-            // The script returns the resulting state, so the confirmation can name it instead of guessing.
+            // The script returns the resulting state, so the confirmation can name it.
             let result = try runAppleScript(
                 "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode")
             let dark = result?.booleanValue ?? false
@@ -117,9 +116,7 @@ enum SystemActionRunner {
                 throw SystemActionFailure("Finder could not open the Trash.")
             }
         case .emptyTrash:
-            // Finder errors out on an already-empty Trash, so ask it for the count first. Finder is also the
-            // right oracle rather than reading `~/.Trash` ourselves: that folder is TCC-protected, so a
-            // direct read fails without Full Disk Access and would look indistinguishable from "empty".
+            // Count first: Finder errors on an empty Trash, and `~/.Trash` is TCC-protected.
             let items =
                 try runAppleScript("tell application \"Finder\" to count items of trash")?
                 .int32Value ?? 0
@@ -169,7 +166,7 @@ enum SystemActionRunner {
     static func currentVolume() throws -> Float32 {
         let device = try defaultOutputDevice()
         let elements = try volumeElements(on: device)
-        // Averaged across the preferred channels when there's no master element, so a balanced pair reads as one level.
+        // Averaged across channels without a master, so a pair reads as one level.
         var total: Float32 = 0
         for element in elements {
             var address = volumeAddress(element: element)
@@ -184,7 +181,7 @@ enum SystemActionRunner {
         return total / Float32(elements.count)
     }
 
-    /// What the HUD renders after a volume or mute action. A device with no mute control reports zero level as muted, since that is how the fallback mutes it.
+    /// What the HUD renders; without a mute control, zero level reads as muted.
     static func outputState() throws -> (level: Float32, muted: Bool) {
         let level = try currentVolume()
         let device = try defaultOutputDevice()
@@ -223,7 +220,7 @@ enum SystemActionRunner {
         if value > 0 { try? setMuted(false, on: device) }
     }
 
-    /// The master element when the device exposes one, else its preferred stereo channels, since HDMI and some USB outputs only publish per-channel volume.
+    /// The master element where there is one, else the preferred stereo channels.
     private static func volumeElements(on device: AudioDeviceID) throws -> [AudioObjectPropertyElement] {
         var main = volumeAddress(element: kAudioObjectPropertyElementMain)
         if AudioObjectHasProperty(device, &main) { return [kAudioObjectPropertyElementMain] }
@@ -291,7 +288,7 @@ enum SystemActionRunner {
             try setMuted(muted == 0, on: device)
             return
         }
-        // No mute control (common on HDMI): fall back to parking the volume at zero and restoring it.
+        // No mute control: park the volume at zero and restore it afterwards.
         let current = try currentVolume()
         guard current > 0 else {
             try setVolume(lastNonZeroVolume)
@@ -301,7 +298,7 @@ enum SystemActionRunner {
         try setVolume(0)
     }
 
-    /// Restore level for the volume-based mute fallback; only written when a mute drops the output to zero.
+    /// Restore level for the mute fallback, written only when a mute drops it to zero.
     private static var lastNonZeroVolume: Float32 = 0.5
 
     private static func setMuted(_ muted: Bool, on device: AudioDeviceID) throws {
@@ -343,7 +340,7 @@ enum SystemActionRunner {
                 "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
                 settings: .accessibility)
         }
-        // Auxiliary-key events are the same route as the keyboard's media keys; 0xA/0xB are their down/up states.
+        // The same route as the keyboard's media keys; 0xA/0xB are down and up.
         for state in [0xA, 0xB] {
             let data1 = Int((key << 16) | (Int32(state) << 8))
             let event = NSEvent.otherEvent(
@@ -382,7 +379,7 @@ enum SystemActionRunner {
         var failures: [String] = []
         var ejected = 0
         for url in ejectable {
-            // One physical disk can publish several volumes, and ejecting the first takes the whole device with it, so a sibling that vanished is done, not failed.
+            // Ejecting one volume takes the device, so a vanished sibling is done.
             guard mountedVolumeExists(url) else { continue }
             do {
                 try NSWorkspace.shared.unmountAndEjectDevice(at: url)
@@ -404,7 +401,7 @@ enum SystemActionRunner {
         return mounted.contains { $0.standardizedFileURL == url.standardizedFileURL }
     }
 
-    /// Returns the state the toggle landed in, so the caller can name it rather than re-reading the preference.
+    /// Returns the state it landed in, so the caller needn't re-read the preference.
     @discardableResult
     private static func toggleDefault(domain: String, key: String) async throws -> Bool {
         let read = try await process("/usr/bin/defaults", arguments: ["read", domain, key])
@@ -416,7 +413,7 @@ enum SystemActionRunner {
             }
             current = parsed
         } else if read.stderr.contains("does not exist") {
-            // Unset keys are genuinely off; any other read failure is unknown state and must not be overwritten.
+            // Unset is genuinely off; any other failure is unknown and stays untouched.
             current = false
         } else {
             throw processFailure(read, executable: "defaults")
@@ -441,7 +438,7 @@ enum SystemActionRunner {
         }
     }
 
-    /// Returns how many notifications were dismissed, so "nothing on screen" can read as information instead of a silent no-op.
+    /// Returns how many were dismissed, so an empty screen reads as information.
     private static func dismissNotifications() async throws -> Int {
         guard Permissions.ensureAccessibility() else {
             throw SystemActionFailure(
@@ -472,7 +469,7 @@ enum SystemActionRunner {
         throw SystemActionFailure("Some notifications remain after the safety limit was reached.")
     }
 
-    /// Notification containers, matched on Accessibility subrole so the search never depends on the UI language.
+    /// Matched on AX subrole, so the search never depends on the UI language.
     private static func notificationElements(in element: AXUIElement, depth: Int) -> [AXUIElement] {
         guard depth < 20 else { return [] }
         let subrole = axString(element, attribute: kAXSubroleAttribute as CFString)?.lowercased()
@@ -480,7 +477,7 @@ enum SystemActionRunner {
         return axChildren(element).flatMap { notificationElements(in: $0, depth: depth + 1) }
     }
 
-    /// A Close / Clear All control inside one notification: the close subrole is language-independent, and the label match is only a fallback. Never falls through to an arbitrary button, because a notification's own action rows (Reply, Open) also press.
+    /// The close control; never an arbitrary button, a notification's own rows press too.
     private static func dismissControl(in element: AXUIElement, depth: Int) -> AXUIElement? {
         guard depth < 20 else { return nil }
         if canPress(element) {
@@ -522,7 +519,7 @@ enum SystemActionRunner {
         return value as? String
     }
 
-    /// Returns the power state the controller settled into; the setter is `void`, so polling the getter is the only confirmation available.
+    /// Returns the state it settled into; the setter is void, so polling is the only way.
     private static func toggleBluetooth() async throws -> Bool {
         let path = "/System/Library/Frameworks/IOBluetooth.framework/IOBluetooth"
         guard let handle = dlopen(path, RTLD_NOW) else {

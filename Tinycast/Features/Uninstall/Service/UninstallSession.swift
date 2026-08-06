@@ -1,6 +1,6 @@
 import Foundation
 
-/// One scan, its plan, and what the user checked. The checked-set invariant lives in `UninstallSelection`; this owns the lifecycle.
+/// One scan, its plan and the checked set; the checked-set invariant lives elsewhere.
 @MainActor
 @Observable
 final class UninstallSession {

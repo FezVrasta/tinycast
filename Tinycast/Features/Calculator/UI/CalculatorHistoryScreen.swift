@@ -66,14 +66,14 @@ struct CalculatorHistoryScreen: PaletteScreen {
 
     func activate(at selection: Int) {
         switch row(at: selection) {
-        // A fresh calculation typed into the history search: copy + record like the launcher card (error cards no-op).
+        // A fresh calculation: copy + record like the launcher card; error cards no-op.
         case .calc(let result): core.calculatorCoordinator.copyCalculatorResult(result)
         case .entry(let entry): core.calculatorCoordinator.copyHistoryEntry(entry)
         case nil: break
         }
     }
 
-    /// ⌘↵ — the inline card has no expression to copy separately; only stored entries respond.
+    /// ⌘↵: the inline card has no expression to copy, so only stored entries respond.
     func secondary(at selection: Int) -> Bool {
         guard let entry = entry(at: selection) else { return false }
         core.calculatorCoordinator.copyHistoryExpression(entry)

@@ -1,10 +1,10 @@
 import SwiftUI
 
-// Reusable building blocks for the Settings window; all metrics come from `Theme` so Settings shares one vocabulary with the palette.
+// Settings building blocks; metrics come from `Theme`, so it shares the palette's vocabulary.
 
 // MARK: - Pane scaffold
 
-/// Standard layout for a settings pane (title + subtitle header, then scrollable content) so headers, insets and scroll behaviour stay identical across the app.
+/// The standard pane layout, so headers, insets and scrolling stay identical.
 struct SettingsPane<Content: View>: View {
     let title: String
     let subtitle: String
@@ -16,14 +16,14 @@ struct SettingsPane<Content: View>: View {
                 SettingsHeader(title: title, subtitle: subtitle)
                 content
             }
-            // Ignore the transparent-titlebar safe area and use one fixed `xxl` inset every side instead (the titlebar band is taller than the rhythm we want; traffic lights sit over the sidebar, so nothing collides).
+            // Ignore the titlebar safe area: one fixed inset every side reads better.
             .padding(Theme.Spacing.xxl)
             .frame(maxWidth: .infinity, alignment: .leading)
-            // Settings use the native thin overlay scroller (not the palette's SwiftUI `thinScrollbar`), matching the other windowed setting lists.
+            // The native overlay scroller here, matching other windowed setting lists.
             .overlayScroller()
         }
         .ignoresSafeArea(edges: .top)
-        // Outside the ScrollView, so an open recorder's callout draws over the pane instead of being clipped by it.
+        // Outside the ScrollView, so an open recorder's callout isn't clipped by it.
         .shortcutRecorderPopoverHost()
     }
 }
@@ -46,7 +46,7 @@ struct SettingsHeader: View {
 
 // MARK: - Grouped card
 
-/// A rounded, hairline-bordered container grouping related rows — the macOS System Settings "card" (rows split by inset dividers via `SettingsRow`/`SettingsDivider`).
+/// The System Settings "card": a rounded, hairline-bordered group of rows.
 struct SettingsCard<Content: View>: View {
     var header: String?
     @ViewBuilder var content: Content
@@ -72,7 +72,7 @@ struct SettingsCard<Content: View>: View {
     }
 }
 
-/// The identical top card of a feature pane (Custom Commands, Snippets): the master switch, then its launcher-visibility companion, which locks while the feature is off.
+/// A feature pane's top card: the master switch, then its visibility companion.
 struct FeatureSwitchCard: View {
     let header: String
     let enableTitle: String
@@ -114,7 +114,7 @@ struct FeatureSwitchCard: View {
     }
 }
 
-/// The filter field above a long settings list, styled like a card so it reads as part of the group below it.
+/// The filter field above a long list, styled to read as part of the group below.
 struct SettingsSearchField: View {
     let prompt: String
     @Binding var query: String
@@ -149,7 +149,7 @@ struct SettingsSearchField: View {
     }
 }
 
-/// Inset divider between rows inside a `SettingsCard`, aligned under the row's title (past the icon).
+/// Inset divider inside a `SettingsCard`, aligned under the row's title.
 struct SettingsDivider: View {
     var body: some View {
         Rectangle()
@@ -161,7 +161,7 @@ struct SettingsDivider: View {
 
 // MARK: - Row
 
-/// A single settings line (optional SF Symbol, title with optional subtitle, trailing control); fixed vertical rhythm keeps every card aligned regardless of the control.
+/// One settings line; a fixed rhythm keeps every card aligned whatever the control.
 struct SettingsRow<Trailing: View>: View {
     let title: String
     var subtitle: String?
@@ -206,7 +206,7 @@ struct SettingsRow<Trailing: View>: View {
 
 // MARK: - Callout
 
-/// A tinted inset box for a notice or warning inside a `SettingsCard` — SF Symbol + title + optional message, with an optional trailing control (e.g. a fix-it button).
+/// A tinted notice box inside a `SettingsCard`, with an optional trailing control.
 struct SettingsCallout<Trailing: View>: View {
     let title: String
     var message: String?

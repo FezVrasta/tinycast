@@ -33,7 +33,7 @@ private struct OverlayScrollerConfigurator: NSViewRepresentable {
             applyOverlayStyle()
         }
 
-        /// AppKit resets scroller style back to the system preference on this notification, so re-apply on the next tick after its own handler runs.
+        /// AppKit resets the style on this, so re-apply after its own handler runs.
         private func observeStyleChanges() {
             guard styleObserver == nil else { return }
             let token = NotificationCenter.default.addObserver(
@@ -47,7 +47,7 @@ private struct OverlayScrollerConfigurator: NSViewRepresentable {
 
         func applyOverlayStyle() {
             guard let scrollView = enclosingScrollView else {
-                // Not spliced into the scroll view yet; retry next tick, bounded so a view that never lands in one can't spin the main thread.
+                // Not spliced in yet; retry next tick, bounded so it can't spin forever.
                 guard attemptsRemaining > 0 else { return }
                 attemptsRemaining -= 1
                 DispatchQueue.main.async { [weak self] in self?.applyOverlayStyle() }

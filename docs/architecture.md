@@ -7,6 +7,38 @@ How Tinycast is wired together. See the per-subsystem docs for internals:
 System-action catalog, launcher integration and permission behavior are documented in
 [launcher](launcher.md#system-actions).
 
+## The layering: pure, effect, view
+
+Every feature splits three ways, and the split is what the standalone harnesses in `Tools/` check.
+
+- **`Model/` — pure.** Foundation only (plus SQLite3 or CoreGraphics where the data demands it). No
+  AppKit, no SwiftUI, no clock read, no filesystem, no network. Everything from the environment is
+  **injected**: `CalcEngine` takes `now` / `calendar` / `rates`, `LauncherRankingStore` takes `now`
+  and its file URL, `WindowActionMemory` takes `now` as a parameter, `UninstallRules` is handed
+  directory *names* rather than URLs, and `QuicklinkStore` is handed the home directory. This is the
+  layer that decides things.
+- **`Service/` — effects.** Stores, monitors, runners, scanners and AppKit glue. Every
+  `AXUIElement` call, `CGEventTap`, `NSWorkspace.open`, `URLSession` request, `FileManager` walk and
+  CoreAudio read lives here. This is the layer that *does* things, and it is deliberately not
+  compiled by any harness.
+- **`UI/` and `Settings/` — views** plus the feature's coordinator. Declarative, thin, and holding no
+  policy of its own.
+
+The rule is checkable, which is the point: **a file under `Model/` may not import AppKit or SwiftUI**,
+because `Tools/*-test.swift` compiles the shipped sources rather than a copy of them. A harness that
+stops compiling is the signal that a decision has leaked into the effect layer, or an effect into the
+decision layer.
+
+The boundary is drawn so the *safe* state is the default. `CalcEngine.evaluate`'s `currency:`
+parameter defaults to `.off`, so forgetting to pass a consented source disables the feature rather
+than enabling it. Confirmation gates live in the coordinator, never in the runner — which is why
+`ShellCommandRunner` and `SystemActionRunner` can stay harness-compilable while the "are you sure?"
+step still cannot be bypassed.
+
+Two things sit deliberately outside a feature folder: `Features/PaletteRowIndex.swift`, because the
+palette rather than any one feature owns the flat selection index, and `DesignSystem/` +
+`Platform/`, which are the shared primitives and system shims every feature draws on.
+
 ## Single-owner core
 
 `AppCore.shared` (`App/AppCore.swift`) is a `@MainActor` singleton that owns every long-lived
@@ -85,3 +117,35 @@ House idioms for the sharp edges:
 - `ClipboardStore` uses `isolated deinit` for its SQLite teardown.
 - Raw Carbon / C pointers get decoded to plain values before crossing into actor code (see
   `hotKeyCarbonEventHandler`).
+
+## The tree
+
+The folder layout is the layering above, made navigable — one folder per feature, each holding
+everything that feature owns.
+
+```
+Tinycast/
+  App/                  @main, AppDelegate, AppCore — the composition root
+  DesignSystem/         Theme (the token source), KeyCapChip, Tooltip, SymbolImage,
+                        VisualEffectView, PopoverMenu, SettingsComponents, Scrolling/, Interaction/
+  Platform/             system shims: Permissions, LaunchAtLogin, CursorScreen, AppDisplayName,
+                        NotificationToken, AppPaths, Signposts, Images/
+  Palette/              the palette shell: PalettePanel, PaletteWindowController, RootPaletteView,
+                        the PaletteScreen protocol, PaletteCoordinator, PaletteState / PaletteMode
+  Windows/              the non-palette AppKit surfaces: AuxWindowController, Dialog/, HUD/, About/
+  Features/
+    PaletteRowIndex.swift        the flat selection index — palette-owned, so it sits at the top
+    Launcher/  Clipboard/  Calculator/  Emoji/  Quicklinks/  Snippets/  Uninstall/
+    SystemActions/  CustomCommands/  HotKeys/  Backup/  WindowManagement/  Onboarding/
+        Model/     pure — the standalone-harness inputs
+        Service/   effects — stores, monitors, runners, AppKit glue
+        UI/        screens, views, and the feature's coordinator
+        Settings/  the feature's own panes
+    Settings/            the Settings shell only: SettingsRootView, SettingsTab, AppSettings,
+                         and Panes/ for the two panes no feature owns (General, Permissions)
+Tools/                   the standalone harnesses and the data generators
+```
+
+A larger feature splits into all four sub-folders; a small one stays flat. Every `SettingsTab` maps
+to one `…SettingsView` built on the `SettingsPane` / `SettingsCard` scaffold, and the four
+launcher-category panes are thin wrappers over the shared `LauncherItemsCard`.

@@ -47,14 +47,13 @@ struct UninstallPlan: Equatable, Sendable {
 
     var totalBytes: Int64 { candidates.reduce(0) { $0 + $1.size.bytes } }
 
-    /// Everything removable, name matches included: they're exact, confined, and only ever cost a drag back out of the Trash.
+    /// Everything removable, name matches included: exact, confined, and undoable.
     var defaultSelection: UninstallSelection {
         UninstallSelection(plan: self, checked: removableIDs)
     }
 }
 
-/// The only thing holding a checked set, and it can only hold removable ids. Every mutation funnels through one
-/// intersection with `plan.removableIDs`, so "a locked candidate is never checked" is one line to review.
+/// The one holder of the checked set; one intersection keeps a locked candidate out.
 struct UninstallSelection: Equatable, Sendable {
     private(set) var checked: Set<UninstallCandidate.ID>
 

@@ -13,7 +13,7 @@ private func snippetKeywordCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // A click relocates the caret, so the buffered prefix no longer describes what precedes the insertion point.
+    // A click relocates the caret, so the buffered prefix no longer describes what precedes it.
     if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown {
         MainActor.assumeIsolated { listener.clearBuffer() }
         return Unmanaged.passUnretained(event)
@@ -184,7 +184,7 @@ final class SnippetKeywordListener: HealthCheckable {
 
     private var isRequested: Bool { onMatch != nil }
 
-    /// A listen-only tap needs the Accessibility grant and nothing else — the same grant `HyperKeyTap` uses for its modifying tap.
+    /// A listen-only tap needs the Accessibility grant and nothing else.
     private var hasAccessibility: Bool { accessibilityTrusted() }
 
     private func installObserversIfNeeded() {

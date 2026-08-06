@@ -35,8 +35,7 @@ struct QuicklinksSettingsView: View {
             .opacity(settings.quicklinksEnabled ? 1 : 0.45)
             .disabled(!settings.quicklinksEnabled)
         }
-        // Presented from the pane rather than the row, so "Create Quicklink" can open it from the
-        // palette by handing `AppCore` a request.
+        // Presented from the pane, so "Create Quicklink" can open it from the palette.
         .sheet(item: $core.pendingQuicklinkEdit) { request in
             QuicklinkEditorSheet(quicklink: request.quicklink)
         }

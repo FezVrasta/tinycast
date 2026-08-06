@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// First-launch wizard: set the palette shortcut, offer Accessibility + launch-at-login, offer a Raycast import, then drop into the launcher. Re-runnable from Settings. Reuses the app's own controls (`ShortcutRecorder`, `SettingsCard`, `BackupActions`) so it looks and behaves like the rest of Tinycast.
+/// The first-launch wizard, built from the app's own controls; re-runnable from Settings.
 struct OnboardingView: View {
     @State private var step = 0
     @State private var model = OnboardingModel()
@@ -14,7 +14,7 @@ struct OnboardingView: View {
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private static let lastStep = 3
-    /// Fixed content size; also the window size in `AppCore.showOnboarding()`. A hard frame keeps `NSHostingView` from sizing the window to the content's unbounded ideal height.
+    /// Fixed content size, so `NSHostingView` can't size the window to its ideal height.
     static let windowSize = CGSize(width: 520, height: 400)
 
     var body: some View {
@@ -32,7 +32,7 @@ struct OnboardingView: View {
                 colors: [Color.white.opacity(0.04), Color.clear],
                 startPoint: .top, endPoint: .center)
         )
-        // Extend under the transparent titlebar (top padding clears the traffic lights) so the window height equals the fixed content height.
+        // Extend under the titlebar, so window height equals the fixed content height.
         .ignoresSafeArea()
         // Onboarding's shortcut step has a recorder too, and it isn't inside a `SettingsPane`.
         .shortcutRecorderPopoverHost()
@@ -339,7 +339,7 @@ struct OnboardingView: View {
             Capsule().fill((accessibilityTrusted ? Color.green : Color.orange).opacity(0.14)))
     }
 
-    // Read the bundled .icns directly: `NSApp.applicationIconImage` is the generic placeholder until LaunchServices registers the app (it hasn't when run from `build/`).
+    // Read the bundle directly: the app icon is generic until LaunchServices registers.
     private static let appIcon: NSImage = {
         if let name = Bundle.main.infoDictionary?["CFBundleIconFile"] as? String,
             let url = Bundle.main.url(forResource: name, withExtension: "icns"),
@@ -350,7 +350,7 @@ struct OnboardingView: View {
     }()
 }
 
-/// Owns the Raycast import step's state and the async import call, kept off the view so lifetimes are explicit and the body stays declarative.
+/// The import step's state and async call, off the view so the body stays declarative.
 @MainActor
 @Observable
 final class OnboardingModel {

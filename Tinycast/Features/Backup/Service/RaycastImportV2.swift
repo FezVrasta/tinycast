@@ -2,13 +2,7 @@ import AppKit
 import CryptoKit
 import Foundation
 
-/// Decrypts a Raycast X `.rayconfig` export and maps the subset Tinycast supports. Format: gzip →
-/// JSON envelope → hex ciphertext decrypted with AES-256-GCM under a scrypt(N=16384,r=8,p=1) key →
-/// gunzip → settings JSON. Decrypt is CPU-heavy (scrypt) and pure Foundation/CryptoKit, so run it off
-/// the main actor.
-///
-/// Shares no mapper with `RaycastImportV1`: the two formats come from different generations of
-/// Raycast and their JSON has almost nothing in common.
+/// Decrypts and maps a Raycast X export. See docs/raycast-import.md.
 enum RaycastImportV2 {
     static func read(_ raw: Data, passphrase: String) throws -> RaycastImport.Result {
         try parse(decrypt(raw, passphrase: passphrase))
@@ -64,7 +58,7 @@ enum RaycastImportV2 {
             missingImages: missing)
     }
 
-    /// Raycast `general.hyperKeyCode` → Tinycast physical key; unknown or absent values are skipped, and no value ever maps to `.none` (an export without a Hyper key must not disable one the user already configured).
+    /// Raycast's hyper key code → ours; nothing maps to `.none`, so none is cleared.
     private static let hyperKeyCodes: [String: HyperKeyPhysicalKey] = [
         "caps_lock": .capsLock,
         "right_control": .rightControl,
@@ -85,7 +79,7 @@ enum RaycastImportV2 {
             data.hyperKeyIncludesShift = includeShift
             mapped = true
         }
-        // Without the physical Hyper key the imported ⌃⌥⇧⌘ shortcuts exist but can't be triggered from it.
+        // Without the physical key the imported chord shortcuts can't be triggered.
         if let code = general?["hyperKeyCode"] as? String, let key = hyperKeyCodes[code] {
             data.hyperKey = key.rawValue
             mapped = true
@@ -102,13 +96,13 @@ enum RaycastImportV2 {
             data.emojiSkinTone = tone
             mapped = true
         }
-        // Exact-match only: a Raycast timeout outside Tinycast's option set is skipped, not clamped.
+        // Exact-match only: a timeout outside our option set is skipped, not clamped.
         if let secs = general?["popToRootTimeout"] as? Int,
             let timeout = PopToRootTimeout(rawValue: secs) {
             data.popToRootSeconds = timeout.rawValue
             mapped = true
         }
-        // Raycast's window mode is a string ("compact"/"advanced"/…); Tinycast only has the compact toggle.
+        // Raycast's window mode is a string; we only have the compact toggle.
         if let mode = general?["windowMode"] as? String {
             data.compactMode = (mode == "compact")
             mapped = true
@@ -120,7 +114,7 @@ enum RaycastImportV2 {
         return mapped ? data : nil
     }
 
-    /// Raycast stores the palette hotkey under `general.globalHotkey` and per-command hotkeys (clipboard, emoji, app launchers) under `commands[].macosHotkey`, all in the same `kind.shortcut` shape. Raycast uses the same Carbon keycodes and modifier names Tinycast does, so `LayoutIndependent` shortcuts map directly; character-based (`LayoutDependent`) ones are skipped since Tinycast keys on keycodes. Hyper Key shortcuts need no special-casing: Raycast exports them expanded into the four explicit modifiers, and the physical key itself comes over via `hyperKeyCode` in `mapSettings`.
+    /// Every Raycast hotkey, in one shape. See docs/raycast-import.md.
     private static func mapHotkeys(_ json: [String: Any]) -> SettingsBackup.HotkeyBackup? {
         let settings = json["settings"] as? [String: Any]
         var hotkeys = SettingsBackup.HotkeyBackup()
@@ -156,7 +150,7 @@ enum RaycastImportV2 {
         return mapped ? hotkeys : nil
     }
 
-    /// Build a binding from a Raycast hotkey object (`{ kind: { shortcut: { modifiers, key } } }`). Always a `.combo`: Raycast has no double-tap binding to import.
+    /// A binding from a Raycast hotkey; always a `.combo`, Raycast having no double-tap.
     private static func binding(from hotkey: Any?) -> HotKeyBinding? {
         guard let dict = hotkey as? [String: Any],
             let shortcut = (dict["kind"] as? [String: Any])?["shortcut"] as? [String: Any],
@@ -180,7 +174,7 @@ enum RaycastImportV2 {
                 carbonKeyCode: code, carbonModifiers: KeyShortcut.carbonModifiers(from: flags)))
     }
 
-    /// Raycast marks favorited items with `favoriteOrder` (0-based). Only app favorites map to Tinycast, keyed by bundle ID (the same key `FavoritesStore` uses), preserving Raycast's order.
+    /// Only app favorites map over, keyed by bundle ID, preserving Raycast's order.
     private static func mapFavorites(_ json: [String: Any]) -> [String]? {
         guard let commands = (json["settings"] as? [String: Any])?["commands"] as? [[String: Any]]
         else { return nil }
@@ -199,14 +193,14 @@ enum RaycastImportV2 {
         return favorites.isEmpty ? nil : favorites
     }
 
-    /// The launched app's path is the tail of an applications command id: `c:r:applications::*::application::=::/Applications/Ghostty.app`.
+    /// The launched app's path is the tail of an applications command id.
     private static func appPath(fromCommandID id: String?) -> String? {
         guard let id, let range = id.range(of: "::=::") else { return nil }
         let path = String(id[range.upperBound...])
         return path.isEmpty ? nil : path
     }
 
-    /// Raycast stores the tone under an emoji command's preferences; a recursive search avoids hard-coding a brittle path. Enum raw values line up (`light`…`dark`); Raycast's `default` maps to none.
+    /// A recursive search, avoiding a brittle path; the raw values line up already.
     private static func mapSkinTone(_ json: [String: Any]) -> String? {
         guard let raw = firstValue(forKey: "skinTone", in: json) as? String else { return nil }
         if raw == "default" { return EmojiSkinTone.none.rawValue }

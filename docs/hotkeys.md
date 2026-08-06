@@ -76,6 +76,60 @@ details are load-bearing:
 ⇧ is bindable this way even though `KeyShortcut` rejects a bare ⇧ combo: a double-_tap_ is unambiguous
 where a bare ⇧ combo would shadow typing.
 
+## The Hyper Key
+
+`HyperKeyTap` turns one physical key — Caps Lock or a right-side modifier — into the ⌃⌥(⇧)⌘ chord
+system-wide. It is a **modifying** `CGEventTap`, a separate layer from `HotKeyCenter` because Carbon
+cannot intercept a lone key at all. The rewritten flags flow onward into Carbon matching, so existing
+combo hotkeys fire from Hyper+key with no extra registration.
+
+Which key is chosen persists as a `HyperKey` string raw value in `AppSettings` — renaming a case is a
+migration, and a removed case decodes to `.none`. **F-keys are deliberately not candidates:** the
+top-row media functions fire *below* the tap, so binding F1 as Hyper still dimmed the display.
+
+### Caps Lock has to stop being Caps Lock
+
+The caps-lock toggle — both the LED and the latch — happens below every `CGEventTap`, so no tap can
+suppress it. The key must therefore stop being Caps Lock **at the source**: while Caps Lock serves as
+Hyper, `CapsLockRemap` installs an IOKit `UserKeyMapping` remapping it to **F18**, the same mechanism
+`hidutil` uses. The tap then intercepts F18 in its place. The remap is cleared on unbind and on quit,
+and never survives a reboot. Remaps apply on a serial queue, so rapid on→off→on toggles land in call
+order instead of racing as independent detached tasks and leaving the wrong final state.
+
+Because the remap is asynchronous, there is a fallback for the window before it takes hold: the key
+still arrives as Caps Lock, so the tap rides the modifier path instead. The LED toggles during that
+window — that is un-remapped HID behaviour, not something Tinycast can stop.
+
+Once remapped, Caps Lock arrives as **keyDown/keyUp** rather than `flagsChanged`. Both ends are
+converted into Left Control `flagsChanged` transitions, so everything downstream sees the Hyper chord
+move with the key rather than a swallowed press. A classic `IOHIDSystem` connection reads and drives
+the Caps Lock LED and lock state; it is used only by the explicit Quick Press toggle and the one-time
+unlatch when the remap is installed.
+
+### Press tracking uses toggle semantics
+
+`flagsChanged` does not describe its own direction, so a modifier-style Hyper key is tracked by
+toggling. The obvious alternative — querying `CGEventSource` key state — **races the release**,
+inverting the state machine and breaking Quick Press. A missed release therefore lingers only until
+the watchdog or the next press clears it. Work that posts events or touches IOKit is deferred to the
+next runloop turn rather than run inside the tap callback, where it would risk re-entrancy.
+
+The flags OR'd into every rewritten event are the generic ⌃⌥(⇧)⌘ masks **plus the left-side device
+bits** (`NX_DEVICE…KEYMASK`, from `IOLLEvent.h`). Some consumers distinguish sides, and generic-only
+flags do not always read as fully pressed. The Hyper key's own residue is scrubbed in the same pass:
+Caps Lock's alpha-shift bit, or — for a key modifier outside the Hyper set — its generic mask and both
+device bits. Events the tap posts carry a `"TYCT"` marker in `.eventSourceUserData`, the same FourCC
+`HotKeyCenter` uses, so the tap never reacts to its own synthetics.
+
+### Lifecycle
+
+Like every keyboard tap it needs the **Accessibility** grant and never prompts for it. A one-second
+watchdog runs while a key is configured: it retries installation until the grant lands, notices
+revocation, revives a tap the system disabled on timeout or user input, and clears a stuck hold. On
+fast user switching another session owns the keyboard, so half-held state is dropped and rewriting
+stops until this session is active again. The HID remap outlives the process, so
+`applicationWillTerminate` hands the key back to the system before exiting.
+
 ## Recorder
 
 The settings recorder (`Features/Settings/ShortcutRecorder.swift`) is deliberately **not** a focusable

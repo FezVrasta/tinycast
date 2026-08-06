@@ -31,7 +31,7 @@ final class AppCore {
     let uninstall = UninstallSession()
     let quicklinkArguments = QuicklinkArgumentSession()
 
-    /// Set when a quicklink editor should open as the Settings window appears; the pane consumes it.
+    /// Set when a quicklink editor should open with Settings; the pane consumes it.
     var pendingQuicklinkEdit: QuicklinkEditRequest?
 
     @ObservationIgnored private(set) lazy var snippetExpansion = SnippetExpansionCoordinator(
@@ -81,7 +81,7 @@ final class AppCore {
 
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
-    /// Every confirmation, failure report and value prompt in the app; it also guards against a held hotkey stacking dialogs.
+    /// Every confirmation, report and prompt; it also stops a held hotkey stacking them.
     private let dialogs = DialogController()
     private let healthTicker = HealthTicker()
 
@@ -101,10 +101,10 @@ final class AppCore {
 
     func start() {
         Signposts.interval("AppCore.start") {
-            // AppKit's default tooltip delay is ~2–3s; shorten it (in ms) so the compact-bar favorite tooltips appear promptly. Registration domain — never overrides a user default.
+            // Shorten AppKit's ~2–3s tooltip delay; registration domain, so a user default wins.
             UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 250])
             NSApp.setActivationPolicy(.accessory)
-            // Force dark: the Liquid Glass material is tuned for a deep dark surface and renders washed-out in Light mode.
+            // Force dark: the Liquid Glass material is tuned for a deep dark surface.
             NSApp.appearance = NSAppearance(named: .darkAqua)
 
             clipboardStore.maxAge = settings.clipboardRetention.maxAge
@@ -121,9 +121,7 @@ final class AppCore {
             quicklinks.onChange = { [weak self] _ in
                 self?.quicklinkCoordinator.applyQuicklinksPresence()
             }
-            // Loaded even while the feature is off, and before `hotKeys.start`: its stale-binding prune
-            // reads this list, so an unloaded store would look like "every quicklink was deleted" and
-            // throw away the user's shortcuts. The library is small, so this is one short read.
+            // Before `hotKeys.start`, even when off: the prune reads it. See docs/quicklinks.md.
             quicklinks.load()
             quicklinkCoordinator.applyQuicklinksPresence()
             Task { await appIndex.refresh() }
@@ -159,7 +157,7 @@ final class AppCore {
             hotKeys.start(
                 customCommandIDs: Set(customCommands.commands.map(\.id)),
                 quicklinkIDs: Set(quicklinks.quicklinks.map(\.id)))
-            // Deliberately keeps running while `hotKeys.recordingAction` pauses Carbon: the recorder relies on the tap's rewritten flags to capture Hyper shortcuts.
+            // Keeps running while Carbon pauses: the recorder needs its rewritten flags.
             hyperKeyTap.start(settings: settings)
 
             snippetsStore.onSnapshot = { [weak self] snapshot in
@@ -167,7 +165,7 @@ final class AppCore {
                 self.snippetExpansion.applySnippetsLauncherPresence()
                 self.snippetListener.update(snapshot.records)
             }
-            // Off out of the box, so a user who never enables snippets pays for no load, no watcher and no tap.
+            // Off out of the box, so an unused feature costs no load, watcher or tap.
             if settings.snippetsEnabled {
                 Task { await snippetsStore.start() }
                 snippetExpansion.startSnippetKeywordListener()
@@ -175,7 +173,7 @@ final class AppCore {
 
             observeFeatureSwitches()
 
-            // First launch has no palette hotkey bound and shows nothing but the menu-bar icon; guide the user once. Marker is written at show-time so it stays one-time even if they Cmd-Q mid-flow.
+            // First launch binds no hotkey, so guide once; the marker is written at show-time.
             if !OnboardingState.hasOnboarded {
                 OnboardingState.markShown()
                 paletteCoordinator.showOnboarding()
@@ -201,7 +199,7 @@ final class AppCore {
     }
 
     func prepareForTermination() {
-        // Caps Lock first: its HID remap is the only teardown that outlives the process, so nothing else may come before it.
+        // Caps Lock first: its remap is the one teardown that outlives the process.
         hyperKeyTap.prepareForTermination()
         snippetTextInjector.prepareForTermination()
         snippetListener.stop()
@@ -250,17 +248,13 @@ final class AppCore {
         appIndex.setWindowCommandsVisible(visible)
     }
 
-    // MARK: - Dialogs
-    //
-    // Routed through `AppCore` so `dialogs` stays the single owner; flows outside the palette (the backup
-    // actions) reach the same dialogs instead of falling back to an `NSAlert`.
+    // MARK: - Dialogs, routed here so `dialogs` stays the single owner
 
     func showNotice(title: String, message: String, symbol: String, tone: DialogTone) async {
         await dialogs.notice(title: title, message: message, symbol: symbol, tone: tone)
     }
 
-    /// `tone` is what the dialog looks like; `confirmRole` is what the confirm button looks like. They
-    /// are separate on purpose — a red-glyph security warning can still carry a plain white button.
+    /// `tone` styles the glyph, `confirmRole` the button; separate on purpose.
     func confirm(
         title: String, message: String, symbol: String, confirmTitle: String,
         tone: DialogTone = .danger, confirmRole: DialogAction.Role = .destructive

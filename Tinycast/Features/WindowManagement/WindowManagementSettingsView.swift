@@ -24,7 +24,7 @@ struct WindowManagementSettingsView: View {
                 optionsCard
                 commandsCard
             }
-            // Same dim as ShortcutsSettingsView's hidden-category card; the switch above stays live.
+            // Same dim as the hidden-category card; the switch above stays live.
             .opacity(settings.windowManagementEnabled ? 1 : 0.45)
             .disabled(!settings.windowManagementEnabled)
         }
@@ -93,8 +93,7 @@ private struct WindowCommandGroupHeader: View {
     }
 }
 
-/// One command: its shortcut recorder and the launcher-visibility checkbox, mirroring
-/// `ShortcutsSettingsView`'s row so both lists behave identically.
+/// One command's shortcut recorder and visibility checkbox, shaped like the shortcuts row.
 private struct WindowCommandSettingsRow: View {
     let command: WindowCommand
     @Environment(VisibilityStore.self) private var visibility

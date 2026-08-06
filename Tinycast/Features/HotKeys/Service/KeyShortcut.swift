@@ -1,18 +1,18 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// A global keyboard shortcut stored in Carbon's encoding (virtual key code + `cmdKey` mask), which is what `RegisterEventHotKey` consumes and also the legacy on-disk JSON shape, so existing bindings load unchanged.
+/// A shortcut in Carbon's encoding, which is also the on-disk shape. See docs/hotkeys.md.
 struct KeyShortcut: Hashable, Sendable {
     let carbonKeyCode: Int
     let carbonModifiers: Int
 
     init(carbonKeyCode: Int, carbonModifiers: Int) {
         self.carbonKeyCode = carbonKeyCode
-        // Mask to the four real modifiers so equality (and conflict detection) isn't thrown off by device-dependent bits older builds may have stored.
+        // Mask to the four real modifiers, so device bits can't throw equality off.
         self.carbonModifiers = carbonModifiers & Self.allModifiers
     }
 
-    /// Captures a shortcut from a key-down event, or `nil` if unbindable: a global hotkey needs one of ⌘⌥⌃ (⇧ alone shadows typing), except function keys which are fine standalone.
+    /// Captures from a key-down, or nil: one of ⌘⌥⌃ is required, bar function keys.
     init?(keyCode: Int, modifierFlags: NSEvent.ModifierFlags) {
         let flags = modifierFlags.intersection([.command, .option, .control, .shift])
         let hasCommandingModifier = !flags.isDisjoint(with: [.command, .option, .control])
@@ -27,7 +27,7 @@ struct KeyShortcut: Hashable, Sendable {
             (.none, false, true)
         }
 
-    /// One string per keycap in canonical macOS order (⌃⌥⇧⌘) with the key glyph last, feeding the launcher rows and settings recorder.
+    /// One string per keycap in canonical order (⌃⌥⇧⌘), with the key glyph last.
     @MainActor var keycaps: [String] {
         let hyper = Self.hyperDisplay()
         return Self.collapsedModifierSymbols(
@@ -53,7 +53,7 @@ struct KeyShortcut: Hashable, Sendable {
         return carbon
     }
 
-    /// `modifierSymbols` with the configured Hyper set collapsed into a single "✦"; keyed on configuration (not tap health) so glyphs never flicker, leftover modifiers keep canonical order after the ✦.
+    /// `modifierSymbols` with the Hyper set collapsed to "✦", keyed on configuration.
     static func collapsedModifierSymbols(
         from flags: NSEvent.ModifierFlags,
         hyperKey: HyperKeyPhysicalKey,
@@ -89,7 +89,7 @@ struct KeyShortcut: Hashable, Sendable {
 
     // MARK: - Key glyph
 
-    /// Display string for the key: a fixed table for keys without a typed character, else translated through the current layout so e.g. AZERTY shows the printed label.
+    /// A fixed table for keys with no character, else translated through the current layout.
     @MainActor private var keyGlyph: String {
         if let special = Self.specialKeyGlyphs[carbonKeyCode] { return special }
         if let name = Self.functionKeyNames[carbonKeyCode] { return name }
@@ -143,7 +143,7 @@ struct KeyShortcut: Hashable, Sendable {
     }
 }
 
-// Decoding routes through the masking initializer; the encoded shape stays byte-compatible with the legacy `{"carbonKeyCode":N,"carbonModifiers":N}` records.
+// Decoding routes through the masking initializer. See docs/hotkeys.md#persistence.
 extension KeyShortcut: Codable {
     private enum CodingKeys: String, CodingKey {
         case carbonKeyCode, carbonModifiers
@@ -170,7 +170,7 @@ enum HotKeyAction: Hashable, Sendable {
     case windowCommand(id: WindowCommand.ID)
     case quicklink(id: UUID)
 
-    /// UserDefaults key holding the shortcut JSON; the `KeyboardShortcuts_` prefix is a fossil of the replaced package, kept verbatim so existing bindings need no migration.
+    /// The defaults key; the `KeyboardShortcuts_` prefix is a fossil, kept verbatim.
     var defaultsKey: String {
         switch self {
         case .togglePalette: "KeyboardShortcuts_togglePalette"

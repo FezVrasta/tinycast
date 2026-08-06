@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct TinycastApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    // `@AppStorage` republishes only when the value changes, avoiding a scene ⇄ binding feedback loop.
+    // `@AppStorage` republishes only on change, avoiding a scene ⇄ binding loop.
     @AppStorage(SettingsKey.showInMenuBar) private var showInMenuBar = true
 
     // Channel-aware: "Tinycast", "Tinycast Dev", or "Tinycast Beta".

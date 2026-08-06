@@ -16,7 +16,7 @@ struct SettingsRootView: View {
         HStack(spacing: 0) {
             sidebar
 
-            // A plain conditional swap, not a `TabView`: `NSTabView` re-hosts each tab on selection, which flickers and tears down the hotkey recorder's window membership mid-interaction — swapping this way keeps each pane's hosting view stable.
+            // Not a `TabView`: `NSTabView` re-hosts on selection and breaks the recorder.
             Group {
                 switch tab {
                 case .general: GeneralSettingsView()
@@ -36,7 +36,7 @@ struct SettingsRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Only the background bleeds to every window edge; the pane content keeps the safe area, so it lays out below the transparent titlebar with no manual spacer.
+            // Only the background bleeds; the content keeps its safe area, so no spacer.
             .background(
                 VisualEffectView(material: .contentBackground, blending: .behindWindow)
                     .ignoresSafeArea()
@@ -60,7 +60,7 @@ struct SettingsRootView: View {
         .padding(.horizontal, Theme.Spacing.md)
         .frame(width: Theme.Size.settingsSidebar)
         .frame(maxHeight: .infinity)
-        // Bleed the sidebar material to every edge so it reads as one continuous surface, with the trailing hairline in the same background since a plain `Divider` would stop at the safe area.
+        // Bleed to every edge; a plain `Divider` would stop at the safe area.
         .background(
             ZStack(alignment: .trailing) {
                 VisualEffectView(material: .sidebar, blending: .behindWindow)
@@ -82,7 +82,7 @@ struct SettingsRootView: View {
     }
 }
 
-/// One sidebar entry: a colored icon tile + label, with an accent highlight when selected and a subtle hover state otherwise.
+/// One sidebar entry: an icon tile and label, with selection and hover states.
 private struct SidebarRow: View {
     let title: String
     let systemImage: String
@@ -117,12 +117,12 @@ private struct SidebarRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // The selected-row fill already marks the current tab; a focus ring on top of it is just noise.
+        // The selected-row fill already marks the tab; a focus ring is just noise.
         .focusEffectDisabled()
         .onHover { hovering = $0 }
     }
 
-    // Match the launcher list: a soft neutral selection fill (not a saturated accent block), with a fainter hover layer.
+    // Match the launcher list: a soft neutral fill, with a fainter hover layer.
     private var background: Color {
         if isSelected { return Theme.Colors.selection }
         if hovering { return Theme.Colors.rowHover }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsTab: Int, CaseIterable, Identifiable {
-    // Declaration order is sidebar order: general, then one pane per launcher category, then the rest.
+    // Declaration order is sidebar order: general, the categories, then the rest.
     case general, applications, systemSettings, systemActions, commands, quicklinks, snippets,
         windowManagement, clipboard, emoji, permissions, backup, miscellaneous, about
     var id: Int { rawValue }

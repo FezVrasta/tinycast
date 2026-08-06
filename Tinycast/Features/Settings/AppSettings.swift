@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// UserDefaults keys shared between `@AppStorage` call sites so the App and the Settings UI bind to the same key.
+/// Keys shared between `@AppStorage` sites, so app and Settings bind to the same one.
 enum SettingsKey {
     /// Menu-bar icon visibility — read by `MenuBarExtra(isInserted:)` and the Settings toggle.
     static let showInMenuBar = "showInMenuBar"
 }
 
-/// Delay before a closed palette resets to the root launcher; raw value is seconds in UserDefaults, so an unset key (0) reads as `.immediately`, the default.
+/// Delay before a closed palette pops to root; an unset key reads as `.immediately`.
 enum PopToRootTimeout: Int, CaseIterable, Identifiable, Sendable {
     case immediately = 0
     case afterFive = 5
@@ -30,7 +30,7 @@ final class AppSettings {
     @ObservationIgnored private let defaults = UserDefaults.standard
     private typealias Key = AppSettingsKey
 
-    /// Folders (and individual `.app` bundles) `AppIndex` scans, in scan order. Editing this re-indexes — `AppIndex.start(settings:)` observes it.
+    /// What `AppIndex` scans, in scan order; editing it re-indexes, being observed.
     var searchScopes: [String] {
         didSet { defaults.set(searchScopes, forKey: Key.searchScopes.rawValue) }
     }
@@ -41,7 +41,7 @@ final class AppSettings {
         }
     }
 
-    /// Bundle IDs whose clipboard changes are never recorded. Ordered so the Settings list is stable.
+    /// Bundle IDs never recorded from; ordered, so the Settings list stays stable.
     var clipboardDisabledApps: [String] {
         didSet { defaults.set(clipboardDisabledApps, forKey: Key.clipboardDisabledApps.rawValue) }
     }
@@ -99,7 +99,7 @@ final class AppSettings {
         didSet { defaults.set(openOnCursorScreen, forKey: Key.openOnCursorScreen.rawValue) }
     }
 
-    // Feature switches, off out of the box: off means fully off — no launcher entries, no shortcuts, no keyword expansion, no store. `AppCore` observes all four and re-projects.
+    // Feature switches, off out of the box, and off means fully off.
     var customCommandsEnabled: Bool {
         didSet { defaults.set(customCommandsEnabled, forKey: Key.customCommandsEnabled.rawValue) }
     }
@@ -112,7 +112,7 @@ final class AppSettings {
         }
     }
 
-    /// Doubles as keyword-expansion consent, so it only flips on through `AppCore.setSnippetsEnabled`'s confirmation and never rides in a settings backup.
+    /// Also keyword-expansion consent, so it confirms first and never rides a backup.
     var snippetsEnabled: Bool {
         didSet { defaults.set(snippetsEnabled, forKey: Key.snippetsEnabled.rawValue) }
     }
@@ -136,7 +136,7 @@ final class AppSettings {
         }
     }
 
-    /// Points left between tiled windows and around the screen edge. `WindowLayout` caps anything absurd.
+    /// Points between tiled windows and the screen edge; `WindowLayout` caps it.
     var windowGap: Int {
         didSet { defaults.set(windowGap, forKey: Key.windowGap.rawValue) }
     }
@@ -146,8 +146,7 @@ final class AppSettings {
         didSet { defaults.set(windowCycleOnRepeat, forKey: Key.windowCycleOnRepeat.rawValue) }
     }
 
-    /// Off means fully off: no launcher entries, no Quicklinks commands, and a still-registered
-    /// shortcut opens nothing.
+    /// Off means fully off, down to a still-registered shortcut opening nothing.
     var quicklinksEnabled: Bool {
         didSet { defaults.set(quicklinksEnabled, forKey: Key.quicklinksEnabled.rawValue) }
     }
@@ -158,8 +157,7 @@ final class AppSettings {
         }
     }
 
-    /// Ask the handler for a new window rather than reusing its frontmost tab. Off is the macOS
-    /// default, which is what "prefer existing tabs" means.
+    /// Ask for a new window rather than a tab; off is the macOS default.
     var quicklinkOpensNewWindow: Bool {
         didSet {
             defaults.set(quicklinkOpensNewWindow, forKey: Key.quicklinkOpensNewWindow.rawValue)
@@ -183,11 +181,11 @@ final class AppSettings {
     }
 
     init() {
-        // integer(forKey:) returns 0 when unset, which no case matches — falls through to 3 Months.
+        // `integer(forKey:)` returns 0 when unset, which no case matches.
         clipboardRetention =
             ClipboardRetention(rawValue: defaults.integer(forKey: Key.clipboardRetention.rawValue))
             ?? .threeMonths
-        // Password managers are excluded out of the box; the defaults apply only until the user first edits the list.
+        // Password managers ship excluded, until the user first edits the list.
         clipboardDisabledApps =
             defaults.stringArray(forKey: Key.clipboardDisabledApps.rawValue)
             ?? ["com.apple.keychainaccess", "com.apple.Passwords"]
@@ -216,13 +214,13 @@ final class AppSettings {
         showFavoritesInCompactMode =
             defaults.object(forKey: Key.showFavoritesInCompactMode.rawValue) == nil
             || defaults.bool(forKey: Key.showFavoritesInCompactMode.rawValue)
-        // An unset key means "never configured" and seeds the defaults; a stored empty array is a user who deliberately cleared the list.
+        // Unset seeds the defaults; a stored empty array is a deliberately cleared list.
         searchScopes =
             defaults.stringArray(forKey: Key.searchScopes.rawValue) ?? SearchScopes.defaults
         openOnCursorScreen =
             defaults.object(forKey: Key.openOnCursorScreen.rawValue) == nil
             || defaults.bool(forKey: Key.openOnCursorScreen.rawValue)
-        // The enable switches ship off; the launcher toggles default to true, so absence must be distinguished from a stored `false`.
+        // These default on, so absence must be distinguished from a stored `false`.
         customCommandsEnabled = defaults.bool(forKey: Key.customCommandsEnabled.rawValue)
         customCommandsShowInLauncher =
             defaults.object(forKey: Key.customCommandsShowInLauncher.rawValue) == nil

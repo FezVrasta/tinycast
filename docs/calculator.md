@@ -26,6 +26,19 @@ Date/time depends on the clock, so it takes an injected `now` / `calendar` — t
 uses the live clock, and `evaluate(_:now:calendar:)` lets `calc-test.swift` assert exact strings
 against a fixed clock.
 
+`CalcDateTime` recognizes four grammars:
+
+- **A** — duration until a moment: `hrs till 9am`, `days till 9april`
+- **B** — duration since a past moment: `days since 9jul`, `hrs since noon`
+- **C** — a moment ± a duration: `today + 3 weeks`, `now + 90 min`
+- **D** — difference between two moments: `jul 4 - today`
+
+A bare, recurring date or time resolves by _bias_: `till` takes the upcoming occurrence, `since` the
+most recent past one; an absolute date ignores the bias. Grammar D only engages when at least one
+operand contains a letter, because two letter-free operands (`5/2 - 1/2`) are equally valid as
+arithmetic and are left to the calculator rather than silently read as dates. Two-digit years expand
+the way date pickers do — 00–68 to the 2000s, 69–99 to the 1900s.
+
 `CalcQuantity` is a separate typed precedence parser rather than a mode added to the scalar
 `CalcParser`. Scalar `*` / `/` preserve the unit, compatible quantity division returns a scalar, and a
 trailing `to` / `in` converts the complete expression. Percentages keep relative semantics for addition

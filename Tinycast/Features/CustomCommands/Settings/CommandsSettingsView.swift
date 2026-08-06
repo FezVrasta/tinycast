@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Both flavours of command in one pane: Tinycast's own built-ins, then the shell commands the user writes.
+/// Both flavours in one pane: the built-ins, then the user's own shell commands.
 struct CommandsSettingsView: View {
     @Environment(CustomCommandStore.self) private var store
     @Environment(AppCore.self) private var core

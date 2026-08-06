@@ -12,7 +12,7 @@ enum AppLauncher {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
-    /// No AppKit route for Get Info, so this drives Finder over Apple events — the first use raises the Automation prompt.
+    /// No AppKit route for Get Info, so this drives Finder over Apple events.
     @MainActor
     static func showInfoInFinder(_ url: URL) -> Bool {
         let source = """
@@ -45,7 +45,7 @@ enum AppLauncher {
         }
         if let url = running?.bundleURL
             ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            // Dock-click semantics: activates, raises, unhides, and reopens a window — none of which a bare `activate()` reliably does under cooperative activation (macOS 14+).
+            // Dock-click semantics; a bare `activate()` does none of it reliably.
             NSWorkspace.shared.openApplication(
                 at: url, configuration: NSWorkspace.OpenConfiguration())
         } else if let running {
@@ -55,7 +55,7 @@ enum AppLauncher {
         }
     }
 
-    /// Asks every running instance of a bundle ID to quit — graceful, so an app with unsaved work still gets to put its own sheet up. False when nothing was running.
+    /// Asks every instance to quit, gracefully, so unsaved work still gets its sheet.
     @MainActor
     @discardableResult
     static func quit(bundleID: String) -> Bool {
@@ -64,13 +64,13 @@ enum AppLauncher {
         return !running.isEmpty
     }
 
-    /// Finder is never a Quit All target: `terminate()` only makes it relaunch, and nobody means the desktop when they say "quit everything".
+    /// Finder is never a Quit All target: `terminate()` only makes it relaunch.
     private static let quitAllExclusions: Set<String> = ["com.apple.finder"]
 
-    /// What Quit All acts on: every app with a Dock presence, minus Finder and Tinycast itself. Accessories and background agents are left alone. The caller resolves this once and terminates that same list, so the set it confirms is the set it quits.
+    /// Every app with a Dock presence, bar Finder and us; resolved once, so it can't drift.
     @MainActor
     static func quitAllTargets() -> [NSRunningApplication] {
-        // Excluded by PID, not by activation policy: About/Settings temporarily flips Tinycast to `.regular`, which a policy-only filter would read as a target.
+        // By PID, not policy: About/Settings flips us to `.regular` temporarily.
         let ownPID = NSRunningApplication.current.processIdentifier
         return NSWorkspace.shared.runningApplications.filter { app in
             app.activationPolicy == .regular

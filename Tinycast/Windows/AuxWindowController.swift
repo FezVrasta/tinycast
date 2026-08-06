@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Hosts auxiliary SwiftUI windows (About, Settings), torn down on close so their SwiftUI trees deallocate instead of lingering, and rebuilt instantly on reopen from live state.
+/// Hosts the aux windows, torn down on close so their SwiftUI trees deallocate.
 @MainActor
 final class AuxWindowController: NSObject, NSWindowDelegate {
     private var windows: [String: NSWindow] = [:]
@@ -28,7 +28,7 @@ final class AuxWindowController: NSObject, NSWindowDelegate {
                 defer: false
             )
             window.title = title
-            // Let the content run edge-to-edge under a transparent titlebar so the window reads as one continuous surface — the modern inspector look.
+            // Edge-to-edge under a transparent titlebar, so it reads as one surface.
             if seamlessTitleBar {
                 window.titlebarAppearsTransparent = true
                 window.titleVisibility = .hidden
@@ -36,26 +36,26 @@ final class AuxWindowController: NSObject, NSWindowDelegate {
             }
             window.isReleasedWhenClosed = false
             let hosting = NSHostingView(rootView: content())
-            // Let the window keep its requested size instead of resizing to the SwiftUI fitting size (an unconstrained fill would otherwise blow the window up); the content fills the fixed frame.
+            // Keep the requested size: an unconstrained fill would blow the window up.
             hosting.sizingOptions = []
             window.contentView = hosting
             window.delegate = self
             window.center()
             windows[id] = window
         }
-        // Promote to a regular app so the window gets a Dock icon and normal layering; demoted back to accessory when the last aux window closes.
+        // Promote to regular for a Dock icon; demoted when the last aux window closes.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
 
-        // A plain `NSWindow` only becomes key while the app is active, but `NSApp.activate` from the menu bar is async, so the synchronous `makeKeyAndOrderFront` above can land first; re-asserting key on the next runloop makes the window truly key up front.
+        // `NSApp.activate` is async, so re-assert key next turn to land it up front.
         DispatchQueue.main.async {
             window.makeKeyAndOrderFront(nil)
         }
         return isNew
     }
 
-    /// Re-focus an open aux window on reopen (Dock-icon click); returns false when none is open. `windows` only holds live windows (`windowWillClose` prunes them).
+    /// Re-focus an open aux window, or false when none is; `windows` holds only live ones.
     @discardableResult
     func focusExisting() -> Bool {
         guard let window = windows.values.first(where: { $0.isVisible }) ?? windows.values.first
@@ -66,7 +66,7 @@ final class AuxWindowController: NSObject, NSWindowDelegate {
         return true
     }
 
-    /// Close a window programmatically; `windowWillClose` handles the dict/teardown so the SwiftUI tree deallocates.
+    /// Close programmatically; `windowWillClose` does the teardown.
     func close(id: String) {
         windows[id]?.close()
     }

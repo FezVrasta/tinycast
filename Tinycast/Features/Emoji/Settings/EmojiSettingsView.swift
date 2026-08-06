@@ -27,7 +27,7 @@ struct EmojiSettingsView: View {
                     systemImage: "hand.wave",
                     tint: .orange
                 ) {
-                    // A hand per tone, Raycast style — quicker to scan than a dropdown of tone names.
+                    // A hand per tone, quicker to scan than a dropdown of tone names.
                     Picker("", selection: $settings.emojiSkinTone) {
                         ForEach(EmojiSkinTone.allCases) { tone in
                             Text(tone.sample).tag(tone)

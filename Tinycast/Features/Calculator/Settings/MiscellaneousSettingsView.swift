@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The catch-all pane. Home to currency conversion — the one feature in Tinycast that reaches the
-/// network, which is why it ships off and needs an explicit yes before it can be switched on.
+/// The catch-all pane, home to currency conversion. See docs/calculator.md#consent.
 struct MiscellaneousSettingsView: View {
     @Environment(AppCore.self) private var core
     private var currencyRates: CurrencyRateStore { core.currencyRates }
@@ -22,8 +21,7 @@ struct MiscellaneousSettingsView: View {
                     tint: .green,
                     statusDot: currencyRates.isEnabled ? .green : nil
                 ) {
-                    // Deliberately not bound straight to the setting: flipping it on only opens the
-                    // consent sheet, so the switch springs back until the user actually accepts.
+                    // Not bound to the setting: flipping on opens the sheet, so it springs back.
                     Toggle(
                         "",
                         isOn: Binding(
@@ -72,8 +70,7 @@ struct MiscellaneousSettingsView: View {
         }
     }
 
-    /// Carries the off-state promise that used to need its own callout: nothing is contacted until
-    /// the switch is on.
+    /// Carries the off-state promise: nothing is contacted until the switch is on.
     private var conversionStatus: String {
         let examples = "Convert inline — \"100 dollars to yen\", \"€20 to GBP\"."
         return currencyRates.isEnabled ? examples : "\(examples) Off — no service is contacted."
@@ -90,8 +87,7 @@ struct MiscellaneousSettingsView: View {
     }
 }
 
-/// The consent step. Three facts are the ones that actually decide the answer — who is contacted, how
-/// often, and that nothing personal goes with it — plus the provider link so the claim is checkable.
+/// The consent step: who is contacted, how often, what leaves, and a checkable provider link.
 private struct CurrencyConsentSheet: View {
     let onCancel: () -> Void
     let onAccept: () -> Void

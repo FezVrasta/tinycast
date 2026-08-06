@@ -6,7 +6,7 @@ struct ApplicationsSettingsView: View {
             title: "Applications",
             subtitle: "Choose where Tinycast looks for apps, which ones appear in the launcher, and how to reach them."
         ) {
-            // Scopes first: they decide what gets indexed, so they read before the list of what was.
+            // Scopes first: they decide what gets indexed, so they read before the results.
             SearchScopesCard()
 
             LauncherItemsCard(

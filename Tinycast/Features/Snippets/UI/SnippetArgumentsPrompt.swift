@@ -4,7 +4,7 @@ import SwiftUI
 /// Asks for the `{argument}` values a snippet still needs, immediately before it expands.
 @MainActor
 enum SnippetArgumentsPrompt {
-    /// Returns the collected values, or nil when the user cancels. Modal on purpose: expansion is mid-flight and the target app is waiting.
+    /// The collected values, or nil on cancel. Modal: expansion is mid-flight and blocking.
     static func run(
         snippetName: String,
         arguments: [SnippetTemplateEngine.MissingArgument]
@@ -18,7 +18,7 @@ enum SnippetArgumentsPrompt {
         alert.messageText = "Snippet: \(snippetName)"
         alert.informativeText = "Fill in the template fields:"
         alert.alertStyle = .informational
-        // ↵ expands and Esc cancels: the user just typed into these fields, so submitting is the safe default. (AppKit gives ↵ to the first button and Esc to the one titled "Cancel".)
+        // AppKit gives ↵ to the first button and Esc to the one titled "Cancel".
         alert.addButton(withTitle: "Expand")
         alert.addButton(withTitle: "Cancel")
 

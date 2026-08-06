@@ -5,7 +5,7 @@ struct GeneralSettingsView: View {
     @Environment(AppSettings.self) private var settings
     private var hyperTap: HyperKeyTap { core.hyperKeyTap }
     private var launcherRanking: LauncherRankingStore { core.launcherRanking }
-    // Same UserDefaults key the `App` binds its `MenuBarExtra(isInserted:)` to — toggling here updates the menu-bar icon live, with no shared observable between them.
+    // The same key `MenuBarExtra(isInserted:)` binds, so this updates the icon live.
     @AppStorage(SettingsKey.showInMenuBar) private var showInMenuBar = true
     @State private var confirmingRankingReset = false
 

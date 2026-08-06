@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 /// The editable list of folders (and individual `.app` bundles) the launcher indexes.
 struct SearchScopesCard: View {
     @Environment(AppSettings.self) private var settings
-    /// Recomputed only when the list changes — a `fileExists` per row is cheap, but not cheap enough to run on every body render.
+    /// Recomputed only on change: a `fileExists` per row is too much per body render.
     @State private var missing: Set<String> = []
 
     private var isDefault: Bool { settings.searchScopes == SearchScopes.defaults }

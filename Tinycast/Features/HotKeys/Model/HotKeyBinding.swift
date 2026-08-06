@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a `HotKeyAction` is bound to. Two kinds, two engines: a `.combo` is a Carbon registration, a `.doubleTap` is recognized by `DoubleTapMonitor` (Carbon can't see lone modifiers at all).
+/// What an action is bound to: two kinds, two engines. See docs/hotkeys.md.
 enum HotKeyBinding: Hashable, Sendable {
     case combo(KeyShortcut)
     case doubleTap(DoubleTapModifier)
@@ -24,7 +24,7 @@ enum HotKeyBinding: Hashable, Sendable {
     }
 }
 
-// A `.combo` encodes as the bare legacy `{"carbonKeyCode":N,"carbonModifiers":N}` record, so existing `KeyboardShortcuts_*` values and old backups load and re-save unchanged; `.doubleTap` gets its own shape, which an older build fails to decode and therefore reads as unbound — the right way to degrade.
+// The compatibility seam for both shapes. See docs/hotkeys.md#persistence.
 extension HotKeyBinding: Codable {
     private enum CodingKeys: String, CodingKey {
         case doubleTapModifier

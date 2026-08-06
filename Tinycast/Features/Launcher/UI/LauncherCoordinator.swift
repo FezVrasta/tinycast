@@ -62,8 +62,7 @@ final class LauncherCoordinator {
             windowCommandCoordinator.runWindowCommand(id: command.id)
             return
         }
-        // Also before the palette hides: a quicklink with an unfilled argument stays in the palette
-        // to ask for it, and only then opens.
+        // Before the palette hides: an unfilled quicklink stays up to ask first.
         if app.kind == .quicklink {
             guard let id = Quicklink.id(fromEntryID: app.id) else { return }
             quicklinkCoordinator.openQuicklink(id: id)
@@ -140,7 +139,7 @@ final class LauncherCoordinator {
     /// Quits the app behind an entry; a no-op (palette stays put) when it isn't running.
     func quit(_ app: AppEntry) {
         guard app.kind == .application, let bundleID = app.bundleID else { return }
-        // Unlike `launch`, nothing here takes focus on its own — hand it back to where the user was, unless that's the app now on its way out.
+        // Nothing here takes focus, so hand it back unless that app is on its way out.
         let quittingPreviousApp = windowController.previousApp?.bundleIdentifier == bundleID
         guard AppLauncher.quit(bundleID: bundleID) else { return }
         paletteCoordinator.hidePalette(restoreFocus: !quittingPreviousApp)

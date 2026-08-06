@@ -8,9 +8,7 @@ struct AboutView: View {
         return "Version \(short) (\(build))"
     }
 
-    // Loaded once and cached: reading the .icns is disk I/O, and body can re-run often. Read the
-    // bundled file directly since NSApp.applicationIconImage returns the generic placeholder until
-    // LaunchServices registers the app, which it hasn't when run from build/.
+    // Cached, and read from the bundle: the app icon is generic until LaunchServices registers.
     @MainActor private static let appIcon: NSImage = {
         if let name = Bundle.main.infoDictionary?["CFBundleIconFile"] as? String,
             let url = Bundle.main.url(forResource: name, withExtension: "icns"),
@@ -25,18 +23,18 @@ struct AboutView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                // A tighter block rhythm than `SettingsPane`'s `xxl` so hero, links and support all land above the fold of the fixed-height Settings window.
+                // Tighter than `SettingsPane`, so every block lands above the fold.
                 VStack(spacing: Theme.Spacing.xl) {
                     hero
                     links
                     support
                 }
-                // Ignore the transparent-titlebar safe area and use one fixed `xxl` inset every side, matching `SettingsPane`.
+                // Ignore the titlebar safe area; one fixed inset every side, as in `SettingsPane`.
                 .padding(Theme.Spacing.xxl)
                 .frame(maxWidth: .infinity)
                 .overlayScroller()
             }
-            // Outside the scroll view so the copyright stays pinned to the pane's bottom edge, the way a real About window reads.
+            // Outside the scroll view, so the copyright stays pinned to the bottom edge.
             footer
                 .padding(.bottom, Theme.Spacing.xxl)
         }
@@ -75,7 +73,7 @@ struct AboutView: View {
 
     private var links: some View {
         SettingsCard(header: "Links") {
-            // Rows paint a full-bleed hover fill, so the stack is clipped to the card's corner — otherwise the first/last row's highlight squares off the rounded ends.
+            // Rows paint a full-bleed fill, so clip the stack to the card's corner.
             VStack(spacing: 0) {
                 ForEach(AboutLink.all) { link in
                     if link.id != AboutLink.all.first?.id { SettingsDivider() }
@@ -108,7 +106,7 @@ struct AboutView: View {
 private struct AboutLink: Identifiable {
     enum Glyph {
         case symbol(String)
-        /// A brand mark from `Assets.xcassets` (template SVG) — SF Symbols ships no GitHub/Discord/X logo.
+        /// A brand mark from the asset catalog; SF Symbols ships no such logo.
         case brand(String)
     }
 
@@ -140,7 +138,7 @@ private struct AboutLink: Identifiable {
     ]
 }
 
-/// A tappable row inside the About "Links" card: glyph, title, the destination in plain text, and the external-link arrow.
+/// A row in the About "Links" card: glyph, title, destination and the arrow.
 private struct AboutLinkRow: View {
     let link: AboutLink
 
@@ -181,7 +179,7 @@ private struct AboutLinkRow: View {
             Image(systemName: name)
                 .font(.system(size: 13, weight: .medium))
         case .brand(let name):
-            // Brand marks paint edge to edge, so they sit a point under the SF Symbol box to read the same weight.
+            // Brand marks paint edge to edge, so they sit under the symbol box to match.
             Image(name)
                 .renderingMode(.template)
                 .resizable()

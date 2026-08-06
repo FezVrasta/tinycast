@@ -16,13 +16,12 @@ struct UninstallReport: Sendable {
     var removedBundle: Bool { trashed.contains { $0.evidence == .bundle } }
 }
 
-/// `FileManager.trashItem` is the only removal call in this feature — `removeItem` never appears, so an uninstall stays undoable.
-/// Presenting the outcome is `AppCore`'s job; this reports and never shows UI.
+/// `trashItem` is the only removal call here, so an uninstall stays undoable.
 enum UninstallRunner {
     static func moveToTrash(_ candidates: [UninstallCandidate]) async -> UninstallReport {
         // A locked candidate should never have been checked; skip rather than attempt.
         let removable = candidates.filter { !$0.isLocked }
-        // Bundle last: on partial failure it's still there to re-run from, and the launcher entry that reaches this screen survives.
+        // Bundle last, so a partial failure leaves it there to re-run from.
         let ordered =
             removable.filter { $0.evidence != .bundle } + removable.filter { $0.evidence == .bundle }
 

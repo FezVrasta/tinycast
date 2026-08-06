@@ -240,7 +240,7 @@ final class SnippetsStore {
             changed = armFileWatcher(path: path) || changed
         }
 
-        // Retry whenever anything we wanted is still unwatched — a failed file watcher is as blinding as a missing directory watcher.
+        // Retry while anything is unwatched; a failed file watcher blinds us like a missing one.
         if directoryWatcher == nil || desiredPaths.contains(where: { fileWatchers[$0] == nil }) {
             scheduleWatcherRetry()
         }

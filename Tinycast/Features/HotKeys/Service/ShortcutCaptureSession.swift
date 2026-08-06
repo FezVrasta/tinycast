@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Local event monitors for the one active recording. `HotKeyManager.recordingAction` starts and stops it, so one session serves the app and the callout can read it from outside the row.
+/// Local monitors for the one active recording. See docs/hotkeys.md#recorder.
 @MainActor
 @Observable
 final class ShortcutCaptureSession {
@@ -19,14 +19,14 @@ final class ShortcutCaptureSession {
     @ObservationIgnored private var monitors: [Any] = []
     @ObservationIgnored private var resignObserver: NSObjectProtocol?
     @ObservationIgnored private var conflictReset: Task<Void, Never>?
-    /// The same recognizer the global monitor uses, driven here by local monitors — recording a double-tap therefore needs no event tap and no permission.
+    /// The same recognizer the global monitor uses, so recording needs no tap and no grant.
     @ObservationIgnored private var detector = DoubleTapDetector()
 
     func start(action: HotKeyAction, hotKeys: HotKeyManager) {
         stop()
         heldModifiers = NSEvent.modifierFlags.intersection([.command, .option, .control, .shift])
 
-        // The handlers run on the main thread but AppKit predates actor annotations, hence assumeIsolated; only Sendable event pieces (key code, flags, timestamp) cross in.
+        // Main-thread handlers that predate actor annotations; only Sendable pieces cross in.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: .keyDown,
             handler: { [weak self, weak hotKeys] event in
@@ -49,7 +49,7 @@ final class ShortcutCaptureSession {
             handler: { [weak self, weak hotKeys] event in
                 let all = event.modifierFlags
                 let flags = all.intersection([.command, .option, .control, .shift])
-                // `.function` only: `.capsLock` is the latch state, and testing it would make a recorder refuse every double-tap while Caps Lock is on.
+                // `.function` only: `.capsLock` is the latch, and would refuse every double-tap.
                 let hasOthers = all.contains(.function)
                 let timestamp = event.timestamp
                 MainActor.assumeIsolated {
@@ -65,7 +65,7 @@ final class ShortcutCaptureSession {
             monitors.append(monitor)
         }
 
-        // A click anywhere ends the recording, then travels on — so a click on another recorder cancels this one and starts that one in a single click.
+        // A click ends the recording then travels on, so one click can move to another row.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
             handler: { [weak hotKeys] event in
@@ -75,7 +75,7 @@ final class ShortcutCaptureSession {
             monitors.append(monitor)
         }
 
-        // Local monitors go quiet when the settings window resigns key — treat it as a cancel so the paused global hotkeys come back.
+        // Local monitors go quiet on resign key, so treat it as a cancel and unpause.
         resignObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification, object: nil, queue: .main
         ) { [weak hotKeys] _ in
@@ -125,7 +125,7 @@ final class ShortcutCaptureSession {
         _ flags: NSEvent.ModifierFlags, hasOtherModifiers: Bool, at timestamp: TimeInterval,
         action: HotKeyAction, hotKeys: HotKeyManager
     ) {
-        // `NSEvent.timestamp` is seconds since boot — the same monotonic basis `DoubleTapMonitor` feeds the detector.
+        // `NSEvent.timestamp` is the same monotonic basis `DoubleTapMonitor` feeds in.
         guard
             let modifier = detector.handle(
                 .modifiers(Self.doubleTapModifiers(in: flags), hasOtherModifiers: hasOtherModifiers),

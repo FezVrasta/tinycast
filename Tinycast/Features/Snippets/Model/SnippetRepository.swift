@@ -233,7 +233,7 @@ struct SnippetRepository: Sendable {
         }
     }
 
-    /// The library starts empty; this only has to guarantee the folder exists. Creating intermediates covers the channel directory too, and it is a no-op once both are there.
+    /// Only has to guarantee the folder exists; intermediates cover the channel directory too.
     private func ensureSnippetsDirectory() throws {
         try FileManager.default.createDirectory(
             at: snippetsDirectory, withIntermediateDirectories: true)
@@ -249,7 +249,7 @@ struct SnippetRepository: Sendable {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
-    // Keeps a directory or device node named `*.md` out of the loader. The prefetched key answers for real files; only the rest pay for resolving, which is what keeps a symlinked snippet file loadable.
+    // Keeps a directory or device node named `*.md` out; only non-files pay for resolving.
     private static func isLoadableFile(_ url: URL) -> Bool {
         if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true { return true }
         return (try? url.resolvingSymlinksInPath()

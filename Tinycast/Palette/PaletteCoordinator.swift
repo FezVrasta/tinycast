@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Owns summoning and the aux windows: which mode shows. Where and how big stays with the controller.
+/// Owns summoning and the aux windows; where and how big stays with the controller.
 @MainActor
 final class PaletteCoordinator {
     private let palette: PaletteState
@@ -30,7 +30,7 @@ final class PaletteCoordinator {
 
     var isVisible: Bool { windowController.isVisible }
 
-    /// The app an action acts on: the one the palette displaced, else whatever a hotkey found frontmost.
+    /// The app an action acts on: the one displaced, else what a hotkey found frontmost.
     var targetApp: NSRunningApplication? {
         windowController.isVisible
             ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
@@ -62,7 +62,7 @@ final class PaletteCoordinator {
         }
     }
 
-    /// Shows the palette, honoring Pop to Root Search: a reopen within the timeout restores the pre-close state — any mode for the generic summon (`restoreAnyMode`), else only when the preserved mode already matches the requested one.
+    /// Shows the palette, honoring Pop to Root Search. See docs/palette.md#state-flow.
     func showPalette(mode: PaletteMode, restoreAnyMode: Bool = false) {
         let preserved = windowController.consumePreservedState()
         if !(preserved && (restoreAnyMode || palette.mode == mode)) {
@@ -77,7 +77,7 @@ final class PaletteCoordinator {
         windowController.hide(restoreFocus: restoreFocus)
     }
 
-    /// True when the palette should render as the slim compact bar: compact mode on, launcher root, empty query, and not force-expanded via the "…" overflow.
+    /// True for the slim compact bar: compact on, launcher root, empty, not overflowed.
     var paletteIsCollapsed: Bool {
         settings.compactMode
             && !palette.forceExpanded
@@ -85,17 +85,17 @@ final class PaletteCoordinator {
             && palette.query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// The compact bar's "…" overflow: expand into the full favorites-pinned launcher without typing.
+    /// The compact bar's overflow: expand into the full launcher without typing.
     func expandFromCompact() {
         palette.forceExpanded = true
     }
 
-    /// Resize the panel to match the current collapsed state; called by the view when `paletteIsCollapsed` flips while open.
+    /// Resize the panel to the current collapsed state, when it flips while open.
     func syncPaletteSize() {
         windowController.applyCollapsed(paletteIsCollapsed)
     }
 
-    /// Dock-icon / reopen: focus an open aux window (About/Settings/Onboarding), else summon the launcher. Decoupled from the individual show paths so activation always works.
+    /// Reopen: focus an open aux window, else summon the launcher.
     func handleReopen() {
         if auxWindows.focusExisting() { return }
         showPalette(mode: .launcher, restoreAnyMode: true)
@@ -103,7 +103,7 @@ final class PaletteCoordinator {
 
     // MARK: - Auxiliary windows
 
-    /// Settings runs in its own window (the SwiftUI `Settings` scene is unreliable for accessory apps). A fresh window mounts directly on `tab` (no first-frame flicker); an already-open one is switched in place.
+    /// Settings in its own window; a fresh one mounts on `tab`, an open one switches.
     func showSettings(tab: SettingsTab = .general) {
         let isNew = auxWindows.show(
             id: "settings", title: "Settings", size: CGSize(width: 720, height: 550),
@@ -132,7 +132,7 @@ final class PaletteCoordinator {
         showSettings(tab: .about)
     }
 
-    /// The first-run wizard: palette shortcut, Accessibility, Raycast import. Also re-runnable from Settings.
+    /// The first-run wizard, also re-runnable from Settings.
     func showOnboarding() {
         auxWindows.show(
             id: "onboarding", title: "Welcome to Tinycast",

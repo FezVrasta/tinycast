@@ -1,11 +1,10 @@
 import Darwin
 import Foundation
 
-/// Every filesystem, stat and permission read. Not compiled by the harness — the decisions it defers to are the pure half.
+/// Every filesystem, stat and permission read; the decisions it defers to are the pure half.
 enum UninstallScanner {
     struct SizeBudget: Sendable {
-        /// Generous: an editor's support folder runs to ~90k entries, and stopping short would show "≥ 796 MB" for 1.9 GB.
-        /// Roughly a second at 250k, off-main behind a progress state.
+        /// Generous: an editor's support folder runs to ~90k entries. ~1s at 250k, off-main.
         var maxEntries = 250_000
         static let `default` = SizeBudget()
     }
@@ -222,7 +221,7 @@ enum UninstallScanner {
         let isSticky: Bool
     }
 
-    /// On-disk bytes, like Finder. The error handler keeps counting past an unreadable subtree instead of abandoning the row.
+    /// On-disk bytes, like Finder; an unreadable subtree is skipped, not abandoned.
     private static func directorySize(of path: String, budget: SizeBudget) throws -> MeasuredSize {
         let url = URL(fileURLWithPath: path)
         let keys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]
@@ -248,7 +247,7 @@ enum UninstallScanner {
         return size
     }
 
-    /// Detected, never requested: TCC denies this read silently, no prompt. It can only under-report, which just leaves a row locked.
+    /// Detected, never requested: TCC denies silently, and under-reporting only locks a row.
     private static func detectFullDiskAccess(home: String) -> Bool {
         let descriptor = open(home + "/Library/Application Support/com.apple.TCC/TCC.db", O_RDONLY)
         guard descriptor >= 0 else { return false }

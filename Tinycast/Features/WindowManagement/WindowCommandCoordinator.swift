@@ -1,6 +1,6 @@
 import AppKit
 
-/// Owns window-command activation: the one funnel from a palette row or a global hotkey to the mover.
+/// The one funnel from a palette row or a global hotkey to the mover.
 @MainActor
 final class WindowCommandCoordinator {
     private let settings: AppSettings
@@ -15,13 +15,7 @@ final class WindowCommandCoordinator {
         self.windowMover = windowMover
     }
 
-    /// The one funnel for both palette activation and a command's global hotkey, so the feature switch
-    /// can't be bypassed by either — a shortcut stays registered while the feature is off and must move
-    /// nothing.
-    ///
-    /// The command acts on the app the user was in, so the palette hands focus back before dispatching,
-    /// the same dance the paste path does. Focus is restored rather than dropped: the window being moved
-    /// is the one they want to keep working in.
+    /// The one funnel for palette and hotkey alike. See docs/window-management.md#wiring.
     func runWindowCommand(id: WindowCommand.ID) {
         guard settings.windowManagementEnabled else { return }
         let target = paletteCoordinator.targetApp

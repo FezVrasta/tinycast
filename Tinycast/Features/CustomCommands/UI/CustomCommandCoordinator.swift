@@ -73,17 +73,16 @@ final class CustomCommandCoordinator {
 
     // MARK: - Running
 
-    /// The one funnel for both palette activation and the command's global hotkey, so the confirmation gate can't be bypassed by either.
+    /// The one funnel for palette and hotkey, so the confirmation can't be bypassed.
     func runCustomCommand(id: UUID) {
-        // Also the feature switch: with custom commands off a still-registered global hotkey must not run anything.
+        // Also the feature switch: with it off a registered hotkey must run nothing.
         guard settings.customCommandsEnabled else { return }
         guard let command = store.command(id: id) else { return }
         if paletteCoordinator.isVisible { paletteCoordinator.hidePalette(restoreFocus: false) }
         Task {
             if command.requiresConfirmation {
                 guard
-                    // Neutral, not destructive: running a shell command the user wrote themselves is
-                    // not a warning, it just wants a deliberate second tap.
+                    // Neutral, not destructive: their own command just wants a second tap.
                     await core.confirm(
                         title: command.name,
                         message: "Are you sure you want to run this command?\n\n\(command.command)",
@@ -94,7 +93,7 @@ final class CustomCommandCoordinator {
             let outcome = await ShellCommandRunner.run(
                 command.command, loadingShellEnvironment: command.loadsShellEnvironment)
             guard outcome != .success else {
-                // Fires when the command finishes, not when it starts, so a slow one confirms late rather than lying early.
+                // On finish, not start, so a slow command confirms late rather than early.
                 if command.showsConfirmation {
                     core.showMessage("Ran \(command.name)")
                 }
@@ -121,7 +120,7 @@ final class CustomCommandCoordinator {
         command: CustomCommand, outcome: ShellCommandOutcome
     ) async {
         let message: String
-        // `127` is the shell's "command not found", so an alias or function that only exists in the user's config lands here.
+        // `127` is "command not found", where a config-only alias lands.
         var suggestsShellEnvironment = false
         switch outcome {
         case .success:

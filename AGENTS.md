@@ -38,8 +38,27 @@ builds with the **Xcode 26** toolchain.
 General engineering principles — simple over clever, declarative views, Swift 6 isolation, remove dead
 code — come from the global `CLAUDE.md` and are not repeated here. Tinycast adds one rule of its own:
 
-- **Comments are single-line** — no stacked / multi-line blocks. Only comment the non-obvious (a
-  _why_, a gotcha, a load-bearing invariant); never restate the code.
+### Comments — minimal code, not annotated prose
+
+1. One line. **Never two consecutive comment lines.** If it needs two, it needs a named function, a
+   named constant, or a type.
+2. **Hard cap: 100 characters, including indentation.** Longer belongs in `docs/<subsystem>.md`.
+3. Comment the _why_, the gotcha, or the invariant. Never restate the code, never narrate a sequence,
+   never argue a decision at length in-line.
+4. `///` on a public type or method is exempt from rule 1, not from rule 2.
+5. **Prefer deleting a comment to updating it.**
+6. Never add a comment explaining a change you just made. The diff is not the audience.
+
+Rules 1 and 2 are checkable, and both must come back `0`:
+
+```sh
+find Tinycast -name "*.swift" ! -name "*.generated.swift" -exec \
+  awk '/^[[:space:]]*\/\//{r++; if(r==2) b++; next} {r=0} END{print b+0}' {} \; | awk '{s+=$1} END {print s}'
+grep -rhE '^\s*(//|///)' Tinycast --include="*.swift" | awk 'length>100' | wc -l
+```
+
+`DesignSystem/Scrolling/EdgeDissolve.swift` and `ThinScrollbar.swift` are the only exemptions, because
+they are off-limits entirely.
 
 ## Architecture
 

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// One launcher category's Settings card: a search field, the category's "show in launcher" switch, then
-/// a row per entry. Never applies the visibility filter itself, so hidden rows stay re-checkable here.
+/// One category's Settings card; never filters by visibility, so hidden rows stay listed.
 struct LauncherItemsCard: View {
     let kind: AppEntry.Kind
     let header: String
@@ -36,7 +35,7 @@ struct LauncherItemsCard: View {
                 }
                 SettingsDivider()
 
-                // Rows dim while the category is off but stay interactive, so an item can be re-checked first.
+                // Rows dim while the category is off but stay interactive.
                 LazyVStack(spacing: 1) {
                     if entries.isEmpty {
                         Text(query.isEmpty ? "Nothing here yet." : "No matches for “\(query)”.")

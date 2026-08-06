@@ -18,6 +18,24 @@ in-memory history).
 Image capture (TIFF→PNG re-encode + blob write) runs off the main actor via detached tasks; row
 inserts, search, and pruning stay on the main actor.
 
+**The load query is deliberately two indexed branches**, not one `pinned_at IS NOT NULL OR rowid >= ?`.
+It fetches every pinned row plus the newest `memoryWindow` unpinned ones, keyed off the floor rowid
+that `windowFloor` looks up. The planner cannot drive an `OR` from an index while preserving row
+order, so the single-predicate form reads the whole table instead. The floor is 0 — meaning no floor,
+load everything — while the history is shorter than the window.
+
+Searching is trigram FTS, which needs **at least three characters**; shorter queries, and the
+no-database fallback path, filter the in-memory window instead. Results are memoized one query deep,
+with a second memo for the empty query, and both are invalidated whenever `items` changes.
+`promote` rewrites a row under the same id so it leads the history — stored order is rowid, so it is a
+delete plus re-insert inside one transaction, since `id` is `UNIQUE` and a crash between the two
+statements must not lose the row. The image blob is never touched.
+
+Files under the store's own `imagesDir` are **owned**: pruned and deleted with their row. External
+references — an image imported from another app's cache — are left on disk when the row goes. A
+retention cut can strand hundreds of files, so those deletions run off the main actor to keep
+capture-time pruning from hitching.
+
 ## Pinned entries
 
 A row's ⌘K Actions menu carries **Pin Entry / Unpin Entry** (⌘P), persisted as a `pinned_at` column
