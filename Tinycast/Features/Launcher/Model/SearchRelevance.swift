@@ -20,9 +20,14 @@ enum FuzzyMatch {
     /// A query folded once, so ranking doesn't re-fold it for every candidate field.
     struct Query: Sendable {
         fileprivate let text: String
+        /// Folded once too: the subsequence pass needs random access on every candidate.
+        fileprivate let characters: [Character]
         var isEmpty: Bool { text.isEmpty }
 
-        init(_ raw: String) { text = FuzzyMatch.normalized(raw) }
+        init(_ raw: String) {
+            text = FuzzyMatch.normalized(raw)
+            characters = Array(text)
+        }
     }
 
     /// Tiered relevance, or nil; tiers are spaced so a better kind always wins.
@@ -45,7 +50,7 @@ enum FuzzyMatch {
                 score: (atWordStart ? 80_000 : 70_000) - c.count)
         }
 
-        guard let sub = subsequenceScore(Array(q), Array(c)) else { return nil }
+        guard let sub = subsequenceScore(query.characters, c) else { return nil }
         return Match(tier: .subsequence, score: sub)
     }
 
@@ -58,7 +63,15 @@ enum FuzzyMatch {
     static let maximumScore = 100_000
 
     /// Invisible format scalars ship in real display names and must not demote a prefix hit.
+    ///
+    /// Runs once per candidate field per keystroke, so the common cases skip the rebuild: no
+    /// scalar below U+00AD is `.format`, which settles every ASCII name without an ICU lookup.
     private static func normalized(_ value: String) -> String {
+        guard value.unicodeScalars.contains(where: { $0.value >= 0xAD }) else {
+            return value.lowercased()
+        }
+        guard value.unicodeScalars.contains(where: { $0.properties.generalCategory == .format })
+        else { return value.lowercased() }
         let scalars = value.unicodeScalars.filter {
             $0.properties.generalCategory != .format
         }
@@ -72,28 +85,37 @@ enum FuzzyMatch {
     }
 
     /// Subsequence match with bonuses for consecutive hits and word boundaries, else nil.
-    private static func subsequenceScore(_ q: [Character], _ c: [Character]) -> Int? {
+    ///
+    /// Walks the candidate in place, carrying the previous character instead of indexing an
+    /// `Array(c)` — the array was one allocation per candidate field per keystroke.
+    private static func subsequenceScore(_ q: [Character], _ c: String) -> Int? {
         var qi = 0
         var score = 0
         var run = 0
         var prev = -2
-        for (ci, ch) in c.enumerated() where qi < q.count && ch == q[qi] {
-            var bonus = 1
-            if ci == prev + 1 {
-                run += 1
-                bonus += run * 3
-            } else {
-                run = 0
+        var ci = 0
+        var previous: Character?
+        for ch in c {
+            if qi < q.count, ch == q[qi] {
+                var bonus = 1
+                if ci == prev + 1 {
+                    run += 1
+                    bonus += run * 3
+                } else {
+                    run = 0
+                }
+                if ci == 0 {
+                    bonus += 12
+                } else if let previous, !previous.isLetter, !previous.isNumber {
+                    bonus += 8
+                }
+                score += bonus
+                prev = ci
+                qi += 1
+                if qi == q.count { break }
             }
-            if ci == 0 {
-                bonus += 12
-            } else {
-                let before = c[ci - 1]
-                if !before.isLetter && !before.isNumber { bonus += 8 }
-            }
-            score += bonus
-            prev = ci
-            qi += 1
+            previous = ch
+            ci += 1
         }
         guard qi == q.count else { return nil }
         return score

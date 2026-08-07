@@ -223,17 +223,6 @@ struct GeneralSettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                SettingsDivider()
-                SettingsRow(
-                    title: "Welcome Guide",
-                    subtitle:
-                        "Re-run the first-launch setup: shortcut, permissions, and Raycast import.",
-                    systemImage: "sparkles",
-                    tint: .yellow
-                ) {
-                    Button("Show…") { core.paletteCoordinator.showOnboarding() }
-                        .controlSize(.small)
-                }
             }
         }
         .confirmationDialog(
