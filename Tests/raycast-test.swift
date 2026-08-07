@@ -209,7 +209,6 @@ enum RaycastTests {
                 "preferencesAdvanced": {
                   "popToRootTimeout": 90,
                   "emojiSkinTone": "medium",
-                  "useHyperKeyIcon": true,
                   "raycast_hyperKey_state": {
                     "enabled": true, "keyCode": 57, "includeShiftKey": true
                   }
@@ -244,7 +243,6 @@ enum RaycastTests {
 
         expect(parsed.popToRootTimeout == 90, "popToRootTimeout")
         expect(parsed.emojiSkinTone == "medium", "emojiSkinTone")
-        expect(parsed.useHyperKeyIcon == true, "useHyperKeyIcon")
         expect(parsed.hyperKey?.enabled == true, "hyper key enabled")
         expect(parsed.hyperKey?.keyCode == 57, "hyper key is a Carbon code, not a name")
         expect(parsed.hyperKey?.includesShift == true, "hyper key includes shift")

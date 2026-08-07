@@ -9,7 +9,6 @@ enum SettingsBackupCoverage {
         "hyperKey": .hyperKey,
         "hyperKeyIncludesShift": .hyperKeyIncludesShift,
         "hyperKeyQuickPress": .hyperKeyQuickPress,
-        "hyperKeyReplacesGlyph": .hyperKeyReplacesGlyph,
         "emojiSkinTone": .emojiSkinTone,
         "popToRootSeconds": .popToRootTimeout,
         "compactMode": .compactMode,

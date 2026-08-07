@@ -20,22 +20,18 @@ struct KeyShortcut: Hashable, Sendable {
         self.init(carbonKeyCode: keyCode, carbonModifiers: Self.carbonModifiers(from: flags))
     }
 
-    /// Hyper display preference; a closure, not a value, so a Settings toggle re-renders keycaps.
-    @MainActor
-    static var hyperDisplay:
-        () -> (hyperKey: HyperKeyPhysicalKey, replacesGlyph: Bool, includesShift: Bool) = {
-            (.none, false, true)
-        }
+    /// The chord ✦ stands for, nil without a Hyper key; a closure, so a toggle re-renders keycaps.
+    @MainActor static var displayedHyperChord: () -> NSEvent.ModifierFlags? = { nil }
 
     /// One string per keycap in canonical order (⌃⌥⇧⌘), with the key glyph last.
     @MainActor var keycaps: [String] {
-        let hyper = Self.hyperDisplay()
-        return Self.collapsedModifierSymbols(
-            from: modifierFlags, hyperKey: hyper.hyperKey, replacesGlyph: hyper.replacesGlyph,
-            includesShift: hyper.includesShift) + [keyGlyph]
+        Self.collapsedModifierSymbols(from: modifierFlags, hyperChord: Self.displayedHyperChord())
+            + [keyGlyph]
     }
 
-    var modifierFlags: NSEvent.ModifierFlags {
+    var modifierFlags: NSEvent.ModifierFlags { Self.modifierFlags(from: carbonModifiers) }
+
+    static func modifierFlags(from carbonModifiers: Int) -> NSEvent.ModifierFlags {
         var flags: NSEvent.ModifierFlags = []
         if carbonModifiers & controlKey != 0 { flags.insert(.control) }
         if carbonModifiers & optionKey != 0 { flags.insert(.option) }
@@ -53,22 +49,31 @@ struct KeyShortcut: Hashable, Sendable {
         return carbon
     }
 
-    /// `modifierSymbols` with the Hyper set collapsed to "✦", keyed on configuration.
+    // MARK: - The Hyper chord
+
+    /// ⌃⌥⌘, plus ⇧ when Include Shift is on — the one place the chord is spelled out.
+    static func hyperChord(includesShift: Bool) -> NSEvent.ModifierFlags {
+        includesShift ? [.control, .option, .shift, .command] : [.control, .option, .command]
+    }
+
+    /// Re-points a chord recorded against the other Hyper set. docs/features/hotkeys.md
+    func retargetingHyper(includesShift: Bool) -> KeyShortcut {
+        let stale = Self.hyperChord(includesShift: !includesShift)
+        guard modifierFlags.isSuperset(of: stale) else { return self }
+        let retargeted =
+            modifierFlags.subtracting(stale).union(Self.hyperChord(includesShift: includesShift))
+        return KeyShortcut(
+            carbonKeyCode: carbonKeyCode, carbonModifiers: Self.carbonModifiers(from: retargeted))
+    }
+
+    /// `modifierSymbols` with the Hyper chord collapsed to "✦", when one is configured at all.
     static func collapsedModifierSymbols(
-        from flags: NSEvent.ModifierFlags,
-        hyperKey: HyperKeyPhysicalKey,
-        replacesGlyph: Bool,
-        includesShift: Bool
+        from flags: NSEvent.ModifierFlags, hyperChord: NSEvent.ModifierFlags?
     ) -> [String] {
-        guard hyperKey != .none, replacesGlyph else {
+        guard let hyperChord, flags.isSuperset(of: hyperChord) else {
             return modifierSymbols(from: flags)
         }
-        let hyperSet: NSEvent.ModifierFlags =
-            includesShift
-            ? [.control, .option, .shift, .command]
-            : [.control, .option, .command]
-        guard flags.isSuperset(of: hyperSet) else { return modifierSymbols(from: flags) }
-        return [HyperKeyPhysicalKey.hyperGlyph] + modifierSymbols(from: flags.subtracting(hyperSet))
+        return [HyperKeyPhysicalKey.hyperGlyph] + modifierSymbols(from: flags.subtracting(hyperChord))
     }
 
     /// Modifier symbols in the fixed ⌃⌥⇧⌘ order every macOS surface uses.
@@ -155,33 +160,5 @@ extension KeyShortcut: Codable {
             carbonKeyCode: try container.decode(Int.self, forKey: .carbonKeyCode),
             carbonModifiers: try container.decode(Int.self, forKey: .carbonModifiers)
         )
-    }
-}
-
-/// Everything in Tinycast a global shortcut can be bound to.
-enum HotKeyAction: Hashable, Sendable {
-    case togglePalette
-    case toggleClipboard
-    case toggleEmoji
-    case app(bundleID: String)
-    case settingsPane(bundleID: String)
-    case customCommand(id: UUID)
-    case systemAction(id: SystemAction.ID)
-    case windowCommand(id: WindowCommand.ID)
-    case quicklink(id: UUID)
-
-    /// The UserDefaults key, and the `HotKeyCenter` registration id: one per action.
-    var defaultsKey: String {
-        switch self {
-        case .togglePalette: "hotkey.togglePalette"
-        case .toggleClipboard: "hotkey.toggleClipboard"
-        case .toggleEmoji: "hotkey.toggleEmoji"
-        case .app(let bundleID): "hotkey.app." + bundleID
-        case .settingsPane(let bundleID): "hotkey.pane." + bundleID
-        case .customCommand(let id): "hotkey.customCommand." + id.uuidString.lowercased()
-        case .systemAction(let id): "hotkey.systemAction." + id.rawValue
-        case .windowCommand(let id): "hotkey.windowCommand." + id.rawValue
-        case .quicklink(let id): "hotkey.quicklink." + id.uuidString.lowercased()
-        }
     }
 }

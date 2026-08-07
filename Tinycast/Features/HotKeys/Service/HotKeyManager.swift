@@ -130,6 +130,19 @@ final class HotKeyManager {
         }
     }
 
+    /// Include Shift redefines the chord, and a stored combo has the old one baked in.
+    func retargetHyperBindings(includesShift: Bool) {
+        for action in candidateActions {
+            guard let shortcut = bindings[action]?.shortcut else { continue }
+            let retargeted = shortcut.retargetingHyper(includesShift: includesShift)
+            guard retargeted != shortcut else { continue }
+            let binding = HotKeyBinding.combo(retargeted)
+            // Skip a collision rather than clobber it: the second registration would fail silently.
+            guard conflictOwner(of: binding, excluding: action) == nil else { continue }
+            setBinding(binding, for: action)
+        }
+    }
+
     /// What else holds `binding`, or nil. Whole-binding comparison covers both kinds alike.
     func conflictOwner(of binding: HotKeyBinding, excluding action: HotKeyAction) -> String? {
         for candidate in candidateActions

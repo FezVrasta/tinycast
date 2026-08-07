@@ -26,7 +26,6 @@ struct RaycastV1Payload: Sendable, Equatable {
     var popToRootTimeout: Int?
     var emojiSkinTone: String?
     var hyperKey: HyperKeyState?
-    var useHyperKeyIcon: Bool?
     var windowMode: String?
     var showFavoritesInCompactMode: Bool?
     var statusBarIsVisible: Bool?
@@ -130,7 +129,6 @@ enum RaycastV1Decoder {
 
         payload.popToRootTimeout = advanced?["popToRootTimeout"] as? Int
         payload.emojiSkinTone = advanced?["emojiSkinTone"] as? String
-        payload.useHyperKeyIcon = advanced?["useHyperKeyIcon"] as? Bool
         if let state = advanced?["raycast_hyperKey_state"] as? [String: Any],
             let keyCode = state["keyCode"] as? Int {
             payload.hyperKey = .init(

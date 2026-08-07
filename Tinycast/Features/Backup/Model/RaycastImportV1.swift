@@ -54,10 +54,6 @@ enum RaycastImportV1 {
                 mapped = true
             }
         }
-        if let useIcon = payload.useHyperKeyIcon {
-            data.hyperKeyReplacesGlyph = useIcon
-            mapped = true
-        }
         // Raycast's window mode is a string; we only have the compact toggle.
         if let mode = payload.windowMode {
             data.compactMode = (mode == "compact")

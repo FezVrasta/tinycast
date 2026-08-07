@@ -52,10 +52,6 @@ enum RaycastImport {
                     settings.hyperKey = key
                     hasSettings = true
                 }
-                if let glyph = backup.settings?.hyperKeyReplacesGlyph {
-                    settings.hyperKeyReplacesGlyph = glyph
-                    hasSettings = true
-                }
             }
 
             let keepClipboard = options.contains(.clipboardHistory)

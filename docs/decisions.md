@@ -349,3 +349,19 @@ English-specific, so localizing the UI without them would ship a half-translated
 
 **What would change this:** shipping through a channel that requires a manifest, or a decision to localize
 the calculator grammars first.
+
+### 31 — Toggling Include Shift rewrites a chord the user may have typed by hand
+
+Flipping Include Shift re-points every stored combo whose modifiers contain the other Hyper chord. A combo
+recorded by physically holding ⌃⌥⌘ is byte-identical to one recorded from ✦, so it is re-pointed too — a
+hand-typed ⌃⌥⌘G becomes ⌃⌥⇧⌘G.
+
+**Why:** provenance is not recoverable. The tap rewrites flags before anything sees them, so the recorder
+cannot tell a real ⌃⌥⌘ from a synthesized one, and storing a "recorded from Hyper" bit would mean trusting
+a heuristic at capture time forever. Leaving the chord alone is the worse failure: the keycaps stop saying
+✦ *and* the shortcut stops firing, because Carbon stays registered for a chord the tap no longer emits.
+Re-pointing keeps what the keycaps say and what actually fires in agreement, which is the property users
+notice. See [hotkeys.md](features/hotkeys.md#include-shift-re-points-what-is-already-recorded).
+
+**What would change this:** a way to know at capture time that the flags came from the tap — the tap would
+have to mark its rewritten events in a field `NSEvent` still exposes.

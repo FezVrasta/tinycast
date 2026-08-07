@@ -59,7 +59,6 @@ v1 JSON is a set of `builtin_package_*` / `raycast_*` providers, with `raycast_v
 | `…raycastPreferences.preferencesAdvanced.popToRootTimeout`                          | `popToRootSeconds` (exact `PopToRootTimeout` match only)              |
 | `…preferencesAdvanced.emojiSkinTone`                                                | `emojiSkinTone` (`default` → none)                                    |
 | `…preferencesAdvanced.raycast_hyperKey_state` `{enabled, keyCode, includeShiftKey}` | `hyperKey` (a Carbon code — 57 is caps lock), `hyperKeyIncludesShift` |
-| `…preferencesAdvanced.useHyperKeyIcon`                                              | `hyperKeyReplacesGlyph`                                               |
 | `…preferencesAppearance.raycastPreferredWindowMode`                                 | `compactMode` (`== "compact"`)                                        |
 | `…preferencesAppearance.showFavoritesInCompactMode`                                 | same                                                                  |
 | `…preferencesAppearance.statusBarIsVisible`                                         | `showInMenuBar`                                                       |

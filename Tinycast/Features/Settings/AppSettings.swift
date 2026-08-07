@@ -66,11 +66,6 @@ final class AppSettings {
         }
     }
 
-    /// Collapse the Hyper modifier set to "✦" wherever shortcut keycaps render.
-    var hyperKeyReplacesGlyph: Bool {
-        didSet { defaults.set(hyperKeyReplacesGlyph, forKey: Key.hyperKeyReplacesGlyph.rawValue) }
-    }
-
     /// Preferred skin tone applied to modifier-capable emoji at render and copy time.
     var emojiSkinTone: EmojiSkinTone {
         didSet { defaults.set(emojiSkinTone.rawValue, forKey: Key.emojiSkinTone.rawValue) }
@@ -193,7 +188,7 @@ final class AppSettings {
         hyperKey =
             defaults.string(forKey: Key.hyperKey.rawValue).flatMap(HyperKeyPhysicalKey.init)
             ?? .none
-        // The two Bools default to true, so absence must be distinguished from stored `false`.
+        // Defaults to true, so absence must be distinguished from a stored `false`.
         hyperKeyIncludesShift =
             defaults.object(forKey: Key.hyperKeyIncludesShift.rawValue) == nil
             || defaults.bool(forKey: Key.hyperKeyIncludesShift.rawValue)
@@ -201,9 +196,6 @@ final class AppSettings {
             defaults.string(forKey: Key.hyperKeyQuickPress.rawValue)
             .flatMap(HyperKeyQuickPress.init)
             ?? .none
-        hyperKeyReplacesGlyph =
-            defaults.object(forKey: Key.hyperKeyReplacesGlyph.rawValue) == nil
-            || defaults.bool(forKey: Key.hyperKeyReplacesGlyph.rawValue)
         emojiSkinTone =
             defaults.string(forKey: Key.emojiSkinTone.rawValue).flatMap(EmojiSkinTone.init) ?? .none
         popToRootTimeout =

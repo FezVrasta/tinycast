@@ -27,9 +27,7 @@ struct GeneralSettingsView: View {
         }
         var text =
             "Pressing \(settings.hyperKey.title) will trigger the left \(hyperGlyphs) modifier keys."
-        if settings.hyperKeyReplacesGlyph {
-            text += " Hyper Key shortcuts will be shown in Tinycast with ✦."
-        }
+            + " Hyper Key shortcuts are shown in Tinycast with ✦."
         if hyperTap.status == .needsAccessibility {
             text += " Tinycast needs Accessibility access to remap keys."
         }
@@ -125,19 +123,10 @@ struct GeneralSettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
+                        // Flipping it re-points recorded chords, so it needs a chord to mean.
+                        .disabled(settings.hyperKey == .none)
                 }
-                SettingsDivider()
-                SettingsRow(
-                    title: "Replace occurrences of \(hyperGlyphs) with ✦",
-                    subtitle: "Shortcuts containing the Hyper Key modifiers are shown with ✦.",
-                    systemImage: "keyboard",
-                    tint: .gray
-                ) {
-                    Toggle("", isOn: $settings.hyperKeyReplacesGlyph)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                }
+                .opacity(settings.hyperKey == .none ? 0.5 : 1)
             }
 
             SettingsCard(header: "Appearance") {

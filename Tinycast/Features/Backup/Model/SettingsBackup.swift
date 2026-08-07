@@ -20,7 +20,6 @@ struct SettingsBackup: Codable {
         var hyperKey: String?
         var hyperKeyIncludesShift: Bool?
         var hyperKeyQuickPress: String?
-        var hyperKeyReplacesGlyph: Bool?
         var emojiSkinTone: String?
         var showInMenuBar: Bool?
         var popToRootSeconds: Int?
@@ -83,7 +82,6 @@ extension SettingsBackup {
             hyperKey: s.hyperKey.rawValue,
             hyperKeyIncludesShift: s.hyperKeyIncludesShift,
             hyperKeyQuickPress: s.hyperKeyQuickPress.rawValue,
-            hyperKeyReplacesGlyph: s.hyperKeyReplacesGlyph,
             emojiSkinTone: s.emojiSkinTone.rawValue,
             showInMenuBar: UserDefaults.standard.object(forKey: SettingsKey.showInMenuBar) as? Bool
                 ?? true,
@@ -195,10 +193,6 @@ extension SettingsBackup {
         }
         if let raw = s.hyperKeyQuickPress, let quick = HyperKeyQuickPress(rawValue: raw) {
             settings.hyperKeyQuickPress = quick
-            count += 1
-        }
-        if let flag = s.hyperKeyReplacesGlyph {
-            settings.hyperKeyReplacesGlyph = flag
             count += 1
         }
         if let raw = s.emojiSkinTone, let tone = EmojiSkinTone(rawValue: raw) {

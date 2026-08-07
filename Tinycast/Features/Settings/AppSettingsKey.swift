@@ -8,7 +8,6 @@ enum AppSettingsKey: String, CaseIterable {
     case hyperKey = "hyperKeyPhysicalKey"
     case hyperKeyIncludesShift = "hyperKeyIncludesShift"
     case hyperKeyQuickPress = "hyperKeyQuickPress"
-    case hyperKeyReplacesGlyph = "hyperKeyReplacesGlyph"
     case emojiSkinTone = "emojiSkinTone"
     case popToRootTimeout = "popToRootTimeout"
     case compactMode = "compactMode"

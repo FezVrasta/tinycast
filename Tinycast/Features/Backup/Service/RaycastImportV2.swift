@@ -84,10 +84,6 @@ enum RaycastImportV2 {
             data.hyperKey = key.rawValue
             mapped = true
         }
-        if let display = general?["hyperKeyDisplayShortcut"] as? Bool {
-            data.hyperKeyReplacesGlyph = display
-            mapped = true
-        }
         if let showInMenuBar = general?["showInMenuBar"] as? Bool {
             data.showInMenuBar = showInMenuBar
             mapped = true

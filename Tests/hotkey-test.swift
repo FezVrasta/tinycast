@@ -1,3 +1,5 @@
+import AppKit
+import Carbon.HIToolbox
 import Foundation
 
 /// Drives `DoubleTapDetector` on a virtual clock, so every window boundary is exact rather than timed.
@@ -52,6 +54,8 @@ struct DoubleTapDetectorTests {
 
     static func main() {
         modifierGlyphs()
+        hyperChord()
+        hyperRetargeting()
         firing()
         timing()
         chords()
@@ -77,6 +81,96 @@ struct DoubleTapDetectorTests {
             DoubleTapModifier.allCases.map(\.rawValue)
                 == ["control", "option", "shift", "command"],
             "raw values are the persisted spelling and stay in canonical ⌃⌥⇧⌘ order")
+    }
+
+    // MARK: - The Hyper chord
+
+    /// A combo on the G key, spelled in Carbon like the on-disk shape.
+    private static func combo(_ flags: NSEvent.ModifierFlags) -> KeyShortcut {
+        KeyShortcut(
+            carbonKeyCode: kVK_ANSI_G, carbonModifiers: KeyShortcut.carbonModifiers(from: flags))
+    }
+
+    private static func caps(_ flags: NSEvent.ModifierFlags, includesShift: Bool?) -> [String] {
+        KeyShortcut.collapsedModifierSymbols(
+            from: flags,
+            hyperChord: includesShift.map { KeyShortcut.hyperChord(includesShift: $0) })
+    }
+
+    static func hyperChord() {
+        expect(
+            KeyShortcut.hyperChord(includesShift: false) == [.control, .option, .command],
+            "Hyper without Include Shift is exactly ⌃⌥⌘")
+        expect(
+            KeyShortcut.hyperChord(includesShift: true) == [.control, .option, .shift, .command],
+            "Include Shift adds ⇧ and nothing else")
+
+        for includesShift in [false, true] {
+            let chord = KeyShortcut.hyperChord(includesShift: includesShift)
+            expect(
+                caps(chord, includesShift: includesShift) == ["✦"],
+                "the chord itself collapses to a lone ✦ (shift \(includesShift))")
+            expect(
+                caps(chord.union(.capsLock), includesShift: includesShift) == ["✦"],
+                "a stray non-shortcut flag doesn't defeat the collapse (shift \(includesShift))")
+            expect(
+                caps(chord, includesShift: nil) == KeyShortcut.modifierSymbols(from: chord),
+                "with no Hyper key configured the chord renders literally (shift \(includesShift))")
+        }
+
+        // ⌃⌥⌘ is a subset of ⌃⌥⇧⌘, so only the shift-off chord can collapse under the wider set.
+        expect(
+            caps([.control, .option, .command], includesShift: true) == ["⌃", "⌥", "⌘"],
+            "the narrower chord doesn't collapse while Include Shift is on")
+        expect(
+            caps([.control, .option, .shift, .command], includesShift: false) == ["✦", "⇧"],
+            "an extra modifier trails ✦ in canonical order")
+        expect(
+            caps([.command, .shift], includesShift: false) == ["⇧", "⌘"],
+            "an ordinary combo is untouched, and stays in ⌃⌥⇧⌘ order rather than press order")
+
+        expect(
+            KeyShortcut(keyCode: kVK_ANSI_G, modifierFlags: KeyShortcut.hyperChord(
+                includesShift: true))?.carbonModifiers
+                == combo([.control, .option, .shift, .command]).carbonModifiers,
+            "recording while Hyper is held captures exactly the chord")
+    }
+
+    static func hyperRetargeting() {
+        let narrow = combo([.control, .option, .command])
+        let wide = combo([.control, .option, .shift, .command])
+
+        expect(narrow.retargetingHyper(includesShift: true) == wide, "⌃⌥⌘G follows ⇧ going on")
+        expect(wide.retargetingHyper(includesShift: false) == narrow, "⌃⌥⇧⌘G follows ⇧ going off")
+        expect(
+            narrow.retargetingHyper(includesShift: true).retargetingHyper(includesShift: false)
+                == narrow,
+            "the chord round-trips across a flip and back")
+        for includesShift in [false, true] {
+            let target = includesShift ? wide : narrow
+            expect(
+                target.retargetingHyper(includesShift: includesShift) == target,
+                "retargeting is idempotent, so an import can't corrupt a matching chord")
+        }
+
+        expect(
+            narrow.retargetingHyper(includesShift: true).carbonKeyCode == kVK_ANSI_G,
+            "only the modifiers move; the key is preserved")
+        expect(
+            combo([.control, .option, .command, .capsLock]).retargetingHyper(includesShift: true)
+                == wide,
+            "the masking initializer keeps a stray flag out of the retargeted chord")
+
+        // Anything that isn't the other chord is left exactly as recorded.
+        for flags in [[.command, .shift], [.option], [.control, .option], []] as [NSEvent
+            .ModifierFlags] {
+            let shortcut = combo(flags)
+            for includesShift in [false, true] {
+                expect(
+                    shortcut.retargetingHyper(includesShift: includesShift) == shortcut,
+                    "\(KeyShortcut.modifierSymbols(from: flags).joined()) is not a Hyper chord")
+            }
+        }
     }
 
     // MARK: - Firing

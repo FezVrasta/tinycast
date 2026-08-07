@@ -26,6 +26,9 @@ the keycap rendering — only the _engine_ differs.
   with the clock injected as a parameter, for `hotkey-test`. Every `CGEvent` call lives in
   `Service/DoubleTapMonitor.swift`, which is listen-only, installs *only* while something is bound to a
   double-tap, and never prompts for Accessibility.
+- **`KeyShortcut.hyperChord(includesShift:)` is the only spelling of the Hyper chord**, read by both the
+  ✦ collapse and the re-point below. `HyperKeyTap` composes its own flags because it also needs the
+  left-side device bits, which no display path wants.
 - `LegacyHotKeyRecords` is scheduled for deletion and nothing new may depend on it — see
   [decisions.md](../decisions.md) entry 24.
 
@@ -142,6 +145,28 @@ flags do not always read as fully pressed. The Hyper key's own residue is scrubb
 Caps Lock's alpha-shift bit, or — for a key modifier outside the Hyper set — its generic mask and both
 device bits. Events the tap posts carry a `"TYCT"` marker in `.eventSourceUserData`, the same FourCC
 `HotKeyCenter` uses, so the tap never reacts to its own synthetics.
+
+### ✦ is the notation, not a preference
+
+Any combo whose modifiers are a superset of the chord renders with the Hyper set replaced by a single
+**✦** keycap — `✦G`, or `✦⇧G` when a modifier survives the subtraction. It is unconditional: there is
+no toggle, because collapsing the chord is what the feature *is*. The one condition is a Hyper key
+being configured at all — `AppCore` hands `KeyShortcut.displayedHyperChord` a `nil` chord otherwise, and a
+literal ⌃⌥⌘G renders as itself. That hook is a **closure rather than a value** so reading it inside a
+view body registers the `AppSettings` dependency, and every keycap re-renders the moment a toggle moves.
+
+### Include Shift re-points what is already recorded
+
+A `KeyShortcut` stores absolute Carbon modifiers, captured from the already-rewritten flags, so a chord
+recorded under one Include Shift setting is stale under the other: it would stop collapsing to ✦ *and*
+stop firing, because Carbon is registered for ⌃⌥⌘ while the tap has started emitting ⌃⌥⇧⌘. So flipping
+the toggle re-points every stored combo — `HotKeyManager.retargetHyperBindings`, driven by the same
+`AppCore.track` observation the feature switches use, swapping the stale chord for the current one
+through `setBinding` so persistence and re-registration stay on one path. A re-point that would land on
+a chord another action already holds is skipped rather than clobbering it; that row keeps its literal
+keycaps. `retargetingHyper` is idempotent, which is what makes a settings import a no-op rather than a
+corruption. Nothing is re-pointed while the Hyper key is `.none` — and the Settings row is disabled
+there, so the toggle cannot move without a chord to mean.
 
 ### Lifecycle
 

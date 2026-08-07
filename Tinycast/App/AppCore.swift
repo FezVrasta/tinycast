@@ -148,8 +148,9 @@ final class AppCore {
                 self?.quicklinkCoordinator.openQuicklink(id: id)
             }
             hotKeys.displayName = { [weak self] action in self?.hotKeyDisplayName(for: action) }
-            KeyShortcut.hyperDisplay = { [settings] in
-                (settings.hyperKey, settings.hyperKeyReplacesGlyph, settings.hyperKeyIncludesShift)
+            KeyShortcut.displayedHyperChord = { [settings] in
+                guard settings.hyperKey != .none else { return nil }
+                return KeyShortcut.hyperChord(includesShift: settings.hyperKeyIncludesShift)
             }
             SystemActionRunner.onAsyncFailure = { [weak self] id, failure in
                 self?.systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
@@ -222,6 +223,8 @@ final class AppCore {
             _ = $0.quicklinksShowInLauncher
         }, reproject: { $0.quicklinkCoordinator.applyQuicklinksPresence() })
         track({ _ = $0.snippetsEnabled }, reproject: { $0.snippetExpansion.applySnippetsEnabled() })
+        // Not a feature switch, but the same re-projection: a combo has the chord's ⇧ bit baked in.
+        track({ _ = $0.hyperKeyIncludesShift }, reproject: { $0.applyHyperChord() })
         track(
             { _ = $0.snippetsShowInLauncher },
             reproject: { $0.snippetExpansion.applySnippetsLauncherPresence() })
@@ -241,6 +244,12 @@ final class AppCore {
                 reproject(self)
             }
         }
+    }
+
+    /// Without a Hyper key the chord means nothing, so a literal ⌃⌥⌘ combo is left as recorded.
+    private func applyHyperChord() {
+        guard settings.hyperKey != .none else { return }
+        hotKeys.retargetHyperBindings(includesShift: settings.hyperKeyIncludesShift)
     }
 
     private func applyWindowCommandsPresence() {

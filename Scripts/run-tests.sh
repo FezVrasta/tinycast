@@ -78,7 +78,9 @@ run emoji-test             Tinycast/Features/Emoji/Model/EmojiCatalog.swift \
 run palette-selection-test Tinycast/Features/PaletteRowIndex.swift \
                            Tinycast/Features/Emoji/Model/EmojiGridGeometry.swift
 run hotkey-test            Tinycast/Features/HotKeys/Model/DoubleTapModifier.swift \
-                           Tinycast/Features/HotKeys/Model/DoubleTapDetector.swift
+                           Tinycast/Features/HotKeys/Model/DoubleTapDetector.swift \
+                           Tinycast/Features/HotKeys/Model/HyperKey.swift \
+                           Tinycast/Features/HotKeys/Service/KeyShortcut.swift
 run callout-test           Tinycast/DesignSystem/Theme.swift \
                            Tinycast/Features/HotKeys/UI/CalloutPlacement.swift
 run system-action-test     Tinycast/Features/SystemActions/Model/SystemAction.swift
