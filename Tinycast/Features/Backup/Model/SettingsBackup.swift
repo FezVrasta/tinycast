@@ -174,8 +174,7 @@ extension SettingsBackup {
         var count = 0
         if let days = s.clipboardRetentionDays, let retention = ClipboardRetention(rawValue: days) {
             settings.clipboardRetention = retention
-            core.clipboardStore.maxAge = retention.maxAge
-            core.clipboardStore.enforceLimits()
+            core.clipboardCoordinator.applyRetention(retention)
             count += 1
         }
         if let apps = s.clipboardDisabledApps {

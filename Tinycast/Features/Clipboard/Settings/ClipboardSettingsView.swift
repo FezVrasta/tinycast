@@ -39,9 +39,7 @@ struct ClipboardSettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                     .onChange(of: settings.clipboardRetention) {
-                        let store = core.clipboardStore
-                        store.maxAge = settings.clipboardRetention.maxAge
-                        store.enforceLimits()
+                        core.clipboardCoordinator.applyRetention(settings.clipboardRetention)
                     }
                 }
             }

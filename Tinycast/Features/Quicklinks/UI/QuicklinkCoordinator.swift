@@ -197,20 +197,37 @@ final class QuicklinkCoordinator {
                     symbol: quicklink.iconSymbol ?? Quicklink.sfSymbol, confirmTitle: "Delete")
             else { return }
         }
+        // Unwound only once the row is gone: a failed delete must not strand its references.
+        do {
+            try store.remove(id: id)
+        } catch {
+            await core.showNotice(
+                title: "Couldn’t Delete “\(quicklink.name)”", message: error.localizedDescription,
+                symbol: quicklink.iconSymbol ?? Quicklink.sfSymbol, tone: .danger)
+            return
+        }
         removeQuicklinkReferences(ids: [id], entryIDs: [quicklink.entryID])
-        try? store.remove(id: id)
     }
 
     func toggleQuicklinkPinned(id: UUID) {
-        try? store.togglePinned(id: id)
+        do { try store.togglePinned(id: id) } catch { report(error) }
     }
 
     func setQuicklinkShowsInRootSearch(_ shows: Bool, id: UUID) {
-        try? store.setShowsInRootSearch(shows, id: id)
+        do { try store.setShowsInRootSearch(shows, id: id) } catch { report(error) }
     }
 
     func duplicateQuicklink(id: UUID) {
-        _ = try? store.duplicate(id: id)
+        do { _ = try store.duplicate(id: id) } catch { report(error) }
+    }
+
+    /// Quicklinks are authored data, so a refused write says so rather than reading as a no-op.
+    private func report(_ error: QuicklinkError) {
+        Task {
+            await core.showNotice(
+                title: "Couldn’t Save the Change", message: error.localizedDescription,
+                symbol: Quicklink.sfSymbol, tone: .danger)
+        }
     }
 
     /// Opens the Quicklinks pane with the editor showing `quicklink`; nil is a new one.

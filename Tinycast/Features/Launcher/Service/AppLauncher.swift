@@ -12,19 +12,20 @@ enum AppLauncher {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
-    /// No AppKit route for Get Info, so this drives Finder over Apple events.
-    @MainActor
-    static func showInfoInFinder(_ url: URL) -> Bool {
+    /// No AppKit route for Get Info, so this drives Finder over Apple events — seconds when cold.
+    static func showInfoInFinder(_ url: URL) async -> Bool {
         let source = """
             tell application "Finder"
                 activate
                 open information window of (POSIX file "\(url.path)" as alias)
             end tell
             """
-        guard let script = NSAppleScript(source: source) else { return false }
-        var errorInfo: NSDictionary?
-        script.executeAndReturnError(&errorInfo)
-        return errorInfo == nil
+        return await Task.detached(priority: .userInitiated) {
+            guard let script = NSAppleScript(source: source) else { return false }
+            var errorInfo: NSDictionary?
+            script.executeAndReturnError(&errorInfo)
+            return errorInfo == nil
+        }.value
     }
 
     /// Opens System Settings at the pane backed by the given extension bundle ID.

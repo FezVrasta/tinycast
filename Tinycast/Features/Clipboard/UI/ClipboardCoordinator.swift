@@ -20,6 +20,12 @@ final class ClipboardCoordinator {
         self.paletteCoordinator = paletteCoordinator
     }
 
+    /// The setting names an age, the store enforces it; a shortened window culls straight away.
+    func applyRetention(_ retention: ClipboardRetention) {
+        clipboardStore.maxAge = retention.maxAge
+        clipboardStore.enforceLimits()
+    }
+
     func paste(_ item: ClipboardItem) {
         let previous = windowController.previousApp
         paletteCoordinator.hidePalette(restoreFocus: false)

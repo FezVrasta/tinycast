@@ -79,11 +79,14 @@ coordinators, and the window controllers.
 `AppDelegate.applicationDidFinishLaunching` calls `AppCore.shared.start()` and nothing else. That is the
 one wiring point, and `start()` reads as the app's whole boot sequence in one screen.
 
-Views do **not** call `AppCore`. Feature actions live on that feature's coordinator, which a view reaches
-through `@Environment`; `AppCore` holds only the closure wiring that connects a hotkey to a coordinator.
-The exceptions are deliberate and narrow: `showNotice`, `confirm`, `reportFailure`, `showMessage` and
-`pickVolume` are forwarders that exist so `DialogController` and `MessageHUDController` stay
-single-owned.
+**Feature actions live on that feature's coordinator, and a view must never reach past a coordinator
+into a store to mutate it.** That is the rule; `AppCore` holds only the closure wiring that connects a
+hotkey to a coordinator. Views inject `AppCore` through `@Environment` and use it as the *locator* for
+those coordinators — `core.quicklinkCoordinator.deleteQuicklink(…)` is the shape, and the alternative
+is injecting eleven coordinators separately for no gain. Reading a store off `AppCore` to render it is
+fine too; deciding something with one is what the rule forbids. `showNotice`, `confirm`,
+`reportFailure`, `showMessage` and `pickVolume` are forwarders on `AppCore` itself, so
+`DialogController` and `MessageHUDController` stay single-owned.
 
 New long-lived state belongs on `AppCore`, wired in `start()`. Do not create a competing singleton — see
 [decisions.md](decisions.md) entry 1 for why this is a singleton and not a container.

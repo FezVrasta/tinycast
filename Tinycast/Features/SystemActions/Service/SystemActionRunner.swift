@@ -54,11 +54,11 @@ enum SystemActionRunner {
         case .sleepDisplays:
             try await runProcess("/usr/bin/pmset", arguments: ["displaysleepnow"])
         case .restart:
-            try runAppleScript("tell application \"System Events\" to restart")
+            try await runAppleScript("tell application \"System Events\" to restart")
         case .shutDown:
-            try runAppleScript("tell application \"System Events\" to shut down")
+            try await runAppleScript("tell application \"System Events\" to shut down")
         case .logOut:
-            try runAppleScript("tell application \"System Events\" to log out")
+            try await runAppleScript("tell application \"System Events\" to log out")
         case .showScreenSaver:
             let url = URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app")
             guard FileManager.default.fileExists(atPath: url.path) else {
@@ -102,9 +102,9 @@ enum SystemActionRunner {
                 arguments: ["1"])
         case .toggleAppearance:
             // The script returns the resulting state, so the confirmation can name it.
-            let result = try runAppleScript(
+            let result = try await runAppleScript(
                 "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode")
-            let dark = result?.booleanValue ?? false
+            let dark = result.flag
             return SystemActionFeedback(dark ? "Dark Appearance" : "Light Appearance")
         case .toggleStageManager:
             let on = try await toggleDefault(
@@ -118,12 +118,12 @@ enum SystemActionRunner {
         case .emptyTrash:
             // Count first: Finder errors on an empty Trash, and `~/.Trash` is TCC-protected.
             let items =
-                try runAppleScript("tell application \"Finder\" to count items of trash")?
-                .int32Value ?? 0
+                try await runAppleScript("tell application \"Finder\" to count items of trash")
+                .number
             guard items > 0 else {
                 return SystemActionFeedback("Trash Is Already Empty", isNoOp: true)
             }
-            try runAppleScript("tell application \"Finder\" to empty trash")
+            try await runAppleScript("tell application \"Finder\" to empty trash")
             return SystemActionFeedback("Trash Emptied")
         case .ejectAllDisks:
             let ejected = try ejectAllDisks()
@@ -550,22 +550,34 @@ enum SystemActionRunner {
             settings: .bluetooth)
     }
 
+    /// `NSAppleEventDescriptor` isn't `Sendable`, so the two fields callers read cross instead.
+    private struct AppleScriptResult: Sendable {
+        let number: Int32
+        let flag: Bool
+    }
+
+    /// A cold Finder answers in seconds, so the send never happens on the main actor.
     @discardableResult
-    private static func runAppleScript(_ source: String) throws -> NSAppleEventDescriptor? {
-        guard let script = NSAppleScript(source: source) else {
-            throw SystemActionFailure("The system automation could not be prepared.")
-        }
-        var errorInfo: NSDictionary?
-        let result = script.executeAndReturnError(&errorInfo)
-        guard let errorInfo else { return result }
-        let number = errorInfo[NSAppleScript.errorNumber] as? Int
-        let detail = errorInfo[NSAppleScript.errorMessage] as? String ?? "Unknown automation error."
-        if number == -1743 {
-            throw SystemActionFailure(
-                "Allow Tinycast to control the requested app in Automation settings, then try again.",
-                settings: .automation)
-        }
-        throw SystemActionFailure(detail)
+    private static func runAppleScript(_ source: String) async throws -> AppleScriptResult {
+        try await Task.detached(priority: .userInitiated) {
+            guard let script = NSAppleScript(source: source) else {
+                throw SystemActionFailure("The system automation could not be prepared.")
+            }
+            var errorInfo: NSDictionary?
+            let result = script.executeAndReturnError(&errorInfo)
+            guard let errorInfo else {
+                return AppleScriptResult(number: result.int32Value, flag: result.booleanValue)
+            }
+            let number = errorInfo[NSAppleScript.errorNumber] as? Int
+            let detail =
+                errorInfo[NSAppleScript.errorMessage] as? String ?? "Unknown automation error."
+            if number == -1743 {
+                throw SystemActionFailure(
+                    "Allow Tinycast to control the requested app in Automation settings, then try again.",
+                    settings: .automation)
+            }
+            throw SystemActionFailure(detail)
+        }.value
     }
 
     private static func runProcess(_ executable: String, arguments: [String]) async throws {

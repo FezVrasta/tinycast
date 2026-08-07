@@ -70,6 +70,12 @@ space or an `&` can't truncate the destination. Encoding is applied _after_ the 
 itself — `| raw` opts out, `| percent-encode` has done it once already. A local path is never
 encoded: `%20` in a path is a literal, not a space.
 
+`| raw` opts out of more than the escaping. Whether a link is a website, a path or a deeplink is
+decided by `QuicklinkDestination.detect` on the **expanded** text, so an unencoded substituted value
+that begins with a scheme picks the destination kind — a `{clipboard | raw}` holding `file:///…`
+resolves to a local path rather than to the web link the template looked like. Encoding is what
+normally prevents that, which is why `| raw` is a deliberate authoring choice and not a default.
+
 `{selectedText}` is accepted as an alias for `{selection}`, so a link pasted from Raycast's docs
 works unchanged. `{selection}` stays the canonical spelling and is the only one the editor's
 **Insert…** menu writes.

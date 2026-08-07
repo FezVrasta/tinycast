@@ -95,7 +95,7 @@ final class UninstallCoordinator {
     func showUninstallItemInfo(_ candidate: UninstallCandidate) {
         paletteCoordinator.hidePalette(restoreFocus: false)
         Task {
-            guard !AppLauncher.showInfoInFinder(candidate.url) else { return }
+            guard await !AppLauncher.showInfoInFinder(candidate.url) else { return }
             await core.showNotice(
                 title: "Couldn’t Open Get Info",
                 message: "Allow Tinycast to control Finder in System Settings › Privacy & Security "

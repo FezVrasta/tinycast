@@ -60,6 +60,7 @@ enum ShellCommandRunner {
         return .success
     }
 
+    /// Immutable, confined to one `execute` on `queue`, and only read after `waitUntilExit`.
     private final class StderrCapture: @unchecked Sendable {
         let url: URL
         let handle: FileHandle

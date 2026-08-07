@@ -1,6 +1,7 @@
 import Foundation
 
 struct SnippetRepository: Sendable {
+    /// Holds no state beyond the `NSLock` every access already goes through.
     private final class DirectoryLock: @unchecked Sendable {
         private let lock = NSLock()
 
@@ -13,6 +14,7 @@ struct SnippetRepository: Sendable {
         }
     }
 
+    /// `locks` is only ever read or written inside `lock.withLock`, which is the whole guarantee.
     private final class DirectoryLockTable: @unchecked Sendable {
         private let lock = NSLock()
         private var locks: [String: DirectoryLock] = [:]
