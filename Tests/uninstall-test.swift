@@ -473,13 +473,14 @@ struct UninstallTests {
 
     // MARK: - Plan and selection
 
+    /// A nil `bytes` is the unmeasured row a directory shows until its walk lands.
     static func candidate(
         _ path: String, evidence: UninstallEvidence = .bundleID,
-        protection: UninstallProtection = .removable, bytes: Int64 = 100
+        protection: UninstallProtection = .removable, bytes: Int64? = 100
     ) -> UninstallCandidate {
         UninstallCandidate(
             path: path, name: (path as NSString).lastPathComponent, locationLabel: "~/Library",
-            evidence: evidence, isDirectory: false, size: MeasuredSize(bytes: bytes),
+            evidence: evidence, isDirectory: false, size: bytes.map { MeasuredSize(bytes: $0) },
             protection: protection)
     }
 
@@ -531,6 +532,46 @@ struct UninstallTests {
         expect(
             UninstallSelection(plan: plan).candidates(in: plan).isEmpty,
             "an empty selection resolves to no candidates")
+    }
+
+    // MARK: - Streamed sizes
+
+    /// The list paints before any directory is walked, so a landing size must disturb nothing else.
+    static func testStreamedSizes() {
+        let target = UninstallTarget(
+            bundleURL: URL(fileURLWithPath: "/Applications/Test App.app"),
+            bundleID: "com.foo.Bar", displayName: "Test App", bundleName: nil)
+        var plan = UninstallPlan(
+            target: target,
+            candidates: [
+                candidate("/a", bytes: nil), candidate("/b", protection: .systemProtected, bytes: 20),
+                candidate("/c", bytes: nil),
+            ],
+            isTargetRunning: false)
+
+        expect(plan.totalBytes == 20, "an unmeasured row counts as zero rather than blocking a total")
+
+        let selection = plan.defaultSelection
+        expect(selection.checked == ["/a", "/c"], "selection is settled before any walk lands")
+        expect(selection.bytes(in: plan) == 0, "and its bytes start at zero while both are pending")
+
+        plan.setSize(MeasuredSize(bytes: 500), forPath: "/c")
+        expect(plan.candidates.map(\.path) == ["/a", "/b", "/c"], "a landing size never reorders")
+        expect(plan.candidates[2].size?.bytes == 500, "it lands on the row it measured")
+        expect(plan.candidates[0].size == nil, "and leaves its neighbours pending")
+        expect(plan.totalBytes == 520, "the total grows as each walk lands")
+        expect(selection.bytes(in: plan) == 500, "and so does the selection's, checked set intact")
+
+        plan.setSize(MeasuredSize(bytes: 9), forPath: "/nowhere")
+        expect(plan.totalBytes == 520, "a path outside the plan is a no-op")
+
+        plan.setSize(MeasuredSize(bytes: 7, isLowerBound: true), forPath: "/a")
+        expect(
+            plan.candidates[0].size?.isLowerBound == true,
+            "a budget-capped walk keeps its lower-bound marker through the write")
+        expect(
+            UninstallSelection(plan: plan, checked: selection.checked).checked == ["/a", "/c"],
+            "and a plan rebuilt after every size still locks out exactly what it did before")
     }
 
     // MARK: - Cross-identity sweep
@@ -631,6 +672,7 @@ struct UninstallTests {
         testPathSafety()
         testProtection()
         testSelection()
+        testStreamedSizes()
         testCrossIdentitySweep()
         testRootTable()
 

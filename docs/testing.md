@@ -118,8 +118,9 @@ formatter, deliberately — the configuration and the measurements behind that a
 
 ## Performance measurement
 
-`Platform/Signposts.swift` emits five intervals on the `com.tinycast.perf` subsystem: `AppCore.start`,
-`AppIndex.scan`, `AppIndex.rank`, `PaletteWindowController.show` and `UninstallScanner.scan`. Open the
+`Platform/Signposts.swift` emits six intervals on the `com.tinycast.perf` subsystem: `AppCore.start`,
+`AppIndex.scan`, `AppIndex.rank`, `PaletteWindowController.show`, `UninstallScanner.discover` and
+`UninstallScanner.measure`. Open the
 Time Profiler or `os_signpost` instrument in Instruments and filter to that subsystem; nothing needs
 recompiling.
 
@@ -203,6 +204,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 ### Uninstall
 
 - The launcher's Uninstall action opens the scan screen; the bundle is first, leftovers sorted by path
+- Rows appear with no loading copy at any point; folder sizes fill in behind them and totals climb
 - Locked rows cannot be checked; filtering by name works
 - Confirming moves items to the Trash and they are **recoverable from it**
 - Escaping mid-scan cancels promptly with no spinner left behind

@@ -57,7 +57,7 @@ final class UninstallCoordinator {
         guard !items.isEmpty else { return }
         Task {
             let running = plan.isTargetRunning || runningApps.isRunning(app)
-            let size = MeasuredSize(bytes: items.reduce(0) { $0 + $1.size.bytes }).formatted
+            let size = MeasuredSize(bytes: items.reduce(0) { $0 + ($1.size?.bytes ?? 0) }).formatted
             let count = items.count == 1 ? "1 item" : "\(items.count) items"
             guard
                 await core.confirm(

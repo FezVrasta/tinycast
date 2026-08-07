@@ -55,7 +55,8 @@ struct UninstallScreen: PaletteScreen {
     private func content(selection: Int, scroll: ScrollIntent) -> some View {
         switch session.state {
         case .idle, .scanning:
-            EmptyResults(text: "Looking for leftover files…")
+            // Blank, not copy: discovery is milliseconds, so anything here would only flash.
+            Color.clear
         case .failed(let message):
             EmptyResults(text: message)
         case .ready:

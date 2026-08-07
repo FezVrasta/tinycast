@@ -20,6 +20,9 @@ any `.application` entry; it opens the `.uninstall` palette sub-screen scoped to
   enumerates fine and still refuses the move, while `~/Library/Application Scripts` allows it.
 - **A locked candidate can never enter the checked set.** That invariant lives in `UninstallSelection`'s
   one intersection, not in the view.
+- **Discovery never waits on sizing.** `UninstallScanner.discover` publishes the list; the directory
+  walks stream in behind it. Anything that makes the screen wait for a size — a spinner, a completeness
+  gate on ↵ — puts the slow half back in front of the fast half.
 - Tinycast refuses to plan its own uninstall, compared against the **running** identity so the Dev channel
   refuses itself too.
 
@@ -34,7 +37,7 @@ Same split as `WindowManagement`: a pure half that decides, an impure half that 
 | `Model/UninstallRules.swift` | Matching, plus `isAcceptableCandidate` |
 | `Model/UninstallProtection.swift` | `PathFacts` → `UninstallProtection` |
 | `Model/UninstallPlan.swift` | `UninstallCandidate`, `UninstallPlan`, `UninstallSelection` |
-| `Service/UninstallScanner.swift` | **Impure.** `contentsOfDirectory`, `lstat`, sizes, the FDA probe |
+| `Service/UninstallScanner.swift` | **Impure.** `discover` (`contentsOfDirectory`, `lstat`, the FDA probe) and `measure` (the directory walks) |
 | `Service/UninstallRunner.swift` | **Impure.** `trashItem`, and nothing else |
 | `Service/UninstallSession.swift` | `@MainActor` lifecycle behind the screen |
 | `UI/UninstallScreen.swift`, `UI/UninstallView.swift` | The palette screen, list, row and actions menu |
@@ -178,6 +181,36 @@ runs once per scan, not once per candidate, and can only under-report (a per-fol
 Symlinks are never followed: `lstat`, and no descent when sizing. A symlinked candidate is judged and
 trashed as the link.
 
+## Sizing
+
+The two halves of a scan differ by three orders of magnitude. Discovery is 36 parallel shallow
+`contentsOfDirectory` listings plus one `lstat` per hit — milliseconds. Sizing is a recursive
+enumerator walk per directory candidate, and `/Applications/Xcode.app` alone is ~9.5 GB. So they are
+two calls, not one: `UninstallSession` publishes `.ready` the moment `discover` returns, then
+`measure` streams each walk to a `@MainActor` sink that writes only the row it measured, via
+`UninstallPlan.setSize(_:forPath:)`.
+
+`UninstallCandidate.size` is optional, and `nil` **is** the pending state — which is why there is no
+`needsWalk` flag and no side table of sizes. A pending row renders a blank size slot rather than a
+dash or a spinner; the slot sits between a `Spacer` and the trailing icon, so a landed size expands
+leftward and shifts nothing. Totals treat pending as zero and simply climb. The `≥` prefix stays
+reserved for a walk that hit `SizeBudget.maxEntries`, so it never doubles as "still counting".
+
+The consequence to accept: confirming inside the first second states a total lower than what gets
+trashed. Everything selected is still trashed — only the number in the copy is early.
+
+Sizes are **logical bytes**, not allocated blocks: `.totalFileSizeKey` in the walk and `st_size` in
+`inspect`. Allocated blocks disagree with every other tool on the machine, badly. Xcode ships
+decmpfs-compressed, so its blocks read 4.19 GB against Finder's and Raycast's 9.45 GB, and a
+593-byte plist occupies one block and reads as 4 kB. Blocks are not the safer number either — a
+decmpfs payload can live in an xattr, which `st_blocks` does not count, so they are only a floor.
+
+`measure`'s task group is deliberately built in a `nonisolated` context. It is a structured child of
+`UninstallSession.scanTask`, which is what keeps `cancel()` reaching `Task.checkCancellation()`
+inside the enumerator loop, and building it there leaves no question about which executor 30
+concurrent walks run on. A walk that throws yields nothing, so a cancelled row stays pending instead
+of publishing a false zero.
+
 ## The screen
 
 A `PaletteMode` case like Clipboard and Calculator History, so the back chevron, Escape,
@@ -206,7 +239,9 @@ what stayed behind.
 ./Scripts/run-tests.sh uninstall-test
 ```
 
-No filesystem, no temp directories — every input is a `String` or a `PathFacts`. Beyond the per-rule
+No filesystem, no temp directories — every input is a `String` or a `PathFacts`. `testStreamedSizes`
+covers the half a walk cannot: a landed size never reorders the plan, never disturbs a neighbour's
+pending state and never re-derives the checked set. Beyond the per-rule
 assertions it ends with a cross-identity sweep: for a set of realistic apps × every root × every
 artifact shape, no app's artifacts may ever be attributed to another. That is the one test that
 catches a regression in the matcher as a whole rather than in a single rule.
