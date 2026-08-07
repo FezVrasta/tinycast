@@ -6,6 +6,9 @@ enum SettingsTab: Int, CaseIterable, Identifiable {
         windowManagement, clipboard, emoji, permissions, backup, miscellaneous, about
     var id: Int { rawValue }
 
+    /// The neighbouring pane in sidebar order, or nil at either end — arrows clamp, never wrap.
+    func stepping(_ delta: Int) -> SettingsTab? { SettingsTab(rawValue: rawValue + delta) }
+
     var title: String {
         switch self {
         case .general: return "General"

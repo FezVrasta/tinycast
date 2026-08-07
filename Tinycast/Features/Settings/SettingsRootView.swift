@@ -7,6 +7,7 @@ extension Notification.Name {
 
 struct SettingsRootView: View {
     @State private var tab: SettingsTab
+    @FocusState private var sidebarFocused: Bool
 
     init(initialTab: SettingsTab = .general) {
         _tab = State(initialValue: initialTab)
@@ -43,6 +44,7 @@ struct SettingsRootView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { sidebarFocused = true }
         .onReceive(NotificationCenter.default.publisher(for: .tinycastSelectSettingsTab)) { note in
             if let target = note.object as? SettingsTab { tab = target }
         }
@@ -70,6 +72,12 @@ struct SettingsRootView: View {
             }
             .ignoresSafeArea()
         )
+        // Focus scopes the arrow keys to the sidebar, so a pane's text field still gets its own.
+        .focusable()
+        .focused($sidebarFocused)
+        .focusEffectDisabled()
+        .onKeyPress(.downArrow) { move(1) }
+        .onKeyPress(.upArrow) { move(-1) }
     }
 
     private func sidebarRow(_ item: SettingsTab) -> some View {
@@ -78,7 +86,15 @@ struct SettingsRootView: View {
             systemImage: item.systemImage,
             tint: item.tint,
             isSelected: tab == item
-        ) { tab = item }
+        ) {
+            tab = item
+            sidebarFocused = true
+        }
+    }
+
+    private func move(_ delta: Int) -> KeyPress.Result {
+        if let next = tab.stepping(delta) { tab = next }
+        return .handled  // `.ignored` at either end would beep
     }
 }
 
