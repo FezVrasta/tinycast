@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// What Tinycast remembers per moved window. See docs/window-management.md#cycling-and-restore.
+/// What Tinycast remembers per moved window. docs/features/window-management.md#cycling-and-restore
 struct WindowActionMemory<Key: Hashable> {
     struct Record: Equatable, Sendable {
         /// Where the window was before Tinycast first touched it.
@@ -57,7 +57,7 @@ struct WindowActionMemory<Key: Hashable> {
                 step: 0, restoreFrame: currentFrame, canRestore: false, lastTileCommand: nil)
         }
 
-        // Against the observed frame, never the requested one. See docs/window-management.md.
+        // Against the observed frame, never the requested one. docs/features/window-management.md
         guard approximatelyEqual(currentFrame, record.appliedFrame) else {
             return Decision(
                 step: 0, restoreFrame: currentFrame, canRestore: true, lastTileCommand: nil)

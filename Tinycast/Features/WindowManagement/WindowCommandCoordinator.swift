@@ -15,7 +15,7 @@ final class WindowCommandCoordinator {
         self.windowMover = windowMover
     }
 
-    /// The one funnel for palette and hotkey alike. See docs/window-management.md#wiring.
+    /// The one funnel for palette and hotkey alike. See docs/features/window-management.md#wiring.
     func runWindowCommand(id: WindowCommand.ID) {
         guard settings.windowManagementEnabled else { return }
         let target = paletteCoordinator.targetApp

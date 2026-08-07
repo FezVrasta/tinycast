@@ -19,7 +19,7 @@ final class PaletteState {
     var pasteTarget: PasteTarget?
     /// True only while the pointer physically moves; untracked, so it never re-renders.
     @ObservationIgnored var hoverHighlightArmed = false
-    /// True while a footer menu is open. See docs/palette.md#menu-open-input-freeze.
+    /// True while a footer menu is open. See docs/features/palette.md#menu-open-input-freeze.
     @ObservationIgnored var menuOpen = false { didSet { onMenuOpenChanged?(menuOpen) } }
     /// Fired when `menuOpen` flips, so the panel can hide the caret without a focus swap.
     @ObservationIgnored var onMenuOpenChanged: ((Bool) -> Void)?

@@ -8,7 +8,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     private var panel: PalettePanel?
     private(set) var previousApp: NSRunningApplication?
     private var popToRootTimer: Timer?
-    /// The session anchor, resolved once per show. See docs/palette.md#window-placement.
+    /// The session anchor, resolved once per show. See docs/features/palette.md#window-placement.
     private var anchor: (x: CGFloat, topEdgeY: CGFloat)?
 
     init(core: AppCore) {

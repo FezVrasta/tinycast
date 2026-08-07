@@ -41,7 +41,7 @@ struct RaycastV1Payload: Sendable, Equatable {
     var missingImages = 0
 }
 
-/// Decrypts a bare 1.x `.rayconfig` blob. See docs/raycast-import.md.
+/// Decrypts a bare 1.x `.rayconfig` blob. See docs/features/raycast-import.md.
 enum RaycastV1Decoder {
     static func decrypt(_ raw: Data, passphrase: String) throws -> Data {
         guard raw.count >= 32, raw.count % 16 == 0 else { throw RaycastImportError.notRaycastFile }

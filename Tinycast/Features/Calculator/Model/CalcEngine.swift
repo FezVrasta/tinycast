@@ -30,7 +30,7 @@ struct CalcResult: Equatable, Sendable {
     }
 }
 
-/// Raw query to answer, or nil when it isn't calculator input. See docs/calculator.md.
+/// Raw query to answer, or nil when it isn't calculator input. See docs/features/calculator.md.
 enum CalcEngine {
     /// Live clock. `currency` defaults to `.off`, so forgetting to pass one disables the feature.
     static func evaluate(_ raw: String, currency: CurrencySource = .off) -> CalcResult? {

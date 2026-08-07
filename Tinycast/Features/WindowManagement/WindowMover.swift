@@ -2,7 +2,7 @@ import AppKit
 // `@preconcurrency` downgrades AX diagnostics: `kAX…` are mutable C globals, but constant.
 @preconcurrency import ApplicationServices
 
-/// Applies window commands over AX. See docs/window-management.md#applying-a-placement.
+/// Applies window commands over AX. See docs/features/window-management.md#applying-a-placement.
 @MainActor
 final class WindowMover {
     /// `CFEqual`/`CFHash` are the supported identity; the pid separates two processes' elements.
@@ -135,7 +135,7 @@ final class WindowMover {
         let restoreEnhancedUI = suppressEnhancedUserInterface(on: application)
         defer { restoreEnhancedUI() }
 
-        // size → position → size. See docs/window-management.md#applying-a-placement.
+        // size → position → size. See docs/features/window-management.md#applying-a-placement.
         _ = setSize(placement.frame.size, on: window)
         guard setPosition(placement.frame.origin, on: window) else {
             _ = setSize(current.size, on: window)  // Roll the shrink back; nothing visibly moved.
@@ -198,7 +198,7 @@ final class WindowMover {
         return (value as? Bool) ?? false
     }
 
-    /// `AXFullScreen`, then the green button. See docs/window-management.md#applying-a-placement.
+    /// `AXFullScreen`, then the green button. docs/features/window-management.md
     private func toggleFullScreen(_ window: AXUIElement) -> Bool {
         let target: CFBoolean = isFullScreen(window) ? kCFBooleanFalse : kCFBooleanTrue
         if isSettable(Self.fullScreenAttribute as String, on: window),
@@ -212,7 +212,7 @@ final class WindowMover {
         return AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
     }
 
-    /// Cleared for the writes, never while VoiceOver runs. See docs/window-management.md.
+    /// Cleared for the writes, never while VoiceOver runs. See docs/features/window-management.md.
     private func suppressEnhancedUserInterface(on application: AXUIElement) -> () -> Void {
         let attribute = "AXEnhancedUserInterface" as CFString
         guard !NSWorkspace.shared.isVoiceOverEnabled else { return {} }
@@ -325,7 +325,7 @@ final class WindowMover {
     }
 }
 
-/// The one Cocoa↔AX converter. See docs/window-management.md#coordinate-space.
+/// The one Cocoa↔AX converter. See docs/features/window-management.md#coordinate-space.
 struct AXGeometry {
     let anchorHeight: CGFloat
 
@@ -336,7 +336,7 @@ struct AXGeometry {
         anchorHeight = primary?.frame.height ?? 0
     }
 
-    /// An involution through `maxY`, never scaled. See docs/window-management.md#coordinate-space.
+    /// An involution through `maxY`, never scaled. docs/features/window-management.md
     func flip(_ rect: CGRect) -> CGRect {
         CGRect(
             x: rect.origin.x, y: anchorHeight - rect.maxY, width: rect.width, height: rect.height)

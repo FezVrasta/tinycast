@@ -1,6 +1,6 @@
 import Foundation
 
-/// Reads a `.rayconfig`, dispatching on format. See docs/raycast-import.md.
+/// Reads a `.rayconfig`, dispatching on format. See docs/features/raycast-import.md.
 enum RaycastImport {
     struct Result {
         var backup: SettingsBackup

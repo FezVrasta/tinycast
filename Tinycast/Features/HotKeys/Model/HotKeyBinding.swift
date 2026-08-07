@@ -1,6 +1,6 @@
 import Foundation
 
-/// What an action is bound to: two kinds, two engines. See docs/hotkeys.md.
+/// What an action is bound to: two kinds, two engines. See docs/features/hotkeys.md.
 enum HotKeyBinding: Hashable, Sendable, Codable {
     case combo(KeyShortcut)
     case doubleTap(DoubleTapModifier)

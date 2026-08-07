@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// Pure geometry, entirely in AX space. See docs/window-management.md#coordinate-space.
+/// Pure geometry, entirely in AX space. See docs/features/window-management.md#coordinate-space.
 enum WindowLayout {
     /// A display, already converted to AX space by the caller.
     struct Screen: Equatable, Sendable {
@@ -337,7 +337,7 @@ enum WindowLayout {
         tileFractions(command, step: 0) != nil
     }
 
-    /// A tile from fractional bounds of `visible`. See docs/window-management.md#geometry.
+    /// A tile from fractional bounds of `visible`. See docs/features/window-management.md#geometry.
     static func tile(
         _ visible: CGRect, x0: CGFloat, x1: CGFloat, y0: CGFloat, y1: CGFloat, gap: CGFloat
     ) -> CGRect {
@@ -369,7 +369,7 @@ enum WindowLayout {
         max(2, (dimension * stepFraction / 2).rounded() * 2)
     }
 
-    /// About the centre, by a fraction of the screen. See docs/window-management.md#geometry.
+    /// About the centre, by a fraction of the screen. docs/features/window-management.md#geometry
     private static func resized(_ frame: CGRect, in canvas: CGRect, larger: Bool) -> CGRect {
         let direction: CGFloat = larger ? 1 : -1
         let floorSize = minimumSize(in: canvas)

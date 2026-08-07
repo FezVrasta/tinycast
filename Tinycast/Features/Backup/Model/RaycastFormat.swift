@@ -32,7 +32,7 @@ struct RaycastImportOptions: OptionSet, Sendable {
     ]
 }
 
-/// The one branch between the two readers. See docs/raycast-import.md.
+/// The one branch between the two readers. See docs/features/raycast-import.md.
 enum RaycastFormat: Sendable, Equatable {
     /// Raycast 1.x: a bare `IV(16) ‖ AES-256-CBC(gzip(JSON), PKCS#7)` blob with no header.
     case v1

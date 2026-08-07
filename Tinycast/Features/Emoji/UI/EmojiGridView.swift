@@ -67,7 +67,7 @@ struct EmojiGridView: View {
     let onActivate: () -> Void
     let onActions: (Int) -> Void
 
-    /// Headers + rows in visible order; rows are the scroll targets. See docs/emoji.md#rendering.
+    /// Headers + rows in visible order; rows are the scroll targets. docs/features/emoji.md
     private var items: [EmojiGridItem] {
         var items: [EmojiGridItem] = []
         for section in sections {
@@ -143,7 +143,7 @@ struct EmojiGridView: View {
     }
 }
 
-/// One grid row, owning all interaction for its cells. See docs/emoji.md#rendering.
+/// One grid row, owning all interaction for its cells. See docs/features/emoji.md#rendering.
 private struct EmojiGridRowView: View {
     let row: EmojiGridRow
     let selection: Int
@@ -213,7 +213,7 @@ private struct EmojiGridRowView: View {
     }
 }
 
-/// Pure content: no gestures, overlays or hover tracking. See docs/emoji.md#rendering.
+/// Pure content: no gestures, overlays or hover tracking. See docs/features/emoji.md#rendering.
 private struct EmojiCell: View {
     let glyph: String
     let selected: Bool

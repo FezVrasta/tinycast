@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The form shown before a templated quicklink opens. See docs/quicklinks.md#the-argument-prompt.
+/// The form shown before a templated quicklink opens. docs/features/quicklinks.md
 struct QuicklinkArgumentsView: View {
     let options: [String]
     let selection: Int

@@ -84,7 +84,7 @@ enum UninstallProtectionRules {
         return relative || path.hasPrefix("/Library/Application Support/com.apple.TCC")
     }
 
-    /// Measured, never assumed: listing is not the test. See docs/uninstall.md.
+    /// Measured, never assumed: listing is not the test. See docs/features/uninstall.md.
     static let tccRelativePrefixes: [String] = [
         "Library/Containers/",
         "Library/Group Containers/",

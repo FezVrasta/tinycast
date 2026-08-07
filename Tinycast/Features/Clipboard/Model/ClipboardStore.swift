@@ -88,11 +88,11 @@ enum ClipboardRetention: Int, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// SQLite-backed clipboard history. See docs/clipboard.md#store.
+/// SQLite-backed clipboard history. See docs/features/clipboard.md#store.
 @MainActor
 @Observable
 final class ClipboardStore {
-    /// Newest-first with pins in place, every pin resident. See docs/clipboard.md#pinned-entries.
+    /// Newest-first with pins in place, every pin resident. docs/features/clipboard.md
     private(set) var items: [ClipboardItem] = [] {
         didSet {
             searchCache = nil
@@ -352,12 +352,12 @@ final class ClipboardStore {
         }
     }
 
-    /// Unpinning rejoins as the newest entry. See docs/clipboard.md#pinned-entries.
+    /// Unpinning rejoins as the newest entry. See docs/features/clipboard.md#pinned-entries.
     private func unpin(_ item: ClipboardItem) {
         reinsert(item.with(createdAt: Date(), pinnedAt: nil))
     }
 
-    /// Rewrite a row under the same id so it leads. See docs/clipboard.md#store.
+    /// Rewrite a row under the same id so it leads. See docs/features/clipboard.md#store.
     private func reinsert(_ updated: ClipboardItem) {
         if let deleteStmt = deleteByIDStmt, let insertStmt {
             // One transaction: `id` is UNIQUE, and a crash between the two must not lose it.
@@ -500,7 +500,7 @@ final class ClipboardStore {
             VALUES(?,?,?,?,?,?,?)
             """
         )
-        // Two indexed branches, deliberately not one OR. See docs/clipboard.md#store.
+        // Two indexed branches, deliberately not one OR. See docs/features/clipboard.md#store.
         loadStmt = prepare(
             """
             SELECT id, kind, text, image_path, created_at, source_app, pinned_at FROM (

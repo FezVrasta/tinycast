@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// A shortcut in Carbon's encoding, which is also the on-disk shape. See docs/hotkeys.md.
+/// A shortcut in Carbon's encoding, which is also the on-disk shape. See docs/features/hotkeys.md.
 struct KeyShortcut: Hashable, Sendable {
     let carbonKeyCode: Int
     let carbonModifiers: Int
@@ -143,7 +143,7 @@ struct KeyShortcut: Hashable, Sendable {
     }
 }
 
-// Decoding routes through the masking initializer. See docs/hotkeys.md#persistence.
+// Decoding routes through the masking initializer. See docs/features/hotkeys.md#persistence.
 extension KeyShortcut: Codable {
     private enum CodingKeys: String, CodingKey {
         case carbonKeyCode, carbonModifiers

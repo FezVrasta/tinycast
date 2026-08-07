@@ -1,6 +1,6 @@
 import Foundation
 
-/// The quicklink waiting on its `{argument}` values. See docs/quicklinks.md#the-argument-prompt.
+/// The quicklink waiting on its `{argument}` values. docs/features/quicklinks.md
 @MainActor
 @Observable
 final class QuicklinkArgumentSession {

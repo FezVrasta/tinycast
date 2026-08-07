@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The catch-all pane, home to currency conversion. See docs/calculator.md#consent.
+/// The catch-all pane, home to currency conversion. See docs/features/calculator.md#consent.
 struct MiscellaneousSettingsView: View {
     @Environment(AppCore.self) private var core
     private var currencyRates: CurrencyRateStore { core.currencyRates }

@@ -22,7 +22,7 @@ private func doubleTapEventTapCallback(
     return Unmanaged.passUnretained(event)
 }
 
-/// The listen-only double-tap tap. See docs/hotkeys.md#double-tap-modifiers.
+/// The listen-only double-tap tap. See docs/features/hotkeys.md#double-tap-modifiers.
 @MainActor
 @Observable
 final class DoubleTapMonitor: HealthCheckable {
@@ -154,7 +154,7 @@ final class DoubleTapMonitor: HealthCheckable {
         guard
             let port = CGEvent.tapCreate(
                 tap: .cgSessionEventTap,
-                // Appended, so `HyperKeyTap`'s rewrite lands first. See docs/hotkeys.md.
+                // Appended, so `HyperKeyTap`'s rewrite lands first. See docs/features/hotkeys.md.
                 place: .tailAppendEventTap,
                 options: .listenOnly,
                 eventsOfInterest: mask,
@@ -197,7 +197,7 @@ final class DoubleTapMonitor: HealthCheckable {
         if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: true) }
     }
 
-    /// One-second watchdog while something is bound. See docs/hotkeys.md#lifecycle.
+    /// One-second watchdog while something is bound. See docs/features/hotkeys.md#lifecycle.
     func healthCheck() {
         guard !bound.isEmpty, sessionActive else { return }
         if tapPort == nil {

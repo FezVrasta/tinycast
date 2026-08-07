@@ -4,7 +4,7 @@ import SQLite3
 // Spelled as the C macro in sqlite3.h, which isn't imported into Swift.
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-/// SQLite library of authored quicklinks, never deleted. See docs/quicklinks.md#storage.
+/// SQLite library of authored quicklinks, never deleted. See docs/features/quicklinks.md#storage.
 @MainActor
 @Observable
 final class QuicklinkStore {

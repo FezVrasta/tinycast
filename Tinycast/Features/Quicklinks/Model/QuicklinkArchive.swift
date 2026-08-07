@@ -47,7 +47,7 @@ enum QuicklinkArchive {
         return decoded
     }
 
-    /// Duplicates are by name or destination. See docs/quicklinks.md#import--export.
+    /// Duplicates are by name or destination. See docs/features/quicklinks.md#import--export.
     static func merge(_ incoming: [Quicklink], into existing: [Quicklink]) -> MergeResult {
         var names = Set(existing.map(normalizedName))
         var links = Set(existing.map(normalizedLink))

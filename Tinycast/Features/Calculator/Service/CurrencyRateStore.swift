@@ -1,6 +1,6 @@
 import Foundation
 
-/// The consented, cacheless exchange-rate fetcher. See docs/calculator.md#consent.
+/// The consented, cacheless exchange-rate fetcher. See docs/features/calculator.md#consent.
 @MainActor
 @Observable
 final class CurrencyRateStore {

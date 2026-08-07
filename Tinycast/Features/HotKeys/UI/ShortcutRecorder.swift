@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Deliberately not a focusable control. See docs/hotkeys.md#recorder.
+/// Deliberately not a focusable control. See docs/features/hotkeys.md#recorder.
 struct ShortcutRecorder: View {
     let action: HotKeyAction
 

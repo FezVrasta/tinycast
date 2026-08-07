@@ -121,7 +121,7 @@ final class AppCore {
             quicklinks.onChange = { [weak self] _ in
                 self?.quicklinkCoordinator.applyQuicklinksPresence()
             }
-            // Before `hotKeys.start`, even when off: the prune reads it. See docs/quicklinks.md.
+            // Before `hotKeys.start` even when off: the prune reads it. docs/features/quicklinks.md
             quicklinks.load()
             quicklinkCoordinator.applyQuicklinksPresence()
             Task { await appIndex.refresh() }

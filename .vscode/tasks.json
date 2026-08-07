@@ -11,7 +11,7 @@
       // xcodebuild exit code so a failed build still blocks F5 / the run step.
       "label": "Build Tinycast.app (debug)",
       "type": "shell",
-      "command": "bash -c 'set -o pipefail; xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug -derivedDataPath build/DerivedData build 2>&1 | tee \"${TMPDIR:-/tmp}/tinycast-build.log\"; ec=$?; /opt/homebrew/bin/xcode-build-server parse -a -o .compile < \"${TMPDIR:-/tmp}/tinycast-build.log\" >/dev/null 2>&1 || true; exit $ec'",
+      "command": "bash -c 'set -o pipefail; xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug -derivedDataPath build/DerivedData build 2>&1 | tee \"${TMPDIR:-/tmp}/tinycast-build.log\"; ec=$?; if command -v xcode-build-server >/dev/null; then xcode-build-server parse -a -o .compile < \"${TMPDIR:-/tmp}/tinycast-build.log\" >/dev/null 2>&1 || true; ./Scripts/run-tests.sh --index >/dev/null 2>&1 || true; fi; exit $ec'",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" }
@@ -27,6 +27,13 @@
       "options": { "cwd": "${workspaceFolder}" },
       "dependsOn": "Build Tinycast.app (debug)",
       "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint project",
+      "type": "shell",
+      "command": "./Scripts/lint.sh",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     }
   ]

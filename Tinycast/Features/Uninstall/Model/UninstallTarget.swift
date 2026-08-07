@@ -1,6 +1,6 @@
 import Foundation
 
-/// What an uninstall is aimed at. Pure, for `Tools/uninstall-test.swift`.
+/// What an uninstall is aimed at. Pure, for `Tests/uninstall-test.swift`.
 struct UninstallTarget: Hashable, Sendable {
     let bundleURL: URL
     let bundleID: String?

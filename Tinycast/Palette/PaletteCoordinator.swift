@@ -62,7 +62,7 @@ final class PaletteCoordinator {
         }
     }
 
-    /// Shows the palette, honoring Pop to Root Search. See docs/palette.md#state-flow.
+    /// Shows the palette, honoring Pop to Root Search. See docs/features/palette.md#state-flow.
     func showPalette(mode: PaletteMode, restoreAnyMode: Bool = false) {
         let preserved = windowController.consumePreservedState()
         if !(preserved && (restoreAnyMode || palette.mode == mode)) {

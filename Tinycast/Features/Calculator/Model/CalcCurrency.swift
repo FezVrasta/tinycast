@@ -26,7 +26,7 @@ struct CurrencyRates: Codable, Equatable, Sendable {
     }
 }
 
-/// The consent gate as a type; `.off` ships by default. See docs/calculator.md#consent.
+/// The consent gate as a type; `.off` ships by default. See docs/features/calculator.md#consent.
 enum CurrencySource: Equatable, Sendable {
     case off
     case on(CurrencyRates?)
@@ -106,7 +106,7 @@ enum CalcCurrency {
         }
     }
 
-    /// The only hand-written currency data: shared nouns CLDR won't assign. See docs/calculator.md.
+    /// The only hand-written currency data: nouns CLDR won't assign. docs/features/calculator.md
     private static let contested: [String: [String]] = [
         "USD": ["dollar", "dollars"],  // 22 claimants
         "CHF": ["franc", "francs"],  // 10

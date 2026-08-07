@@ -1,6 +1,6 @@
 import Foundation
 
-/// Natural-language date/time for the card. Four grammars; see docs/calculator.md.
+/// Natural-language date/time for the card. Four grammars; see docs/features/calculator.md.
 enum CalcDateTime {
     /// Which occurrence of a bare, recurring date/time a phrase resolves to.
     private enum MomentBias { case future, past }

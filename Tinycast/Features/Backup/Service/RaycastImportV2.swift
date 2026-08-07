@@ -2,7 +2,7 @@ import AppKit
 import CryptoKit
 import Foundation
 
-/// Decrypts and maps a Raycast X export. See docs/raycast-import.md.
+/// Decrypts and maps a Raycast X export. See docs/features/raycast-import.md.
 enum RaycastImportV2 {
     static func read(_ raw: Data, passphrase: String) throws -> RaycastImport.Result {
         try parse(decrypt(raw, passphrase: passphrase))
@@ -114,7 +114,7 @@ enum RaycastImportV2 {
         return mapped ? data : nil
     }
 
-    /// Every Raycast hotkey, in one shape. See docs/raycast-import.md.
+    /// Every Raycast hotkey, in one shape. See docs/features/raycast-import.md.
     private static func mapHotkeys(_ json: [String: Any]) -> SettingsBackup.HotkeyBackup? {
         let settings = json["settings"] as? [String: Any]
         var hotkeys = SettingsBackup.HotkeyBackup()

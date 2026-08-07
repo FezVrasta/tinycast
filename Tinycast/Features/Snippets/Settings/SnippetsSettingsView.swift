@@ -332,7 +332,7 @@ private struct SnippetEditorSheet: View {
         }
     }
 
-    /// Every placeholder the engine understands; parameters are in docs/snippets.md.
+    /// Every placeholder the engine understands; parameters are in docs/features/snippets.md.
     private var placeholderMenu: some View {
         Menu("Insert…") {
             Section("Text") {

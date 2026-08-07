@@ -14,7 +14,7 @@ final class HotKeyManager {
     /// Names what only the stores know; the fixed catalogs resolve here. Set in `AppCore.start()`.
     var displayName: ((HotKeyAction) -> String?)?
 
-    /// The recorder currently capturing, which also pauses both engines. See docs/hotkeys.md.
+    /// The recorder currently capturing, which also pauses both engines.
     var recordingAction: HotKeyAction? {
         didSet {
             guard recordingAction != oldValue else { return }

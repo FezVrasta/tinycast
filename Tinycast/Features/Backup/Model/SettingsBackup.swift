@@ -45,7 +45,7 @@ struct SettingsBackup: Codable {
         var quicklinkConfirmsBeforeDelete: Bool?
     }
 
-    /// Combos keep the legacy shape, so older files import. See docs/hotkeys.md#persistence.
+    /// Combos keep the legacy shape, so older files import. docs/features/hotkeys.md#persistence
     struct HotkeyBackup: Codable {
         var togglePalette: HotKeyBinding?
         var toggleClipboard: HotKeyBinding?

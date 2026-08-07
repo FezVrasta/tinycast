@@ -21,7 +21,7 @@ final class PalettePanel: NSPanel {
         kVK_Return, kVK_ANSI_KeypadEnter, kVK_Escape, kVK_Tab
     ]
 
-    /// Caret hiding on SwiftUI's own field editor. See docs/palette.md#menu-open-input-freeze.
+    /// Caret hiding on SwiftUI's own field editor. docs/features/palette.md#menu-open-input-freeze
     private func setSearchCaretHidden(_ hidden: Bool) {
         guard let editor = firstResponder as? NSTextView else { return }
         editor.insertionPointColor = hidden ? .clear : .white
@@ -35,7 +35,7 @@ final class PalettePanel: NSPanel {
         case .keyDown: paletteState?.hoverHighlightArmed = false
         default: break
         }
-        // A footer menu owns the keyboard. See docs/palette.md#menu-open-input-freeze.
+        // A footer menu owns the keyboard. See docs/features/palette.md#menu-open-input-freeze.
         if event.type == .keyDown,
             paletteState?.menuOpen == true,
             event.modifierFlags.isDisjoint(with: [.command, .control]),

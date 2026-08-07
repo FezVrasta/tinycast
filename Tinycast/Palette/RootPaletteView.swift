@@ -101,7 +101,7 @@ struct RootPaletteView: View {
         let showActionGroup =
             (count > 0 || vm.mode == .quicklinkArguments) && screen.hasPrimaryAction(at: sel)
 
-        // One header position, so focus survives the swap. See docs/palette.md.
+        // One header position, so focus survives the swap. See docs/features/palette.md.
         return Group {
             if isCollapsed {
                 Color.clear
@@ -362,7 +362,7 @@ struct RootPaletteView: View {
         vm.mode == .quicklinkArguments ? quicklinkArguments.prompt : vm.mode.placeholder
     }
 
-    /// The one search field, drawing its own placeholder. See docs/palette.md#the-placeholder.
+    /// The one search field, drawing its own placeholder. docs/features/palette.md#the-placeholder
     private var searchField: some View {
         @Bindable var vm = vm
         return TextField("", text: $vm.query)
