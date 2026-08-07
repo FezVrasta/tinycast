@@ -49,23 +49,20 @@ struct LauncherList: View {
         var rows: [Row] = calcRows
         let favorites = results.prefix(favoriteCount)
         let rest = results.dropFirst(favoriteCount)
-        func section(_ kind: AppEntry.Kind) -> (String, [AppEntry]) {
-            (kind.descriptor.sectionTitle, rest.filter { $0.kind == kind })
+        var grouped: [AppEntry.Kind: [AppEntry]] = [:]
+        for app in rest { grouped[app.kind, default: []].append(app) }
+        if !favorites.isEmpty {
+            rows.append(.header("Favorites"))
+            rows.append(contentsOf: favorites.map(Row.app))
         }
-        // Publication order, so rows match the flat index; annotated, or inference times out.
-        let sections: [(String, [AppEntry])] = [
-            ("Favorites", Array(favorites)),
-            section(.application),
-            section(.systemSettings),
-            section(.quicklink),
-            section(.snippet),
-            section(.systemAction),
-            section(.windowCommand),
-            section(.customCommand),
-            section(.command)
+        // Publication order, so rows match the flat index.
+        let kinds: [AppEntry.Kind] = [
+            .application, .systemSettings, .quicklink, .snippet,
+            .systemAction, .windowCommand, .customCommand, .command
         ]
-        for (title, group) in sections where !group.isEmpty {
-            rows.append(.header(title))
+        for kind in kinds {
+            guard let group = grouped[kind], !group.isEmpty else { continue }
+            rows.append(.header(kind.descriptor.sectionTitle))
             rows.append(contentsOf: group.map(Row.app))
         }
         return rows

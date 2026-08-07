@@ -25,6 +25,8 @@ final class LauncherRankingStore {
 
     /// `boosts(query:)` builds this from a launcher render; tracked, the write lands mid-body.
     @ObservationIgnored private var lookup: [String: [String: LauncherRankingRecord]]?
+    /// The in-flight persist, awaited by the next one so a burst can't land out of order.
+    @ObservationIgnored private var writeTask: Task<Void, Never>?
 
     init(fileURL: URL? = nil, now: @escaping () -> Date = Date.init) {
         self.fileURL = fileURL ?? Self.defaultFileURL()
@@ -41,6 +43,11 @@ final class LauncherRankingStore {
     }
 
     var isEmpty: Bool { records.isEmpty }
+
+    /// Awaits the pending persist. The launcher never needs it; reading the file back does.
+    func flush() async {
+        await writeTask?.value
+    }
 
     /// Records every prefix, so the preferred result surfaces for shorter input too.
     func record(itemKey: String, query: String) {
@@ -136,7 +143,13 @@ final class LauncherRankingStore {
     private func didMutate() {
         lookup = nil
         revision &+= 1
-        if let data = try? JSONEncoder().encode(records) {
+        // Off-main: this lands on ↵, in front of the launch. Chained, so writes stay ordered.
+        let snapshot = records
+        let fileURL = fileURL
+        let previous = writeTask
+        writeTask = Task.detached(priority: .utility) {
+            await previous?.value
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
             try? data.write(to: fileURL, options: .atomic)
         }
     }

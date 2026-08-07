@@ -62,16 +62,25 @@ struct RootPaletteView: View {
         }
     }
 
-    private var resultCount: Int { screen.rows.count }
     /// Selection clamped into the results: one source for highlight, preview and activation.
-    private var selection: Int { resultCount == 0 ? 0 : min(max(vm.selection, 0), resultCount - 1) }
+    private func selection(count: Int) -> Int {
+        count == 0 ? 0 : min(max(vm.selection, 0), count - 1)
+    }
+
+    /// Takes a resolved screen — reaching `rows` costs a list build, so callers resolve it once.
+    private func selection(in screen: any PaletteScreen) -> Int {
+        selection(count: screen.rows.count)
+    }
 
     private var menuOpen: Bool { showActions || showAppMenu }
 
     // MARK: - Popover menu content
 
     /// The Actions menu for the current selection, or nil when it has no actions.
-    private var actionsContent: PopoverMenuContent? { screen.actions(at: selection) }
+    private var actionsContent: PopoverMenuContent? {
+        let screen = screen
+        return screen.actions(at: selection(in: screen))
+    }
 
     /// The bottom-left app menu content (About / Settings).
     private var appMenuContent: PopoverMenuContent {
@@ -96,7 +105,7 @@ struct RootPaletteView: View {
         // Resolve the screen once per render, so the flat index can't drift from the rows.
         let screen = screen
         let count = screen.rows.count
-        let sel = count == 0 ? 0 : min(max(vm.selection, 0), count - 1)
+        let sel = selection(count: count)
         // The argument form has no rows to count, but ↵ still does something.
         let showActionGroup =
             (count > 0 || vm.mode == .quicklinkArguments) && screen.hasPrimaryAction(at: sel)
@@ -250,6 +259,8 @@ struct RootPaletteView: View {
                 return .handled
             }
             guard command || option else { return .ignored }
+            let screen = screen
+            let selection = selection(in: screen)
             if command { return screen.secondary(at: selection) ? .handled : .ignored }
             guard let emoji = screen as? EmojiScreen else { return .ignored }
             return emoji.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
@@ -272,9 +283,10 @@ struct RootPaletteView: View {
             guard press.modifiers.contains(.command) else { return .ignored }
             // The Actions menu has no anchor in the compact bar, so swallow ⌘K there.
             guard !isCollapsed else { return .handled }
-            guard resultCount > 0 else { return .handled }
+            let screen = screen
+            guard !screen.rows.isEmpty else { return .handled }
             // An error calc card is the selection but has no actions — don't open an empty panel.
-            guard screen.hasPrimaryAction(at: selection) else { return .handled }
+            guard screen.hasPrimaryAction(at: selection(in: screen)) else { return .handled }
             toggleActions()
             return .handled
         }
@@ -282,6 +294,8 @@ struct RootPaletteView: View {
         .onKeyPress(keys: [.delete, .deleteForward], phases: .down) { press in
             if menuOpen { return .handled }
             guard press.modifiers.contains(.command) else { return .ignored }
+            let screen = screen
+            let selection = selection(in: screen)
             if let quicklinks = screen as? QuicklinkListScreen {
                 return quicklinks.delete(at: selection) ? .handled : .ignored
             }
@@ -298,6 +312,8 @@ struct RootPaletteView: View {
         // ⌘P mirrors the Actions row, and works while that menu is open like the rest.
         .onKeyPress(keys: ["p"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
+            let screen = screen
+            let selection = selection(in: screen)
             if let clipboard = screen as? ClipboardScreen {
                 return clipboard.pin(at: selection) ? .handled : .ignored
             }
@@ -311,7 +327,7 @@ struct RootPaletteView: View {
             guard press.modifiers.contains(.control), press.modifiers.contains(.shift),
                 !isCollapsed, let launcher = screen as? LauncherScreen
             else { return .ignored }
-            return launcher.quit(at: selection) ? .handled : .ignored
+            return launcher.quit(at: selection(in: launcher)) ? .handled : .ignored
         }
     }
 
@@ -437,7 +453,8 @@ struct RootPaletteView: View {
 
     /// The one path opening the Actions menu, sampling the state its rows depend on.
     private func openActions() {
-        selectionIsRunning = (screen as? LauncherScreen)?.isRunning(at: selection) ?? false
+        let launcher = screen as? LauncherScreen
+        selectionIsRunning = launcher.map { $0.isRunning(at: selection(in: $0)) } ?? false
         withAnimation(Self.menuAnimation) { showActions = true }
     }
 
@@ -466,16 +483,18 @@ struct RootPaletteView: View {
 
     // MARK: - Actions
 
-    private func move(_ delta: Int) {
-        guard resultCount > 0 else { return }
-        vm.selection = min(max(selection + delta, 0), resultCount - 1)
+    private func move(_ delta: Int, in screen: any PaletteScreen) {
+        let count = screen.rows.count
+        guard count > 0 else { return }
+        vm.selection = min(max(selection(count: count) + delta, 0), count - 1)
         scroll = ScrollIntent(kind: .follow)
     }
 
     /// ↑/↓: the screen's own move where it has one, else a linear step through the rows.
     private func moveVertically(_ delta: Int) {
-        guard let next = screen.move(delta, axis: .vertical, from: selection) else {
-            move(delta)
+        let screen = screen
+        guard let next = screen.move(delta, axis: .vertical, from: selection(in: screen)) else {
+            move(delta, in: screen)
             return
         }
         vm.selection = next
@@ -484,7 +503,8 @@ struct RootPaletteView: View {
 
     /// ←/→: consumed only by a horizontally navigating screen, else the caret keeps them.
     private func moveHorizontally(_ delta: Int) -> Bool {
-        guard let next = screen.move(delta, axis: .horizontal, from: selection) else {
+        let screen = screen
+        guard let next = screen.move(delta, axis: .horizontal, from: selection(in: screen)) else {
             return false
         }
         vm.selection = next
@@ -518,7 +538,8 @@ struct RootPaletteView: View {
     private func activateSelection() {
         // Nothing is visibly selected when collapsed, so launch via ⌘1–⌘5 or typing.
         guard !isCollapsed else { return }
-        screen.activate(at: selection)
+        let screen = screen
+        screen.activate(at: selection(in: screen))
     }
 }
 

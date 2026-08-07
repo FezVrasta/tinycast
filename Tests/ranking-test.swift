@@ -3,7 +3,7 @@ import Foundation
 @main
 struct RankingTest {
     @MainActor
-    static func main() {
+    static func main() async {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tinycast-ranking-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -92,6 +92,8 @@ struct RankingTest {
             Set(table.keys) == [whatsApp, wick])
 
         let persistedWickBoost = boost(store, wick, "w")
+        // Persisting is off-main, so the reload has to meet it before it can read the file.
+        await store.flush()
         let reloaded = LauncherRankingStore(fileURL: fileURL) { clock }
         check(
             "records persist across store instances",

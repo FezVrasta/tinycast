@@ -224,8 +224,10 @@ final class SnippetKeywordListener: HealthCheckable {
     private func syncTapPresence() {
         let decision = lifecycleDecision()
         switch decision.tapAction {
+        // Nothing moved, so the decision still describes the tap: don't pay for a second one.
         case .none:
-            break
+            status = decision.status
+            return
         case .install:
             installTapIfNeeded()
         case .reenable:
