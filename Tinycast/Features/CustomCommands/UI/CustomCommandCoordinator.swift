@@ -7,6 +7,7 @@ final class CustomCommandCoordinator {
     private let settings: AppSettings
     private let appIndex: AppIndex
     private let paletteCoordinator: PaletteCoordinator
+    private let settingsCoordinator: SettingsCoordinator
     private let hotKeys: HotKeyManager
     private let favorites: FavoritesStore
     private let visibility: VisibilityStore
@@ -19,6 +20,7 @@ final class CustomCommandCoordinator {
         settings: AppSettings,
         appIndex: AppIndex,
         paletteCoordinator: PaletteCoordinator,
+        settingsCoordinator: SettingsCoordinator,
         hotKeys: HotKeyManager,
         favorites: FavoritesStore,
         visibility: VisibilityStore,
@@ -29,6 +31,7 @@ final class CustomCommandCoordinator {
         self.settings = settings
         self.appIndex = appIndex
         self.paletteCoordinator = paletteCoordinator
+        self.settingsCoordinator = settingsCoordinator
         self.hotKeys = hotKeys
         self.favorites = favorites
         self.visibility = visibility
@@ -142,6 +145,6 @@ final class CustomCommandCoordinator {
                 symbol: CustomCommand.sfSymbol,
                 recovery: suggestsShellEnvironment ? "Open Settings…" : nil)
         else { return }
-        paletteCoordinator.showSettings(tab: .commands)
+        settingsCoordinator.showSettings(tab: .commands)
     }
 }

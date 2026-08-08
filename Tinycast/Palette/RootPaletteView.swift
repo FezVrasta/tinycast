@@ -86,10 +86,10 @@ struct RootPaletteView: View {
     private var appMenuContent: PopoverMenuContent {
         PopoverMenuContent(items: [
             PopoverMenuItem(title: "About Tinycast", systemImage: "info.circle") {
-                core.paletteCoordinator.showAbout()
+                core.settingsCoordinator.showAbout()
             },
             PopoverMenuItem(title: "Settings", systemImage: "gearshape", shortcut: "⌘,") {
-                core.paletteCoordinator.showSettings()
+                core.settingsCoordinator.showSettings()
             }
         ])
     }

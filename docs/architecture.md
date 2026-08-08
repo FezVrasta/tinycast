@@ -73,7 +73,7 @@ app: the stores (`AppIndex`, `ClipboardStore`, `SnippetsStore`, `QuicklinkStore`
 `FavoritesStore`, `VisibilityStore`, `LauncherRankingStore`, `CalculatorHistoryStore`,
 `CurrencyRateStore`, `FrequentEmojiStore`), the managers and monitors (`ClipboardManager`,
 `HotKeyManager`, `HyperKeyTap`, `RunningAppsMonitor`, `SnippetKeywordListener`), the shared state
-(`AppSettings`, `PaletteState`, `UninstallSession`, `QuicklinkArgumentSession`), the eleven feature
+(`AppSettings`, `PaletteState`, `UninstallSession`, `QuicklinkArgumentSession`), the thirteen feature
 coordinators, and the window controllers.
 
 `AppDelegate.applicationDidFinishLaunching` calls `AppCore.shared.start()` and nothing else. That is the
@@ -83,7 +83,7 @@ one wiring point, and `start()` reads as the app's whole boot sequence in one sc
 into a store to mutate it.** That is the rule; `AppCore` holds only the closure wiring that connects a
 hotkey to a coordinator. Views inject `AppCore` through `@Environment` and use it as the *locator* for
 those coordinators — `core.quicklinkCoordinator.deleteQuicklink(…)` is the shape, and the alternative
-is injecting eleven coordinators separately for no gain. Reading a store off `AppCore` to render it is
+is injecting thirteen coordinators separately for no gain. Reading a store off `AppCore` to render it is
 fine too; deciding something with one is what the rule forbids. `showNotice`, `confirm`,
 `reportFailure`, `showMessage` and `pickVolume` are forwarders on `AppCore` itself, so
 `DialogController` and `MessageHUDController` stay single-owned.
@@ -103,8 +103,13 @@ imperatively from AppKit.
   never drives the window size — without that the hosting view resizes the panel to fit content and the
   top edge drifts on the compact↔expanded swap. The panel auto-dismisses on `windowDidResignKey`.
   See [features/palette.md](features/palette.md).
-- **Settings / About / Onboarding** — plain `NSWindow`s via `Windows/AuxWindowController.swift`. SwiftUI
-  `Settings` and `Window` scenes are unreliable for accessory apps, so this is deliberate.
+- **Settings and Onboarding** — titled `NSWindow`s, one `Windows/AppWindowController.swift` each, owned
+  by `SettingsCoordinator` and `OnboardingCoordinator`. SwiftUI `Settings` and `Window` scenes are
+  unreliable for accessory apps, so this is deliberate. Their lifecycles are independent of the
+  palette's in both directions — see [decisions.md](decisions.md) entry 32.
+- **The main menu** — shaped by `TinycastApp`'s `.commands`, which rebinds ⌘Q to Close Settings. It is
+  only ever on screen while a titled window is open, so it is Settings' menu bar. It must stay
+  declarative — see [decisions.md](decisions.md) entry 32.
 - **Dialogs** — borderless `DialogPanel`s driven by `DialogController`, the app's only presenter for
   confirmations, failure reports and value prompts. Presentation is `async`, so nothing blocks the main
   actor, and the presenter refuses a second dialog while one is up — that, not a flag, is what stops a
@@ -166,10 +171,11 @@ Tinycast/
   DesignSystem/     Theme (the token source), KeyCapChip, Tooltip, SymbolImage,
                     VisualEffectView, PopoverMenu, SettingsComponents, Scrolling/, Interaction/
   Platform/         system shims: Permissions, LaunchAtLogin, CursorScreen, AppDisplayName,
-                    NotificationToken, AppPaths, Signposts, HealthTicker, Memo, Images/
+                    NotificationToken, AppPaths, Signposts, HealthTicker, Memo, ActivationPolicy,
+                    Images/
   Palette/          the palette shell: PalettePanel, PaletteWindowController, RootPaletteView,
                     the PaletteScreen protocol, PaletteCoordinator, PaletteState, PaletteMode
-  Windows/          the non-palette AppKit surfaces: AuxWindowController, Dialog/, HUD/, About/
+  Windows/          the non-palette AppKit surfaces: AppWindowController, Dialog/, HUD/, About/
   Assets.xcassets/  the app icon and the bundled image sets some catalog symbols resolve to
   Features/
     PaletteRowIndex.swift   the flat selection index — palette-owned, so it sits at the top
@@ -179,8 +185,8 @@ Tinycast/
         Service/    effects — stores, monitors, runners, AppKit glue
         UI/         screens, views, and the feature's coordinator
         Settings/   the feature's own panes
-    Settings/       the Settings shell only: SettingsRootView, SettingsTab, AppSettings,
-                    AppSettingsKey, and Panes/ for the two panes no feature owns
+    Settings/       the Settings shell only: SettingsCoordinator, SettingsRootView, SettingsTab,
+                    AppSettings, AppSettingsKey, and Panes/ for the two panes no feature owns
 Tests/              the standalone harnesses, one Swift file each
 Scripts/            run-tests.sh, the two data generators, packaging, formatting, editor setup
 ```

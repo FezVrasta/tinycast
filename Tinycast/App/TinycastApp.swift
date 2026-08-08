@@ -20,10 +20,29 @@ struct TinycastApp: App {
                 AppCore.shared.paletteCoordinator.showPalette(mode: .clipboard)
             }
             Divider()
-            Button("Settings...") { AppCore.shared.paletteCoordinator.showSettings() }
+            Button("Settings...") { AppCore.shared.settingsCoordinator.showSettings() }
                 .keyboardShortcut(",")
             Divider()
+            // No ⌘Q: the app menu binds it to Close Settings, and two contradictory ⌘Qs is a lie.
             Button("Quit \(appName)") { NSApp.terminate(nil) }
+        }
+        .commands { menuBarCommands }
+    }
+
+    /// Tinycast is an agent with a settings window, so ⌘Q closes that window and the agent lives on.
+    /// Declared here rather than assigned to `NSApp.mainMenu`: SwiftUI rebuilds the menu on any scene
+    /// change — toggling Show in Menu Bar is one — and an imperative install is wiped when it does.
+    @CommandsBuilder
+    private var menuBarCommands: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About \(appName)") { AppCore.shared.settingsCoordinator.showAbout() }
+        }
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { AppCore.shared.settingsCoordinator.showSettings() }
+                .keyboardShortcut(",")
+        }
+        CommandGroup(replacing: .appTermination) {
+            Button("Close Settings") { AppCore.shared.settingsCoordinator.closeSettings() }
                 .keyboardShortcut("q")
         }
     }

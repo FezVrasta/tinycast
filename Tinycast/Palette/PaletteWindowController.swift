@@ -7,6 +7,8 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     private unowned let core: AppCore
     private var panel: PalettePanel?
     private(set) var previousApp: NSRunningApplication?
+    /// Our key window at summon time, so hiding hands focus back to Settings, not a stale app.
+    private weak var previousOwnWindow: NSWindow?
     private var popToRootTimer: Timer?
     /// The session anchor, resolved once per show. See docs/features/palette.md#window-placement.
     private var anchor: (x: CGFloat, topEdgeY: CGFloat)?
@@ -19,10 +21,15 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
 
     func show() {
         Signposts.interval("PaletteWindowController.show") {
-            // Ignore ourselves, so paste and focus-restore target the user's real app.
+            // Summoned over one of our own windows: there is no external paste or focus target.
             let frontmost = NSWorkspace.shared.frontmostApplication
-            if frontmost?.processIdentifier != NSRunningApplication.current.processIdentifier {
+            if frontmost?.processIdentifier == NSRunningApplication.current.processIdentifier {
+                previousApp = nil
+                // Never the palette itself: a mode switch re-shows it while it already holds key.
+                if let key = NSApp.keyWindow, key !== panel { previousOwnWindow = key }
+            } else {
                 previousApp = frontmost
+                previousOwnWindow = nil
             }
             // Once per summon, and from `previousApp`, so the label names the paste target.
             core.palette.pasteTarget = PasteTarget(app: previousApp)
@@ -53,7 +60,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         // Drop the multi-MB preview bitmaps, so idle RAM returns near baseline.
         ImageThumbnail.purgePreviews()
         schedulePopToRoot()
-        if restoreFocus { previousApp?.activate() }
+        guard restoreFocus else { return }
+        // Our own window first: it is still open, and activating another app would bury it.
+        if let own = previousOwnWindow, own.isVisible {
+            own.makeKeyAndOrderFront(nil)
+        } else {
+            previousApp?.activate()
+        }
     }
 
     /// Pop to Root Search: reset now, or after the delay unless a reopen consumes it.
@@ -158,7 +171,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             guard let character = event.charactersIgnoringModifiers?.lowercased() else { return false }
             switch character {
             case ",":
-                self.core.paletteCoordinator.showSettings()
+                self.core.settingsCoordinator.showSettings()
                 return true
             case "w":
                 self.core.paletteCoordinator.hidePalette()

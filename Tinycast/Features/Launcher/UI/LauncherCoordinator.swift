@@ -6,6 +6,7 @@ final class LauncherCoordinator {
     private let ranking: LauncherRankingStore
     private let windowController: PaletteWindowController
     private let paletteCoordinator: PaletteCoordinator
+    private let settingsCoordinator: SettingsCoordinator
     private let customCommandCoordinator: CustomCommandCoordinator
     private let systemActionCoordinator: SystemActionCoordinator
     private let quicklinkCoordinator: QuicklinkCoordinator
@@ -18,6 +19,7 @@ final class LauncherCoordinator {
         ranking: LauncherRankingStore,
         windowController: PaletteWindowController,
         paletteCoordinator: PaletteCoordinator,
+        settingsCoordinator: SettingsCoordinator,
         customCommandCoordinator: CustomCommandCoordinator,
         systemActionCoordinator: SystemActionCoordinator,
         quicklinkCoordinator: QuicklinkCoordinator,
@@ -28,6 +30,7 @@ final class LauncherCoordinator {
         self.ranking = ranking
         self.windowController = windowController
         self.paletteCoordinator = paletteCoordinator
+        self.settingsCoordinator = settingsCoordinator
         self.customCommandCoordinator = customCommandCoordinator
         self.systemActionCoordinator = systemActionCoordinator
         self.quicklinkCoordinator = quicklinkCoordinator
@@ -111,13 +114,13 @@ final class LauncherCoordinator {
             Task { await BackupActions.importSettings(core: core) }
         case .importFromRaycast:
             paletteCoordinator.hidePalette(restoreFocus: false)
-            paletteCoordinator.showBackupSettings()
+            settingsCoordinator.showBackupSettings()
         case .settings:
             paletteCoordinator.hidePalette(restoreFocus: false)
-            paletteCoordinator.showSettings()
+            settingsCoordinator.showSettings()
         case .about:
             paletteCoordinator.hidePalette(restoreFocus: false)
-            paletteCoordinator.showAbout()
+            settingsCoordinator.showAbout()
         case .quit:
             NSApp.terminate(nil)
         case nil:

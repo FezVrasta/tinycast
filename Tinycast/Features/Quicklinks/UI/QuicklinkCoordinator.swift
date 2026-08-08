@@ -14,6 +14,7 @@ final class QuicklinkCoordinator {
     private let ranking: LauncherRankingStore
     private let windowController: PaletteWindowController
     private let paletteCoordinator: PaletteCoordinator
+    private let settingsCoordinator: SettingsCoordinator
     /// `{clipboard offset=N}` reads the history a snippet expansion does; one owner, one depth.
     private let clipboardHistory: @MainActor () -> [String]
     /// Dialogs, the HUD, and the `pendingQuicklinkEdit` handoff to the Settings pane.
@@ -34,6 +35,7 @@ final class QuicklinkCoordinator {
         ranking: LauncherRankingStore,
         windowController: PaletteWindowController,
         paletteCoordinator: PaletteCoordinator,
+        settingsCoordinator: SettingsCoordinator,
         clipboardHistory: @escaping @MainActor () -> [String],
         core: AppCore
     ) {
@@ -48,6 +50,7 @@ final class QuicklinkCoordinator {
         self.ranking = ranking
         self.windowController = windowController
         self.paletteCoordinator = paletteCoordinator
+        self.settingsCoordinator = settingsCoordinator
         self.clipboardHistory = clipboardHistory
         self.core = core
     }
@@ -233,7 +236,7 @@ final class QuicklinkCoordinator {
     /// Opens the Quicklinks pane with the editor showing `quicklink`; nil is a new one.
     func editQuicklink(_ quicklink: Quicklink?) {
         core.pendingQuicklinkEdit = QuicklinkEditRequest(quicklink: quicklink)
-        paletteCoordinator.showSettings(tab: .quicklinks)
+        settingsCoordinator.showSettings(tab: .quicklinks)
     }
 
     @discardableResult

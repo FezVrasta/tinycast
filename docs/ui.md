@@ -321,8 +321,10 @@ pane use the native `.overlayScroller()`. Don't reintroduce native scrollers on 
 
 Source: `DesignSystem/SettingsComponents.swift`.
 
-Settings runs in its own `NSWindow` (the SwiftUI `Settings` scene is unreliable for accessory apps) but
-shares the palette's `Theme` vocabulary. It reads as macOS System Settings, not the palette:
+Settings runs in its own resizable `NSWindow` (the SwiftUI `Settings` scene is unreliable for accessory
+apps) with real traffic lights and a lifecycle wholly its own — see
+[decisions.md](decisions.md) entry 32. It shares the palette's `Theme` vocabulary but reads as macOS
+System Settings, not the palette:
 
 - **`SettingsPane`**: bold `.title2` title + secondary subtitle header, then scrollable content, `xxl` inset all around, the same thin scrollbar.
 - **`SettingsCard`**: rounded `card 10` container, `cardFill` (white 0.05) fill, `cardStroke` (white 0.10) hairline border. Rows inside are split by `SettingsDivider` — an inset hairline aligned under the row title (past the icon).

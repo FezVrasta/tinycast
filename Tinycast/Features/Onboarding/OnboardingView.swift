@@ -286,7 +286,7 @@ struct OnboardingView: View {
         case 2 where !model.didImport:
             model.run(core: core)
         case Self.lastStep:
-            core.paletteCoordinator.finishOnboarding()
+            core.onboardingCoordinator.finishOnboarding()
         default:
             advance()
         }

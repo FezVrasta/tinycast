@@ -11,7 +11,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        AppCore.shared.paletteCoordinator.handleReopen()
+        AppCore.shared.handleReopen()
         return true
+    }
+
+    /// The palette and Settings each close on their own; the agent outlives both.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }

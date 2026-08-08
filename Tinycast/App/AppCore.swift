@@ -28,6 +28,7 @@ final class AppCore {
     let frequentEmoji = FrequentEmojiStore()
     let runningApps = RunningAppsMonitor()
     let palette = PaletteState()
+    let activationPolicy = ActivationPolicy()
     let uninstall = UninstallSession()
     let quicklinkArguments = QuicklinkArgumentSession()
 
@@ -42,13 +43,17 @@ final class AppCore {
         store: quicklinks, argumentSession: quicklinkArguments, settings: settings,
         appIndex: appIndex, injector: snippetTextInjector, hotKeys: hotKeys, favorites: favorites,
         visibility: visibility, ranking: launcherRanking, windowController: windowController,
-        paletteCoordinator: paletteCoordinator,
+        paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
         clipboardHistory: { [unowned self] in self.snippetExpansion.clipboardHistoryForExpansion() },
         core: self)
 
     @ObservationIgnored private(set) lazy var paletteCoordinator = PaletteCoordinator(
         palette: palette, settings: settings, appIndex: appIndex,
-        windowController: windowController, core: self)
+        windowController: windowController)
+    /// Its own window and its own lifecycle: neither coordinator shows or closes the other's surface.
+    @ObservationIgnored private(set) lazy var settingsCoordinator = SettingsCoordinator(core: self)
+    @ObservationIgnored private(set) lazy var onboardingCoordinator = OnboardingCoordinator(
+        core: self)
     @ObservationIgnored private(set) lazy var systemActionCoordinator = SystemActionCoordinator(
         paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var uninstallCoordinator = UninstallCoordinator(
@@ -59,12 +64,14 @@ final class AppCore {
         settings: settings, paletteCoordinator: paletteCoordinator, windowMover: windowMover)
     @ObservationIgnored private(set) lazy var customCommandCoordinator = CustomCommandCoordinator(
         store: customCommands, settings: settings, appIndex: appIndex,
-        paletteCoordinator: paletteCoordinator, hotKeys: hotKeys, favorites: favorites,
-        visibility: visibility, ranking: launcherRanking, core: self)
+        paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
+        hotKeys: hotKeys, favorites: favorites, visibility: visibility,
+        ranking: launcherRanking, core: self)
 
     @ObservationIgnored private(set) lazy var launcherCoordinator = LauncherCoordinator(
         ranking: launcherRanking, windowController: windowController,
         paletteCoordinator: paletteCoordinator,
+        settingsCoordinator: settingsCoordinator,
         customCommandCoordinator: customCommandCoordinator,
         systemActionCoordinator: systemActionCoordinator,
         quicklinkCoordinator: quicklinkCoordinator,
@@ -177,9 +184,16 @@ final class AppCore {
             // First launch binds no hotkey, so guide once; the marker is written at show-time.
             if !OnboardingState.hasOnboarded {
                 OnboardingState.markShown()
-                paletteCoordinator.showOnboarding()
+                onboardingCoordinator.showOnboarding()
             }
         }
+    }
+
+    /// Clicking the Dock icon: raise whichever window is already open, else summon the launcher.
+    func handleReopen() {
+        if settingsCoordinator.focusExisting() { return }
+        if onboardingCoordinator.focusExisting() { return }
+        paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true)
     }
 
     /// The store-backed half of the conflict message; `HotKeyManager` names the catalogs itself.
