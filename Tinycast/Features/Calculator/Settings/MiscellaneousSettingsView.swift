@@ -92,8 +92,8 @@ private struct CurrencyConsentSheet: View {
 
             Text(
                 "Tinycast downloads exchange rates from \(CurrencyRateStore.provider) once a day and "
-                + "keeps a copy on your Mac. No account, no identifiers, nothing you type. "
-                + "Turning it off deletes the cached rates."
+                    + "keeps a copy on your Mac. No account, no identifiers, nothing you type. "
+                    + "Turning it off deletes the cached rates."
             )
             .font(.callout)
             .foregroundStyle(.secondary)

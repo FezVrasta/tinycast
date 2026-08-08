@@ -304,6 +304,16 @@ For the same reason SwiftLint's `empty_count` rule is **disabled**: it flags the
 **What would change this:** several regular contributors, at which point re-run this experiment — but
 keep `isEmpty`/`empty_count` off, and verify against the harnesses before committing the result.
 
+**Amended:** format-on-save is now **on** in `.vscode/settings.json`, by explicit request, with a
+`.swift-format` at the repo root tuning `swift-format` to this tree — 4-space indent, `lineLength` 110,
+`respectsExistingLineBreaks`, trailing commas off, and the rules that rewrite rather than lay out
+disabled. That cuts the blast radius from **200 files of 200** at stock settings (which default to
+2-space indent) to **58**. It does not cut it to zero, and the objection above still stands for those
+58 — this entry is the record of what a formatter costs here, not a claim that one is now safe.
+`EmojiData.generated.swift` is the sharpest edge: saving it rewrites ~4 000 lines, and generated files
+are never hand-edited. Have `Scripts/gen-emoji.js` emit `// swift-format-ignore-file` before relying on
+it.
+
 ### 26a — SwiftLint carries the two comment rules
 
 The 100-character cap and the ban on stacked comment lines are `custom_rules` in `.swiftlint.yml`,

@@ -39,13 +39,15 @@ final class PalettePanel: NSPanel {
         if event.type == .keyDown,
             paletteState?.menuOpen == true,
             event.modifierFlags.isDisjoint(with: [.command, .control]),
-            !Self.menuNavKeys.contains(Int(event.keyCode)) {
+            !Self.menuNavKeys.contains(Int(event.keyCode))
+        {
             return
         }
         if event.type == .keyDown,
             Int(event.keyCode) == kVK_Delete,
             event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift]),
-            onBareBackspace?() == true {
+            onBareBackspace?() == true
+        {
             return
         }
         // The controller owns the chords the field editor or a missing main menu would eat.

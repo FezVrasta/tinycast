@@ -331,7 +331,8 @@ private struct SnippetEditorSheet: View {
     /// Replaces the selection or lands at the caret; appends when there is no usable one.
     private func insert(_ token: String) {
         if let selection, case .selection(let range) = selection.indices,
-            range.lowerBound >= text.startIndex, range.upperBound <= text.endIndex {
+            range.lowerBound >= text.startIndex, range.upperBound <= text.endIndex
+        {
             text.replaceSubrange(range, with: token)
         } else {
             text += token

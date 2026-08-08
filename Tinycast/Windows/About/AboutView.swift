@@ -12,7 +12,8 @@ struct AboutView: View {
     @MainActor private static let appIcon: NSImage = {
         if let name = Bundle.main.infoDictionary?["CFBundleIconFile"] as? String,
             let url = Bundle.main.url(forResource: name, withExtension: "icns"),
-            let image = NSImage(contentsOf: url) {
+            let image = NSImage(contentsOf: url)
+        {
             return image
         }
         return NSApp.applicationIconImage
@@ -161,7 +162,11 @@ private struct AboutLinkRow: View {
                         .foregroundStyle(hovered ? .secondary : .tertiary)
                 }
             } label: {
-                Label { Text(link.title) } icon: { glyph }
+                Label {
+                    Text(link.title)
+                } icon: {
+                    glyph
+                }
             }
             .contentShape(Rectangle())
         }

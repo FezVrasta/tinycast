@@ -39,7 +39,9 @@ struct QuicklinksSettingsView: View {
                 title: Text("Delete “\(quicklink.name)”?"),
                 message: Text("Its global shortcut and launcher references will also be removed."),
                 primaryButton: .destructive(Text("Delete")) {
-                    Task { await core.quicklinkCoordinator.deleteQuicklink(id: quicklink.id, confirming: false) }
+                    Task {
+                        await core.quicklinkCoordinator.deleteQuicklink(id: quicklink.id, confirming: false)
+                    }
                 },
                 secondaryButton: .cancel())
         }
@@ -94,7 +96,7 @@ struct QuicklinksSettingsView: View {
                 Text("Open in a new window")
                 Text(
                     "Ask the handler for a new window instead of reusing its frontmost tab. "
-                    + "Only apps that accept a new-window argument can honour this.")
+                        + "Only apps that accept a new-window argument can honour this.")
             }
             Picker(selection: $settings.quicklinkSelectionFallback) {
                 ForEach(QuicklinkSelectionFallback.allCases) { option in

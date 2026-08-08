@@ -145,7 +145,8 @@ struct BackupSettingsView: View {
                 if let snippetsError = outcome.snippetsError {
                     parts.append("Couldn’t import snippets: \(snippetsError)")
                 }
-                var message = parts.isEmpty
+                var message =
+                    parts.isEmpty
                     ? BackupActions.nothingImportedText : parts.joined(separator: " ")
                 if outcome.missingImages > 0 {
                     message += " \(outcome.missingImages) images were unavailable and skipped."
