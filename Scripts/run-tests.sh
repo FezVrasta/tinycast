@@ -109,6 +109,8 @@ run raycast-test           Tinycast/Features/Backup/Model/RaycastFormat.swift \
                            Tinycast/Features/Clipboard/Model/ClipboardStore.swift
 run settings-backup-test   Tinycast/Features/Settings/AppSettingsKey.swift \
                            Tinycast/Features/Backup/Model/SettingsBackupCoverage.swift
+run settings-history-test  Tinycast/Features/Settings/SettingsTab.swift \
+                           Tinycast/Features/Settings/SettingsHistory.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

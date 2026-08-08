@@ -7,6 +7,8 @@ final class SettingsCoordinator {
     private let window: AppWindowController
     /// Environment injection only — never for state this type owns.
     private unowned let core: AppCore
+    /// The open window's session; the window's chrome and view tree own it, so this self-nils.
+    private weak var navigation: SettingsNavigationState?
 
     init(core: AppCore) {
         self.core = core
@@ -15,22 +17,36 @@ final class SettingsCoordinator {
             autosaveName: "SettingsWindow", activation: core.activationPolicy)
     }
 
-    /// A fresh window mounts on `tab`; an open one switches to it in place.
+    /// A fresh window mounts on `tab`; an open one navigates to it, recording the jump in history.
     func showSettings(tab: SettingsTab = .general) {
-        let isNew = window.show {
-            SettingsRootView(initialTab: tab)
-                .environment(self.core)
-                .environment(self.core.settings)
-                .environment(self.core.appIndex)
-                .environment(self.core.hotKeys)
-                .environment(self.core.visibility)
-                .environment(self.core.customCommands)
-                .environment(self.core.snippetsStore)
-                .environment(self.core.quicklinks)
+        if window.focus() {
+            navigation?.select(tab)
+            return
         }
-        if !isNew {
-            NotificationCenter.default.post(name: .tinycastSelectSettingsTab, object: tab)
+        let navigation = SettingsNavigationState(tab: tab)
+        self.navigation = navigation
+        window.show(chrome: SettingsToolbarController(navigation: navigation)) {
+            SettingsSplitViewController(
+                sidebar: inject(SettingsSidebarView(), navigation),
+                detail: inject(SettingsDetailView(), navigation))
         }
+    }
+
+    /// Both columns are hosted separately, so each needs the whole environment.
+    private func inject(_ view: some View, _ navigation: SettingsNavigationState) -> some View {
+        view
+            .environment(navigation)
+            .environment(core)
+            .environment(core.settings)
+            .environment(core.appIndex)
+            .environment(core.hotKeys)
+            .environment(core.visibility)
+            .environment(core.customCommands)
+            .environment(core.snippetsStore)
+            .environment(core.quicklinks)
+            // Propagates to every list and form below, so the window's materials show through
+            // instead of each one's opaque backing.
+            .scrollContentBackground(.hidden)
     }
 
     func showAbout() {

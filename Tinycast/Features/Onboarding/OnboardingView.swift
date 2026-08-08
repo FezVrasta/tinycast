@@ -132,16 +132,16 @@ struct OnboardingView: View {
     private var shortcutStep: some View {
         @Bindable var settings = settings
         return VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SettingsCard {
-                SettingsRow(
+            OnboardingCard {
+                OnboardingRow(
                     title: "App Launcher",
                     subtitle: "Press this shortcut to open Tinycast.",
                     systemImage: "magnifyingglass", tint: .blue
                 ) {
                     ShortcutRecorder(action: .togglePalette)
                 }
-                SettingsDivider()
-                SettingsRow(
+                OnboardingDivider()
+                OnboardingRow(
                     title: "Launch at login",
                     subtitle: "Start Tinycast automatically when you log in.",
                     systemImage: "power", tint: .green
@@ -156,8 +156,8 @@ struct OnboardingView: View {
 
     private var accessibilityStep: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SettingsCard {
-                SettingsRow(
+            OnboardingCard {
+                OnboardingRow(
                     title: "Accessibility",
                     subtitle:
                         "Allows pasting clipboard items and expanded snippets into active apps.",
@@ -172,16 +172,16 @@ struct OnboardingView: View {
 
     private var raycastStep: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            SettingsCard {
-                SettingsRow(
+            OnboardingCard {
+                OnboardingRow(
                     title: "Raycast Export",
                     subtitle: model.fileSubtitle,
                     systemImage: "doc.badge.gearshape", tint: .orange
                 ) {
                     Button("Choose…") { model.chooseFile() }.controlSize(.small)
                 }
-                SettingsDivider()
-                SettingsRow(
+                OnboardingDivider()
+                OnboardingRow(
                     title: "Passphrase",
                     subtitle: "The password you set when exporting from Raycast.",
                     systemImage: "key", tint: .gray
