@@ -1,9 +1,7 @@
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Under "Automatic", AppKit switches every scroll view to thick legacy scrollers once it spots
-    /// a mouse. Our own defaults domain outranks the global one, so this opts the app out for good.
-    /// It must land before the first scroll view exists, or that switch is visible as a flash.
+    /// Must land before the first scroll view exists, or the scroller switch shows as a flash.
     func applicationWillFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.set("WhenScrolling", forKey: "AppleShowScrollBars")
     }

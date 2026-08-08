@@ -2,10 +2,7 @@ import SwiftUI
 
 // The few pieces more than one Settings pane needs; everything else is a stock `Form` section.
 
-/// A form row with a custom trailing control.
-///
-/// Not `LabeledContent`: it wraps its value in a selectable text field, which eats the taps a
-/// `ShortcutRecorder` needs. Rows whose trailing side is a stock `Toggle` or `Picker` don't need this.
+/// Not `LabeledContent`: its selectable text field eats the taps a `ShortcutRecorder` needs.
 struct SettingsRow<Icon: View, Trailing: View>: View {
     let title: String
     var subtitle: String?
@@ -40,8 +37,7 @@ extension SettingsRow where Icon == EmptyView {
 }
 
 extension View {
-    /// Disables and dims together, so a switched-off row reads as unavailable rather than merely
-    /// unresponsive. `.disabled` alone leaves the title at full strength.
+    /// Dims as well as disables; `.disabled` alone leaves the title at full strength.
     func settingsEnabled(_ isEnabled: Bool) -> some View {
         disabled(!isEnabled).opacity(isEnabled ? 1 : 0.45)
     }

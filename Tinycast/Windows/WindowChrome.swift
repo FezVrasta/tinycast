@@ -1,7 +1,6 @@
 import AppKit
 
-/// Titlebar decoration a window opts into. `AppWindowController` holds it for the window's lifetime
-/// and drops it on close, so anything the chrome drives dies with the window it decorated.
+/// Held by `AppWindowController` for the window's lifetime, so the chrome dies with the window.
 @MainActor
 protocol WindowChrome: AnyObject {
     func install(in window: NSWindow)

@@ -1,10 +1,6 @@
 import AppKit
 
-/// Settings' titlebar: the current pane's name inline in the detail column, with browser-style
-/// back/forward ahead of it.
-///
-/// AppKit rather than SwiftUI's `.toolbar`, which only reaches a window owned by a SwiftUI `Scene`.
-/// This window is built by `AppWindowController` so Settings keeps its own lifecycle.
+/// AppKit, not SwiftUI's `.toolbar`: that only reaches a window owned by a SwiftUI `Scene`.
 @MainActor
 final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate {
     private static let back = NSToolbarItem.Identifier("SettingsBack")
@@ -17,8 +13,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
 
     init(navigation: SettingsNavigationState) {
         self.navigation = navigation
-        // Two separate bordered buttons, not one segmented control: macOS groups adjacent toolbar
-        // buttons into a single capsule, while a segmented control draws a divider down the middle.
+        // Two buttons, not a segmented control: that would draw a divider down the middle.
         backButton = Self.makeButton("chevron.backward", "Back")
         forwardButton = Self.makeButton("chevron.forward", "Forward")
         super.init()
@@ -40,7 +35,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
 
         let toolbar = NSToolbar(identifier: "SettingsToolbar")
         toolbar.delegate = self
-        // Labelled items would print "Back"/"Forward" under the chevrons and double the bar's height.
+        // Labels would print "Back"/"Forward" under the chevrons and double the bar's height.
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
         // Both, or a right-click still offers the display-mode items.
@@ -53,8 +48,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
     // MARK: - NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // The separator tracks the split view's divider, so everything after it belongs to the
-        // detail column — which is where the title and the chevrons should sit.
+        // Everything after the tracking separator belongs to the detail column.
         [.sidebarTrackingSeparator, Self.back, Self.forward]
     }
 
@@ -77,8 +71,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
         default:
             return nil
         }
-        // What `ToolbarItemPlacement.navigation` maps to: the one flag that seats an item ahead of
-        // the inline title instead of after it.
+        // The one flag that seats an item ahead of the inline title rather than after it.
         item.isNavigational = true
         item.visibilityPriority = .high
         // The buttons take their enabled state from the history, not from responder validation.
@@ -91,8 +84,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
     @objc private func goBack() { navigation.goBack() }
     @objc private func goForward() { navigation.goForward() }
 
-    /// AppKit does not observe, so re-arm after every read. `onChange` fires before the write
-    /// lands, hence the hop — the same shape as `AppCore.track`.
+    /// Re-armed after every read; the hop is because `onChange` fires before the write lands.
     private func observe() {
         withObservationTracking {
             sync()
@@ -107,8 +99,7 @@ final class SettingsToolbarController: NSObject, WindowChrome, NSToolbarDelegate
         forwardButton.isEnabled = navigation.canGoForward
     }
 
-    /// `SymbolImage` is a SwiftUI view; in AppKit chrome the SF Symbol is loaded directly. The
-    /// directional pair, not `chevron.left/right`, so the control mirrors in RTL.
+    /// The directional pair, not `chevron.left/right`, so the control mirrors in RTL.
     private static func makeButton(_ symbol: String, _ label: String) -> NSButton {
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         let button = NSButton(image: image ?? NSImage(), target: nil, action: nil)

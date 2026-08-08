@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The grouped pane list. Stock `.sidebar` styling throughout — the group headers, the selection
-/// capsule and the symbol tint are all system-supplied, so nothing here styles a row.
+/// Stock `.sidebar` styling throughout: headers, capsule and tint are all system-supplied.
 struct SettingsSidebarView: View {
     @Environment(SettingsNavigationState.self) private var navigation
 
@@ -18,7 +17,7 @@ struct SettingsSidebarView: View {
         .listStyle(.sidebar)
     }
 
-    /// `List` hands back an optional selection; routing it through `select` is what records history.
+    /// `List` hands back an optional selection; routing it through `select` records history.
     private var selection: Binding<SettingsTab?> {
         Binding(
             get: { navigation.tab },

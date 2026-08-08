@@ -1,11 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The Settings window's body, as a real AppKit split view.
-///
-/// Not a SwiftUI `HStack` or `NavigationSplitView`: only a genuine `NSSplitViewController` lets the
-/// toolbar use `.sidebarTrackingSeparator`, which is what seats the pane title and the back/forward
-/// control in the detail column rather than crammed against the traffic lights.
+/// A real `NSSplitViewController` so the toolbar can use `.sidebarTrackingSeparator`.
 @MainActor
 final class SettingsSplitViewController: NSSplitViewController {
     init(sidebar: some View, detail: some View) {

@@ -115,8 +115,8 @@ already-running server does not re-read `.compile`.
 ```
 
 [SwiftLint](https://github.com/realm/SwiftLint) is the only code-quality tool here. `.swiftlint.yml` at
-the repo root excludes the generated files and the two off-limits files in `DesignSystem/Scrolling/`,
-and carries the two comment rules from [standards.md](standards.md#comments) as `custom_rules`.
+the repo root excludes the generated files and the two off-limits files in `DesignSystem/Scrolling/`.
+The comment policy in [standards.md](standards.md#comments) is deliberately not among its rules.
 
 ## Formatting
 

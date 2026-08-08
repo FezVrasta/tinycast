@@ -1,6 +1,4 @@
-/// Browser semantics over the settings panes: choosing a pane truncates whatever was ahead of it,
-/// and re-choosing the pane already shown is not a navigation at all. Depth is bounded by use —
-/// fourteen panes, and the whole thing dies with the window that opened it.
+/// Browser semantics: choosing a pane truncates what was ahead, and re-choosing it is not a move.
 struct SettingsHistory {
     private(set) var current: SettingsTab
     private var back: [SettingsTab] = []

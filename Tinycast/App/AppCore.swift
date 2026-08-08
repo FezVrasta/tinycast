@@ -50,7 +50,7 @@ final class AppCore {
     @ObservationIgnored private(set) lazy var paletteCoordinator = PaletteCoordinator(
         palette: palette, settings: settings, appIndex: appIndex,
         windowController: windowController)
-    /// Its own window and its own lifecycle: neither coordinator shows or closes the other's surface.
+    /// Its own window and lifecycle: neither coordinator shows or closes the other's surface.
     @ObservationIgnored private(set) lazy var settingsCoordinator = SettingsCoordinator(core: self)
     @ObservationIgnored private(set) lazy var onboardingCoordinator = OnboardingCoordinator(
         core: self)

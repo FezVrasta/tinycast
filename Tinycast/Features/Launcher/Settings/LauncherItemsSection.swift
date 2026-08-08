@@ -34,8 +34,7 @@ struct LauncherItemsSection: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                // One Form row holding a lazy stack: a `Form` realizes every row it is handed, and
-                // this list runs to hundreds of apps. The padding restores the row rhythm it loses.
+                // One row holding a lazy stack: a `Form` realizes every row it is handed.
                 LazyVStack(spacing: 0) {
                     ForEach(entries) { entry in
                         if entry.id != entries.first?.id { Divider() }

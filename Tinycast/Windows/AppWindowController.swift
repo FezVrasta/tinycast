@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// One titled app window with its own lifecycle: built on first show, torn down on close so its
-/// SwiftUI tree deallocates. Closing it never touches another surface, and never quits the app.
+/// Built on first show, torn down on close so its SwiftUI tree deallocates. Never quits the app.
 @MainActor
 final class AppWindowController: NSObject, NSWindowDelegate {
     private let title: String
@@ -39,8 +38,7 @@ final class AppWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// The primitive: a window whose content is built in AppKit. Settings needs it for a real
-    /// `NSSplitViewController`, which is what lets the toolbar track the sidebar's edge.
+    /// AppKit-built content; Settings needs it for a real `NSSplitViewController`.
     @discardableResult
     func show(chrome: WindowChrome? = nil, contentViewController: () -> NSViewController) -> Bool {
         if let window {
@@ -48,8 +46,7 @@ final class AppWindowController: NSObject, NSWindowDelegate {
             return false
         }
         let window = makeWindow(content: contentViewController())
-        // After the content so the chrome's inset lands on a mounted view, and before `raise` so
-        // the titlebar is never seen assembling itself.
+        // After the content so the inset lands on a mounted view; before `raise` to avoid a flash.
         self.chrome = chrome
         chrome?.install(in: window)
         self.window = window

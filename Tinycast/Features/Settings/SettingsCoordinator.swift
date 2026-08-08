@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Settings' whole lifecycle, independent of the palette: opening, pane routing and closing.
-/// Nothing here shows or hides the palette, and nothing in the palette closes this window.
+/// Settings' lifecycle, independent of the palette: neither surface opens or closes the other.
 @MainActor
 final class SettingsCoordinator {
     private let window: AppWindowController
@@ -44,8 +43,7 @@ final class SettingsCoordinator {
             .environment(core.customCommands)
             .environment(core.snippetsStore)
             .environment(core.quicklinks)
-            // Propagates to every list and form below, so the window's materials show through
-            // instead of each one's opaque backing.
+            // Propagates down so the window's materials show through, not each list's backing.
             .scrollContentBackground(.hidden)
     }
 

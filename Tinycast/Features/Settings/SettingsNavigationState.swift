@@ -1,10 +1,6 @@
 import Observation
 
-/// The open Settings window's current pane and its back/forward history: written by the sidebar,
-/// read by the titlebar.
-///
-/// Deliberately not on `AppCore`. This is one window's session, not long-lived app state — it is
-/// built when the window opens and released in `windowWillClose`, so history never survives a close.
+/// Not on `AppCore`: one window's session, released in `windowWillClose` so history never survives.
 @MainActor
 @Observable
 final class SettingsNavigationState {

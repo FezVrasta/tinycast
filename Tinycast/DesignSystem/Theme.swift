@@ -75,8 +75,7 @@ enum Theme {
         static let menuWidth: CGFloat = 276
         /// A menu row's glyph slot, sized so symbol and app-icon rows read the same.
         static let menuIcon: CGFloat = 20
-        /// Settings window: the size it opens at, which is also the floor it can be resized to.
-        /// Tall enough that the sidebar's fourteen rows never scroll.
+        /// Opening size and the resize floor; tall enough that the sidebar's rows never scroll.
         static let settingsWindow = CGSize(width: 860, height: 700)
         /// Settings sidebar: a fixed column, wide enough for "Window Management".
         static let settingsSidebar: CGFloat = 215
