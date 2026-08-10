@@ -122,8 +122,8 @@ frozen instead:
 
 - `RootPaletteView` mirrors the open state into `PaletteState.menuOpen`, whose `didSet` fires
   `onMenuOpenChanged`.
-- `PalettePanel.sendEvent` then swallows text-editing keystrokes while `menuOpen` (letting ⌘/⌥ chords
-  and menu-nav keys through to SwiftUI `onKeyPress`).
+- `PalettePanel.sendEvent` then swallows text-editing keystrokes while `menuOpen` (letting ⌘/⌃ chords
+  and menu-nav keys through to SwiftUI `onKeyPress`), which is how ⌘P and ⌃X still reach their rows.
 - The caret is hidden by clearing SwiftUI's **own** live field editor's `insertionPointColor`. SwiftUI
   force-casts its field editor to a private subclass, so vending a custom one crashes — only the
   existing one can be tuned.

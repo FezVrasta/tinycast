@@ -183,6 +183,8 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - A copy appears at the top within about a second; an image copy records a thumbnail
 - Search is correct both under and over three characters
 - ⌘P pins and the highlight follows the row into Pinned; ⌘⌫ deletes; ⌘↵ copies without pasting
+- ⌃X deletes the selected entry and ⌃⇧X clears the history, from the list and from an open ⌘K menu
+- ⌃⇧X asks first, through Tinycast's own dialog; Cancel and Esc both leave every entry in place
 - ↵ pastes into the previous app; ⌥↵ pastes without closing the palette
 - A copy from an excluded app (Settings ▸ Clipboard ▸ Disabled Applications) is **not** recorded
 - Password-manager copies are still not recorded
@@ -228,6 +230,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 ### Calculator and currency
 
 - `2+2` shows a card; ↵ copies and records to history; unit and date conversions work
+- In Calculator History, ⌃X deletes a row and ⌃⇧X clears the history behind a confirmation
 - With currency conversion **off**, a currency query produces no card and **no network request**
 - Turning it on shows the consent sheet, naming the provider, first
 

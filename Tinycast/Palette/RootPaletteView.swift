@@ -262,8 +262,7 @@ struct RootPaletteView: View {
             let screen = screen
             let selection = selection(in: screen)
             if command { return screen.secondary(at: selection) ? .handled : .ignored }
-            guard let emoji = screen as? EmojiScreen else { return .ignored }
-            return emoji.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
+            return screen.pasteKeepingWindowOpen(at: selection) ? .handled : .ignored
         }
         .onKeyPress(.escape) {
             if showActions || showAppMenu {
@@ -308,6 +307,23 @@ struct RootPaletteView: View {
                 return .handled
             }
             return .ignored
+        }
+        // ⌃X / ⌃⇧X mirror the delete rows — both cases, Shift uppercasing — and close an open menu.
+        .onKeyPress(keys: ["x", "X"], phases: .down) { press in
+            guard press.modifiers.contains(.control) else { return .ignored }
+            let screen = screen
+            let selection = selection(in: screen)
+            let all = press.modifiers.contains(.shift)
+            switch screen {
+            case let clipboard as ClipboardScreen:
+                if all { clipboard.deleteAll() } else { clipboard.delete(at: selection) }
+            case let history as CalculatorHistoryScreen:
+                if all { history.deleteAll() } else { history.delete(at: selection) }
+            default:
+                return .ignored
+            }
+            if menuOpen { closeMenus() }
+            return .handled
         }
         // ⌘P mirrors the Actions row, and works while that menu is open like the rest.
         .onKeyPress(keys: ["p"], phases: .down) { press in

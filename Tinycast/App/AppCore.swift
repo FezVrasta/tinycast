@@ -79,12 +79,12 @@ final class AppCore {
         snippetExpansion: snippetExpansion, core: self)
     @ObservationIgnored private(set) lazy var clipboardCoordinator = ClipboardCoordinator(
         clipboardStore: clipboardStore, palette: palette, windowController: windowController,
-        paletteCoordinator: paletteCoordinator)
+        paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var emojiCoordinator = EmojiCoordinator(
         frequentEmoji: frequentEmoji, settings: settings, windowController: windowController,
         paletteCoordinator: paletteCoordinator)
     @ObservationIgnored private(set) lazy var calculatorCoordinator = CalculatorCoordinator(
-        calcHistory: calcHistory, paletteCoordinator: paletteCoordinator)
+        calcHistory: calcHistory, paletteCoordinator: paletteCoordinator, core: self)
 
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
