@@ -126,7 +126,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     /// Dismiss when the palette loses key status (click-away, ⌘-Tab, app switch).
     func windowDidResignKey(_ notification: Notification) {
         guard isVisible else { return }
-        hide(restoreFocus: false)
+        core.paletteCoordinator.hidePalette(restoreFocus: false)
     }
 
     /// Re-bump a turn later: on the first show a synchronous bump lands before `onChange`.
@@ -205,6 +205,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             .environment(core.currencyRates)
             .environment(core.emojiIndex)
             .environment(core.frequentEmoji)
+            .environment(core.fileSearch)
             .environment(core.runningApps)
             .environment(core.hotKeys)
             .environment(core.uninstall)

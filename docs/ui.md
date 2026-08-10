@@ -143,7 +143,7 @@ the `ScrollView`, **before `.thinScrollbar()`** (so the scrollbar overlay stays 
 ## Rows, selection, hover
 
 Source: `Launcher/UI/LauncherList.swift`, `Clipboard/UI/ClipboardView.swift`,
-`Uninstall/UI/UninstallView.swift`.
+`FileSearch/UI/FileSearchList.swift`, `Uninstall/UI/UninstallView.swift`.
 
 All lists share one row grammar so launcher and clipboard look identical:
 
@@ -151,12 +151,12 @@ All lists share one row grammar so launcher and clipboard look identical:
 - **The leading slot is always `Theme.Size.rowIcon`, whatever fills it.** A glyph smaller than an app icon — the uninstall list's 16pt checkbox — is centred _inside_ that 24pt slot rather than sizing the slot to itself. Every list then starts its title at the same x, so switching palette modes doesn't jog the column sideways. The slot doubles as the hit target.
 - Background is a `RoundedRectangle(row, .continuous)` filled by `fill`: **selection → hover → clear**, in that precedence. This `fill` computed property is copy-identical across `AppRow`, `ClipboardRow`, `CalculatorCard` and `UninstallRow` — keep them in sync.
 - **Hover state lives on the row**, not the list, so a mouse sweep repaints only the rows entering/leaving (a list-level hover rebuilds every row per move — don't do that).
-- **Scroll moves only on keyboard nav/reset**, driven by a `ScrollIntent` (`DesignSystem/Scrolling/ScrollIntent.swift`) — mouse selection targets a visible row and never yanks scroll. `.follow` is a minimal scroll-to-visible (nil anchor), so the list stays stationary while the selection walks across it and only advances by a row at the viewport edges; `.top` scrolls to the origin anchor that `scrollOriginAnchor()` installs — a zero-height overlay applied to the scrolled content _after_ its padding, so it marks offset 0 without joining the layout and the restored origin is exact (targeting the first row instead leaves the top padding hidden under the header). A `.follow` that lands on flat index 0 restores the origin instead, so that row's section header comes back into view. One intent state serves all four modes — they never coexist.
+- **Scroll moves only on keyboard nav/reset**, driven by a `ScrollIntent` (`DesignSystem/Scrolling/ScrollIntent.swift`) — mouse selection targets a visible row and never yanks scroll. `.follow` is a minimal scroll-to-visible (nil anchor), so the list stays stationary while the selection walks across it and only advances by a row at the viewport edges; `.top` scrolls to the origin anchor that `scrollOriginAnchor()` installs — a zero-height overlay applied to the scrolled content _after_ its padding, so it marks offset 0 without joining the layout and the restored origin is exact (targeting the first row instead leaves the top padding hidden under the header). A `.follow` that lands on flat index 0 restores the origin instead, so that row's section header comes back into view. One intent state serves every mode — they never coexist.
 - **Keycaps** use `KeyCapChip`: `.outline` (white-0.20 border) for hotkey hints on rows, `.filled` (white-0.10 fill) for footer shortcuts.
 
 ### Section headers
 
-All five palette lists (App Launcher, Clipboard, Emoji, Calculator History, Uninstall) render category labels
+All six palette lists (App Launcher, Clipboard, Emoji, File Search, Calculator History, Uninstall) render category labels
 through one shared **`SectionHeader`** (`.subheadline.medium`, secondary — `Features/Launcher/UI/SectionHeader.swift`).
 The launcher shows a single "Results" header over search matches, and per-kind sections
 (Favorites / Applications / System Settings / Commands) for the empty query; clipboard/history use
@@ -311,7 +311,7 @@ Custom thin overlay scrollbar (the native one flashes and reserves a gutter insi
 style; `.thinScrollbar()` on the scroll view draws a hairline thumb (`Color.primary` alpha 0.30 rest →
 0.42 hover → 0.5 drag) that fattens on hover, with a faint rail revealed only while hovering/dragging.
 
-Routing: the palette lists (App Launcher, Clipboard history, Emoji, Calculator history) use
+Routing: the palette lists (App Launcher, Clipboard history, Emoji, File Search, Calculator history) use
 `.thinScrollbar()` + `.hideNativeScrollers()`; the Clipboard preview (right pane) and every Settings
 pane take the native scroller as-is. Don't reintroduce native scrollers on the palette lists.
 
@@ -329,8 +329,7 @@ per-scroll-view shim: chasing that flip after the fact is what caused the flash.
 Source: `DesignSystem/SettingsComponents.swift`.
 
 Settings runs in its own resizable `NSWindow` (the SwiftUI `Settings` scene is unreliable for accessory
-apps) with real traffic lights and a lifecycle wholly its own — see
-[decisions.md](decisions.md) entry 32. It does not share the palette's look: **every pane is a stock
+apps) with real traffic lights and a lifecycle wholly its own. It does not share the palette's look: **every pane is a stock
 `Form` with `.formStyle(.grouped)`**, so the cards, headers, row insets and hairlines are all
 system-drawn and a pane reads exactly as macOS System Settings does.
 

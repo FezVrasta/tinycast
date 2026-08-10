@@ -46,6 +46,8 @@ If a change touches anything in the right column, the harness on the left is man
 | Harness | Guards |
 | --- | --- |
 | `fuzz-test` | `Launcher/Model/SearchRelevance.swift` |
+| `file-search-test` | `FileSearch/Model/`, plus the shared `FuzzyMatch` scorer |
+| `file-search-session-test` | serialized query execution, debounce coalescing and cancellation |
 | `ranking-test` | `Launcher/Model/LauncherRankingStore.swift` |
 | `scopes-test` | `Launcher/Model/SearchScopes.swift` |
 | `calc-test` | all of `Calculator/Model/` |
@@ -86,6 +88,7 @@ when touching a pure file:
 - `WindowManagement/` geometry still touches no `NSScreen` and makes no AX call
 - `Features/PaletteRowIndex.swift` still imports Foundation alone, despite living under `Features/`
 - `Quicklinks/Model/` is still handed the home directory rather than reading it
+- `FileSearch/Model/` is still handed the home directory rather than reading it
 
 ## Build and size checks
 
@@ -115,15 +118,29 @@ find ~/Library/Developer/Xcode/DerivedData -name "Tinycast*.app" -maxdepth 6 -pr
 SwiftLint owns the rules that catch defects, including the two checkable comment rules — the
 100-character cap and the ban on stacked comment lines. Errors block; warnings do not. There is no
 formatter, deliberately — the configuration and the measurements behind that are in
-[development.md](development.md#linting) and [decisions.md](decisions.md) entry 26.
+[development.md](development.md#linting).
 
 ## Performance measurement
 
-`Platform/Signposts.swift` emits six intervals on the `com.tinycast.perf` subsystem: `AppCore.start`,
+`Platform/Signposts.swift` emits seven intervals on the `com.tinycast.perf` subsystem: `AppCore.start`,
 `AppIndex.scan`, `AppIndex.rank`, `PaletteWindowController.show`, `UninstallScanner.discover` and
-`UninstallScanner.measure`. Open the
+`UninstallScanner.measure`, plus `FileSearchService.search`. Open the
 Time Profiler or `os_signpost` instrument in Instruments and filter to that subsystem; nothing needs
 recompiling.
+
+Run the real Spotlight-backed file-search benchmark separately from the deterministic harnesses:
+
+```sh
+swiftc -O -swift-version 6 Tinycast/Platform/Signposts.swift \
+    Tinycast/Features/Launcher/Model/SearchRelevance.swift \
+    Tinycast/Features/FileSearch/Model/*.swift \
+    Tinycast/Features/FileSearch/Service/FileSearchService.swift \
+    Tests/file-search-performance.swift -o /tmp/file-search-performance
+/tmp/file-search-performance
+```
+
+Every query runs twice: once on the shipped rules and once with five extra user patterns, so the output
+says what the ignore list itself costs rather than only what Spotlight does.
 
 `Signposts.interval` owns an explicit `defer` around the wrapped work on purpose. The obvious spelling
 leaks the interval when the work throws, because the `.end` emit is skipped on the throw path and the
@@ -220,6 +237,26 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Pin, duplicate, delete and Open with Default all behave; import and export round-trip
 - Display order is pinned first by pin time, then by name
 
+### File Search
+
+- With File Search **off**: Search Files is absent, its shortcut no-ops, and no permission appears
+- Enabling in Settings exposes Search Files immediately; it persists across relaunch and backup import
+- Disabling during a query cancels it and returns the open screen to the launcher
+- File Search and Quicklinks remain independently visible in all four enabled/disabled combinations
+- An empty query performs no search; a filename query returns only files and folders beneath the scopes
+- Library internals, generated trees, application bundles and hidden paths do not appear
+- Visible custom top-level home folders and cloud-drive files remain searchable
+- Return opens, Command-Return reveals in Finder, and Copy Path keeps the palette open with a HUD
+- Replacing a query quickly never lets an older result list overwrite the current query
+- Removing home and adding one folder narrows results to it; restoring the default brings them back
+- A cleared scope list returns nothing rather than falling back to home, and never hangs
+- A missing scope shows the warning triangle without failing the rest of the search
+- Adding `*.log` takes effect on the next query with no relaunch; removing it restores those results
+- Built-in ignore rows carry no remove button; user rows do, and a duplicate or blank is refused
+- Recording a shortcut opens the palette straight into File Search, hidden from the launcher or not
+- The pane's checkbox and the Search Files row in Settings ▸ Commands move together
+- Export, clear both lists and the shortcut, re-import: all three return, defaults undo not duplicated
+
 ### Snippets
 
 - With snippets **off**: no launcher entries, no keyword expansion, and no permission prompt at launch
@@ -266,7 +303,7 @@ tccutil reset Accessibility com.tinycast.app.dev 2>/dev/null || true
 - Palette opens and lists apps; clipboard, quicklinks, snippets and calculator history are all empty
   and all accept a first entry
 - **Every setting shows its intended default.** Walk the panes: this is what catches a broken
-  absence-versus-`false` read (see [decisions.md](decisions.md), entry 20)
+  absence-versus-`false` read
 - Quit and relaunch: everything created above persisted
 - Nothing was written outside `com.tinycast.app.dev/`. Channel isolation is not negotiable — a Dev build
   writing into the stable app's directory is a defect even though the data is disposable
