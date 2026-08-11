@@ -48,7 +48,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             core.palette.pasteTarget = PasteTarget(app: previousApp)
             let panel = ensurePanel()
             // Open disarmed: a pointer already over a row must not highlight it.
-            core.palette.hoverHighlightArmed = false
+            core.palette.disarmHoverHighlight(pointerAt: NSEvent.mouseLocation)
             // Re-resolve the anchor now, then hold it so resizes never move the window.
             anchor = nil
             // Size and place before ordering front, so a compact summon never flashes.

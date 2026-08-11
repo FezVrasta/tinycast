@@ -81,6 +81,11 @@ run palette-selection-test Tinycast/Features/PaletteRowIndex.swift \
                            Tinycast/Features/Emoji/Model/EmojiGridGeometry.swift
 run palette-placement-test Tinycast/DesignSystem/Theme.swift \
                            Tinycast/Palette/PalettePlacement.swift
+run scroll-reveal-test     Tinycast/DesignSystem/Scrolling/SelectionReveal.swift
+run hover-arming-test      Tinycast/Palette/HoverArming.swift \
+                           Tinycast/Palette/PaletteState.swift \
+                           Tinycast/Palette/PaletteMode.swift \
+                           Tinycast/Features/Quicklinks/Model/Quicklink.swift
 run hotkey-test            Tinycast/Features/HotKeys/Model/DoubleTapModifier.swift \
                            Tinycast/Features/HotKeys/Model/DoubleTapDetector.swift \
                            Tinycast/Features/HotKeys/Model/HyperKey.swift \

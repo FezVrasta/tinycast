@@ -22,16 +22,6 @@ extension View {
         }
     }
 
-    /// Restores the origin when the header's safe-area inset settles after a scroll view mounts.
-    func pinOriginOnInsetSettle(_ scroll: ScrollIntent, proxy: ScrollViewProxy) -> some View {
-        onScrollGeometryChange(for: CGFloat.self) {
-            $0.contentInsets.top
-        } action: { _, _ in
-            // A settle during keyboard nav must not yank the list back, hence the `.top` guard.
-            guard scroll.kind == .top else { return }
-            proxy.scrollToOrigin()
-        }
-    }
 }
 
 private enum ScrollOrigin {
@@ -42,10 +32,5 @@ extension ScrollViewProxy {
     /// Restores the exact resting offset; needs `scrollOriginAnchor()` on the content.
     func scrollToOrigin() {
         scrollTo(ScrollOrigin.id, anchor: .top)
-    }
-
-    /// Minimal scroll-to-visible, so the list stays put as the selection walks it.
-    func reveal(_ id: String) {
-        scrollTo(id, anchor: nil)
     }
 }

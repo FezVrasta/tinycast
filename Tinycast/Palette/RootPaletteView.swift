@@ -648,12 +648,15 @@ private struct ArmedHover: ViewModifier {
     @Binding var hovered: Bool
 
     func body(content: Content) -> some View {
-        content.onContinuousHover(coordinateSpace: .local) { phase in
-            switch phase {
-            case .active: hovered = palette.hoverHighlightArmed
-            case .ended: hovered = false
+        content
+            .onContinuousHover(coordinateSpace: .local) { phase in
+                switch phase {
+                case .active: hovered = palette.hoverHighlightArmed
+                case .ended: hovered = false
+                }
             }
-        }
+            // Disarming under a still pointer fires no hover phase, so the drop clears the row.
+            .onChange(of: palette.hoverDisarmToken) { hovered = false }
     }
 }
 

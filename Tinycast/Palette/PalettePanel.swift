@@ -89,8 +89,10 @@ final class PalettePanel: NSPanel {
 
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
-        case .mouseMoved: paletteState?.hoverHighlightArmed = true
-        case .keyDown: paletteState?.hoverHighlightArmed = false
+        case .mouseMoved: paletteState?.notePointerMoved(to: NSEvent.mouseLocation)
+        // Keys and scrolling both slide rows under the pointer without it choosing any of them.
+        case .keyDown, .scrollWheel:
+            paletteState?.disarmHoverHighlight(pointerAt: NSEvent.mouseLocation)
         default: break
         }
         defer { applyCursorPolicy(for: event) }

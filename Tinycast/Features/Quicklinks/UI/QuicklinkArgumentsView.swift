@@ -62,6 +62,7 @@ struct QuicklinkArgumentsView: View {
                     ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                         OptionRow(title: option, selected: index == selection)
                             .id(String(index))
+                            .selectionFrame(index == selection)
                             .contentShape(Rectangle())
                             .onTapGesture { onSelect(index) }
                             .simultaneousGesture(
@@ -79,13 +80,8 @@ struct QuicklinkArgumentsView: View {
             }
             .edgeDissolve()
             .thinScrollbar()
-            .pinOriginOnInsetSettle(scroll, proxy: proxy)
-            .onChange(of: scroll) { _, scroll in
-                switch scroll.kind {
-                case .top: proxy.scrollToOrigin()
-                case .follow: proxy.reveal(String(selection))
-                }
-            }
+            .scrollFollowsSelection(
+                scroll, row: String(selection), atOrigin: false, proxy: proxy)
         }
     }
 }

@@ -18,6 +18,7 @@ struct FileSearchList: View {
                     SectionHeader(title: "Results", isFirst: true)
                     ForEach(results) { result in
                         FileSearchRow(result: result, selected: result.id == selectedID)
+                            .selectionFrame(result.id == selectedID)
                             .contentShape(Rectangle())
                             .onTapGesture { onActivate(result) }
                             .onRightClick { onActions(result) }
@@ -31,19 +32,8 @@ struct FileSearchList: View {
             }
             .edgeDissolve()
             .thinScrollbar()
-            .pinOriginOnInsetSettle(scroll, proxy: proxy)
-            .onChange(of: scroll) { _, scroll in
-                switch scroll.kind {
-                case .top:
-                    proxy.scrollToOrigin()
-                case .follow:
-                    if firstRowSelected {
-                        proxy.scrollToOrigin()
-                    } else if let selectedID {
-                        proxy.reveal(selectedID)
-                    }
-                }
-            }
+            .scrollFollowsSelection(
+                scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
         }
         .onDisappear { IconCache.purgeFitted() }
     }
