@@ -454,6 +454,10 @@ struct RootPaletteView: View {
                         onBegan: beginDrag, onEnded: endDrag)
                 }
             }
+            // The panel resolves the pointer against this rather than hit-testing for the field.
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+                vm.searchFieldFrame = $0
+            }
     }
 
     /// The Uninstall screen's primary action is destructive, so its pill isn't white.

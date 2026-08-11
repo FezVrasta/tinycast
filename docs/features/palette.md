@@ -166,6 +166,35 @@ explicit `accessibilityLabel` because the prompt used to supply it.
 
 This is the same class of bug as the freeze below — both come from the cell/field-editor swap.
 
+## The panel settles the pointer itself
+
+`PalettePanel.applyCursorPolicy` sets the cursor after every mouse event: the I-beam inside the search
+field's frame, the arrow everywhere else. Without it the palette's pointer sticks as an I-beam over the
+whole window and flickers along the field's edge — the two AppKit mechanisms that claim a cursor here
+disagree, and neither yields.
+
+- SwiftUI's `HostingClipView` claims the **arrow** across the entire window as a *cursor rect*.
+- The field editor claims the **I-beam** from its own *tracking area*.
+
+Both fire on the same crossings, so the cursor alternates while the pointer is over the field, and the
+last claim simply stays put once it leaves — nothing re-evaluates a cursor rect until the pointer
+crosses one, and the arrow rect spans the window, so leaving the field crosses nothing.
+
+Two measured details the policy depends on:
+
+- **The field publishes its own frame.** `RootPaletteView` reports it into `PaletteState.searchFieldFrame`
+  via `onGeometryChange`, and the panel does a containment test against that. Hit-testing for the field
+  instead does not work: SwiftUI rebuilds it as it re-renders, and a hit test taken mid-rebuild misses
+  it and reads as *the pointer left the field*. The frame only moves on layout, so it never lies.
+  It arrives top-left-down and is flipped into AppKit's bottom-left-up window space.
+- **The rect is outset by 2pt.** AppKit's field editor is a point taller than the field it serves — the
+  same measurement the placeholder section above rests on — so its I-beam overhangs the published
+  frame. Without the slack that 1pt band is a disagreement, and it flickers.
+
+The policy runs after `super.sendEvent`, so it has the last word, and it writes only when the cursor
+actually differs. It must stay **symmetric**: an earlier version left the field alone and only forced
+the arrow outside it, and AppKit's own alternation over the field came straight back.
+
 ## Menu-open input freeze
 
 While a footer popover menu (⌘K Actions / app menu) is open the search field reads as inert but

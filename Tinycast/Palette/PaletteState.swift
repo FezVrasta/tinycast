@@ -19,6 +19,9 @@ final class PaletteState {
     var pasteTarget: PasteTarget?
     /// True only while the pointer physically moves; untracked, so it never re-renders.
     @ObservationIgnored var hoverHighlightArmed = false
+    /// The search field's frame, published by the view that owns it. The panel's cursor policy
+    /// is a containment test against this: hit-testing a rebuilding hierarchy misses the field.
+    @ObservationIgnored var searchFieldFrame: CGRect = .zero
     /// True while a footer menu is open. See docs/features/palette.md#menu-open-input-freeze.
     @ObservationIgnored var menuOpen = false { didSet { onMenuOpenChanged?(menuOpen) } }
     /// Fired when `menuOpen` flips, so the panel can hide the caret without a focus swap.
