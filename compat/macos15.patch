@@ -1,6 +1,6 @@
---- a/Tinycast/Core/Theme.swift
-+++ b/Tinycast/Core/Theme.swift
-@@ -221,10 +221,48 @@
+--- a/Tinycast/DesignSystem/Theme.swift
++++ b/Tinycast/DesignSystem/Theme.swift
+@@ -179,10 +179,48 @@
      }
  }
  
@@ -39,8 +39,8 @@
 +}
 +
  extension View {
--    /// A floating Liquid Glass control surface (action group + menu button), interactive for native lensing with a whitish frost tint so it reads brighter than clear glass.
-+    /// A floating control surface (action group + menu button), interactive for native lensing with a whitish frost tint so it reads brighter than clear glass.
+-    /// A floating glass control surface, frosted so it reads brighter than clear glass.
++    /// A floating control surface, frosted so it reads brighter than clear glass.
      func frosted(in shape: some Shape) -> some View {
 -        glassEffect(.regular.interactive().tint(Theme.Colors.glassFrost), in: shape)
 -            .tint(.clear)
@@ -52,12 +52,12 @@
 +        modifier(FrostedSurface(shape: shape, isInteractive: false))
 +    }
  }
---- a/Tinycast/Features/PopoverMenu.swift
-+++ b/Tinycast/Features/PopoverMenu.swift
+--- a/Tinycast/DesignSystem/PopoverMenu.swift
++++ b/Tinycast/DesignSystem/PopoverMenu.swift
 @@ -80,8 +80,8 @@
          .padding(Theme.Spacing.sm)
          .frame(width: Theme.Size.menuWidth)
-         // Tahoe glass carries its own elevation/shadow; a hand-tuned drop shadow on top reads heavy and non-native, so we let the glass own it.
+         // Glass carries its own elevation, so a drop shadow on top reads heavy.
 -        .glassEffect(
 -            .regular, in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
 +        .frostedMenu(
@@ -65,11 +65,11 @@
          )
      }
  }
---- a/Tinycast/Features/Settings/ShortcutRecorderPopover.swift
-+++ b/Tinycast/Features/Settings/ShortcutRecorderPopover.swift
-@@ -50,8 +50,8 @@
-         .frame(
-             width: Theme.Size.shortcutPopover.width, height: Theme.Size.shortcutPopover.height)
+--- a/Tinycast/Features/HotKeys/UI/ShortcutRecorderPopover.swift
++++ b/Tinycast/Features/HotKeys/UI/ShortcutRecorderPopover.swift
+@@ -52,8 +52,8 @@
+             width: Theme.Size.shortcutPopover.width, height: Theme.Size.shortcutPopover.height
+         )
          // Stock glass owns its elevation, as in `PopoverMenu` — no hand-tuned shadow.
 -        .glassEffect(
 -            .regular, in: CalloutShape(caretEdge: placement.caretEdge, caretX: placement.caretX))
