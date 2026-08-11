@@ -2,7 +2,7 @@
 
 The design system for Tinycast's UI, written so an agent restyling or extending it stays consistent
 with what's already there. This documents **Tinycast as built** — every rule here maps to code in
-`Tinycast/`. `Core/Theme.swift` is the single design-token source.
+`Tinycast/`. `DesignSystem/Theme.swift` is the single design-token source.
 
 Read this before touching any view body, `Theme` value, or the panel chrome.
 
@@ -39,10 +39,17 @@ These are the things that quietly break the look if changed. Preserve them unles
 - **Don't use the native scroll edge effect.** Inside a transparent panel it renders a hard-bounded rectangle. Use `edgeDissolve()`.
 - **Test over a light desktop.** Transparency and corner masking bugs only show over bright wallpaper. Dark wallpaper hides them.
 - **No `NSAlert`, no `NSSlider`, no system popovers.** Every confirmation, failure report, value prompt and transient readout is Tinycast's own SwiftUI surface (see "Dialogs & HUD"). An Aqua alert on a white-alpha-over-vibrancy app reads as a different product, and its `runModal` run loop keeps Carbon hotkeys firing underneath.
+- **A dialog has three independent axes; never let one infer another.** The **icon** (`DialogRequest.symbol`, required) is always the *subject's* own glyph — a command being confirmed uses its `SystemAction.sfSymbol`, so the Restart dialog shows the same icon as the Restart row. Tone never picks an icon. The **tone** (`DialogTone`: `.neutral` / `.success` / `.danger`) tints only that glyph. The **button** takes its color from `DialogAction.Role` (`.standard` white / `.destructive` red / `.cancel` secondary), so a red-glyph security warning can still carry a plain white button — as "Import executable commands?" does.
+- **Resolve every glyph through `SymbolImage`, not `Image(systemName:)`.** Some catalog symbols are bundled assets in `Assets.xcassets` (`toggleBluetooth`), and `Image(systemName:)` silently renders nothing for those.
+- **↵ runs the primary action, Escape cancels, and Cancel always renders leading** (the left button), matching macOS convention. A button never prints its key cap; hovering it shows a `Tooltip` instead, styled like the palette's own keycap chips.
+- **A transient readout is a HUD, not a dialog.** `VolumeHUDController`'s box is volume and mute only, since that one needs an actual level and number; every other success or info confirmation goes through `MessageHUDController`'s pill, whose trailing glyph *is* its `DialogTone`. A pill has no subject to name, so the icon rule above does not apply to it — and that mapping stays file-scoped so nothing can reach for it when building a `DialogRequest`. A new HUD means a new presenter, not a second shape bolted onto an existing controller.
+- **Glass is for controls; content takes the panel recipe.** `glassEffect` needs a backdrop to lens, so it only works *inside* a window that already has a `VisualEffectView` — the action capsule, the menu circle, `PopoverMenu`, a dialog's buttons. On a bare borderless panel it falls back to an opaque backing and shows as a dark edge. Both HUDs therefore use `black panelDimming` → `VisualEffectView()` → `clipShape`, exactly like a dialog.
 
 ---
 
-## Tokens — `Tinycast/Core/Theme.swift`
+## Tokens
+
+Source: `Tinycast/DesignSystem/Theme.swift`.
 
 `Theme` is the single source of truth. **Never hardcode a spacing/radius/size/color that has a token.**
 Add a token rather than a magic number when introducing a new value.
@@ -106,7 +113,9 @@ the forced-dark environment). **Selection always beats hover** when a row is bot
 
 ---
 
-## Panel structure — `Core/PalettePanel.swift`, `Features/RootPaletteView.swift`
+## Panel structure
+
+Source: `Palette/PalettePanel.swift`, `Palette/RootPaletteView.swift`.
 
 - **`PalettePanel`** is a borderless `NSPanel`: `isOpaque = false`, `backgroundColor = .clear`, `.floating` level, `hasShadow`, `animationBehavior = .none`. It hosts SwiftUI via `NSHostingView`. `PaletteWindowController` centers it slightly above screen center (`+8%`) and dismisses it on `windowDidResignKey`.
 - **The results layer fills the whole panel.** The header and bottom bar attach via `.safeAreaInset(edge: .top/.bottom)` as transparent overlays that float _over_ the list. The list underlaps them and dissolves at the edges.
@@ -116,7 +125,9 @@ the forced-dark environment). **Selection always beats hover** when a row is bot
 
 ---
 
-## The edge dissolve — `Core/EdgeDissolve.swift`
+## The edge dissolve
+
+Source: `DesignSystem/Scrolling/EdgeDissolve.swift`.
 
 The signature effect. A scroll-driven `LinearGradient` mask on each list so rows soften as they approach
 a floating bar, ghost beneath it, and vanish only at the window edge. Attach with `.edgeDissolve()` on
@@ -129,7 +140,10 @@ the `ScrollView`, **before `.thinScrollbar()`** (so the scrollbar overlay stays 
 
 ---
 
-## Rows, selection, hover — `Launcher/LauncherView.swift`, `Clipboard/ClipboardView.swift`, `Uninstall/UninstallView.swift`
+## Rows, selection, hover
+
+Source: `Launcher/UI/LauncherList.swift`, `Clipboard/UI/ClipboardView.swift`,
+`FileSearch/UI/FileSearchList.swift`, `Uninstall/UI/UninstallView.swift`.
 
 All lists share one row grammar so launcher and clipboard look identical:
 
@@ -137,13 +151,15 @@ All lists share one row grammar so launcher and clipboard look identical:
 - **The leading slot is always `Theme.Size.rowIcon`, whatever fills it.** A glyph smaller than an app icon — the uninstall list's 16pt checkbox — is centred _inside_ that 24pt slot rather than sizing the slot to itself. Every list then starts its title at the same x, so switching palette modes doesn't jog the column sideways. The slot doubles as the hit target.
 - Background is a `RoundedRectangle(row, .continuous)` filled by `fill`: **selection → hover → clear**, in that precedence. This `fill` computed property is copy-identical across `AppRow`, `ClipboardRow`, `CalculatorCard` and `UninstallRow` — keep them in sync.
 - **Hover state lives on the row**, not the list, so a mouse sweep repaints only the rows entering/leaving (a list-level hover rebuilds every row per move — don't do that).
-- **Scroll moves only on keyboard nav/reset**, driven by a `ScrollIntent` (`Core/ScrollIntent.swift`) — mouse selection targets a visible row and never yanks scroll. `.follow` is a minimal scroll-to-visible (nil anchor), so the list stays stationary while the selection walks across it and only advances by a row at the viewport edges; `.top` scrolls to the origin anchor that `scrollOriginAnchor()` installs — a zero-height overlay applied to the scrolled content _after_ its padding, so it marks offset 0 without joining the layout and the restored origin is exact (targeting the first row instead leaves the top padding hidden under the header). A `.follow` that lands on flat index 0 restores the origin instead, so that row's section header comes back into view. One intent state serves all four modes — they never coexist.
+- **Hover is armed by pointer movement, not by the pointer's position** (`armedHover`, `Palette/HoverArming.swift`). A palette shown under a resting pointer lights nothing, and keys or a scroll drop the highlight until the pointer moves clear of the slop radius around where it stood — a row must never light up because it *slid under* a still pointer. Two measured facts the rule rests on: SwiftUI fires hover phases for rows arriving under a stationary pointer, but **not** for a lit row that merely shifts, so `PaletteState.hoverDisarmToken` clears what is already lit; and a wheel gesture ends with a mouse-moved event carrying no displacement, so *event type is not evidence the pointer moved*. `Tests/hover-arming-test.swift` pins both halves.
+- **Scroll moves only on keyboard nav/reset**, driven by a `ScrollIntent` (`DesignSystem/Scrolling/ScrollIntent.swift`) — mouse selection targets a visible row and never yanks scroll. `.top` scrolls to the origin anchor that `scrollOriginAnchor()` installs — a zero-height overlay applied to the scrolled content _after_ its padding, so it marks offset 0 without joining the layout and the restored origin is exact (targeting the first row instead leaves the top padding hidden under the header); it is restated when the header's inset settles after mount, which moves the resting offset. A `.follow` that lands on flat index 0 restores the origin instead, so that row's section header comes back into view. One intent state serves every mode — they never coexist.
+- **`.follow` is an invariant, not a command** (`scrollFollowsSelection`, `DesignSystem/Scrolling/`). Each list marks its selected row with `selectionFrame(_:)`, and the modifier keeps that row inside the band between the floating bars, re-checking as the geometry and the row's frame settle, then **stops watching the moment the row is inside**. That self-release is what keeps it safe: once a keystroke has landed nothing is observing, so a wheel scroll — or a scrollbar-thumb drag, which `onScrollPhaseChange` cannot see at all — is never pulled back. Two measured facts it rests on: `frame(in: .scrollView)` reports the *inset-excluded* space, so the band is simply `0…containerSize.height`; and SwiftUI's minimal scroll-to-visible counts the strip behind the bottom bar as visible while its *destination* math respects the insets. Hence the split — Tinycast decides **whether** to scroll (`SelectionReveal`, pure, pinned by `Tests/scroll-reveal-test.swift`) and SwiftUI performs the move with an explicit `.top`/`.bottom` anchor. Scroll far by hand and the lazy stack drops the selected row, so there is no frame to measure at all: the fallback brings it back by id and the invariant, still standing, re-checks the moment it reports — which is why arrowing after a long mouse scroll lands the selection on screen rather than moving it out of sight. A one-shot `scrollTo` here left the highlight stranded under the pill whenever the target row's layout was not yet known, with nothing looking again until the next key press.
 - **Keycaps** use `KeyCapChip`: `.outline` (white-0.20 border) for hotkey hints on rows, `.filled` (white-0.10 fill) for footer shortcuts.
 
 ### Section headers
 
-All five palette lists (App Launcher, Clipboard, Emoji, Calculator History, Uninstall) render category labels
-through one shared **`SectionHeader`** (`.subheadline.medium`, secondary — `Features/Launcher/LauncherView.swift`).
+All six palette lists (App Launcher, Clipboard, Emoji, File Search, Calculator History, Uninstall) render category labels
+through one shared **`SectionHeader`** (`.subheadline.medium`, secondary — `Features/Launcher/UI/SectionHeader.swift`).
 The launcher shows a single "Results" header over search matches, and per-kind sections
 (Favorites / Applications / System Settings / Commands) for the empty query; clipboard/history use
 date buckets (Today / Yesterday / …), and the clipboard adds a "Pinned" section above them holding
@@ -156,7 +172,9 @@ leading gap. Headers are non-selectable display rows, so selection (keyed by id)
 
 ---
 
-## Liquid Glass — `Theme.frosted(in:)`, `Features/PopoverMenu.swift`
+## Liquid Glass
+
+Source: `Theme.frosted(in:)`, `DesignSystem/PopoverMenu.swift`.
 
 Glass is **only** for floating controls, never the main surface.
 
@@ -170,7 +188,9 @@ Glass is **only** for floating controls, never the main surface.
 
 ---
 
-## Dialogs & HUD `Core/Dialog/`, `Features/Dialog/`, `Core/HUD/`, `Features/HUD/`
+## Dialogs & HUD
+
+Source: `Windows/Dialog/`, `Windows/HUD/`.
 
 Tinycast owns its dialogs; `NSAlert` is never used. `DialogController` is owned by `AppCore` (the
 sole owner rule) and is the only presenter, so every confirmation in the app looks and behaves alike.
@@ -182,7 +202,7 @@ sole owner rule) and is the only presenter, so every confirmation in the app loo
   command passes its `SystemAction.sfSymbol`, so the Restart dialog shows `arrow.clockwise` and
   Empty Trash shows `trash.slash` — the same glyph as the launcher row the user just activated.
   Custom commands use `terminal`, the backup flows `square.and.arrow.up` / `.down`. Symbols render
-  through `SymbolImage` (`Core/SymbolImage.swift`), never raw `Image(systemName:)`, because some
+  through `SymbolImage` (`DesignSystem/SymbolImage.swift`), never raw `Image(systemName:)`, because some
   catalog symbols are bundled template assets rather than SF Symbols — `toggleBluetooth` ships its
   own artwork since the logo is a SIG trademark, and a raw `Image(systemName:)` draws nothing for it.
 - **Tone.** `DialogTone` is `.neutral` (secondary gray), `.success` (green) or `.danger` (red), and
@@ -215,7 +235,7 @@ sole owner rule) and is the only presenter, so every confirmation in the app loo
   never has to think about layout position when it builds a request.
 - **Keys.** `DialogPanel.sendEvent` intercepts Esc and ↵ directly instead of relying on SwiftUI
   `onKeyPress`, so the keys work without anything inside the dialog holding focus. Buttons don't print
-  a key cap; hovering one shows a `Tooltip` (`Core/Tooltip.swift`) with the cap the panel actually
+  a key cap; hovering one shows a `Tooltip` (`DesignSystem/Tooltip.swift`) with the cap the panel actually
   handles (`↵`, `esc`), styled like the palette's own `KeyCapChip` but hover-triggered instead of
   always-on, so a shown cap can't drift from behavior. **↵ runs the dialog's primary action; Escape
   cancels**, on every dialog including destructive ones.
@@ -226,7 +246,7 @@ sole owner rule) and is the only presenter, so every confirmation in the app loo
   loop. A held hotkey can't stack dialogs: while one is up, a second request resolves immediately as a
   dismissal — which is why the old `isConfirmingCommand` re-entrancy flag is gone. The guard is keyed
   on the live continuation, not on the panel, so a dialog still fading out can't swallow the next one.
-- **Entrance and exit — `Core/PanelTransition.swift`.** Every borderless surface arrives the same
+- **Entrance and exit — `DesignSystem/Interaction/PanelTransition.swift`.** Every borderless surface arrives the same
   way, so dialogs and HUDs read as one gesture. `NSWindow.fadeIn` animates the _window's_ alpha over
   `Duration.enter` (0.18s) — the window, not just the content, so the drop shadow arrives with the
   surface instead of snapping in ahead of it — while `View.panelEntrance()` scales `0.94 → 1` over the
@@ -284,27 +304,57 @@ sole owner rule) and is the only presenter, so every confirmation in the app loo
   midline — visible only on the session's first HUD, which is what makes it easy to miss. Add a
   third HUD by constructing another presenter, not by teaching an existing controller a second shape.
 
-## Scrollbars — `Core/ThinScrollbar.swift`
+## Scrollbars
+
+Source: `DesignSystem/Scrolling/ThinScrollbar.swift`.
 
 Custom thin overlay scrollbar (the native one flashes and reserves a gutter inside a transparent panel).
 `.hideNativeScrollers()` on the scroll _content_ forces the backing `NSScrollView` to a hidden `.overlay`
 style; `.thinScrollbar()` on the scroll view draws a hairline thumb (`Color.primary` alpha 0.30 rest →
 0.42 hover → 0.5 drag) that fattens on hover, with a faint rail revealed only while hovering/dragging.
 
-Routing: the palette lists (App Launcher, Clipboard history, Emoji, Calculator history) use
+Routing: the palette lists (App Launcher, Clipboard history, Emoji, File Search, Calculator history) use
 `.thinScrollbar()` + `.hideNativeScrollers()`; the Clipboard preview (right pane) and every Settings
-pane use the native `.overlayScroller()`. Don't reintroduce native scrollers on the palette lists.
+pane take the native scroller as-is. Don't reintroduce native scrollers on the palette lists.
+
+**Native scrollers are overlay app-wide, set once.** `AppDelegate.applicationWillFinishLaunching`
+writes `AppleShowScrollBars = WhenScrolling` into Tinycast's own defaults domain, which outranks the
+global one. Under the system's "Automatic" setting AppKit otherwise switches every scroll view to
+thick legacy scrollers the moment it sees a mouse — a scroll view is born overlay and flips ~half a
+second later, which read as a thick bar flashing at the right edge of each pane. There is no
+per-scroll-view shim: chasing that flip after the fact is what caused the flash.
 
 ---
 
-## Settings — `Features/Settings/SettingsComponents.swift`
+## Settings
 
-Settings runs in its own `NSWindow` (the SwiftUI `Settings` scene is unreliable for accessory apps) but
-shares the palette's `Theme` vocabulary. It reads as macOS System Settings, not the palette:
+Source: `DesignSystem/SettingsComponents.swift`.
 
-- **`SettingsPane`**: bold `.title2` title + secondary subtitle header, then scrollable content, `xxl` inset all around, the same thin scrollbar.
-- **`SettingsCard`**: rounded `card 10` container, `cardFill` (white 0.05) fill, `cardStroke` (white 0.10) hairline border. Rows inside are split by `SettingsDivider` — an inset hairline aligned under the row title (past the icon).
-- **`SettingsRow`**: optional 20pt SF Symbol, title + optional caption subtitle, trailing control, fixed `.horizontal xl / .vertical lg` rhythm.
+Settings runs in its own resizable `NSWindow` (the SwiftUI `Settings` scene is unreliable for accessory
+apps) with real traffic lights and a lifecycle wholly its own. It does not share the palette's look: **every pane is a stock
+`Form` with `.formStyle(.grouped)`**, so the cards, headers, row insets and hairlines are all
+system-drawn and a pane reads exactly as macOS System Settings does.
+
+- **A row is a stock control.** `LabeledContent`, `Toggle` or `Picker`, each with a two-view label —
+  the first view is the title, the rest become the secondary subtitle. Never a hand-built `HStack`
+  with its own padding.
+- **A row with a custom trailing control uses `SettingsRow`, not `LabeledContent`.** `LabeledContent`
+  wraps its value in a selectable text field, which swallows the taps a `ShortcutRecorder` needs —
+  the recorder renders but never starts recording. Stock `Toggle`/`Picker`/`Button` trailing content
+  is unaffected.
+- **`.settingsEnabled(_:)`, never a bare `.disabled(_:)`.** It dims as well as disables, so a
+  switched-off row reads as unavailable rather than merely unresponsive.
+- **A group is a `Section`**, with `header:` for its name and `footer:` for the caption that used to
+  ride under the last row.
+- **The pane's own title is not in the pane.** `SettingsToolbarController` puts it in the titlebar,
+  seated in the detail column by `.sidebarTrackingSeparator`.
+- `SettingsComponents.swift` holds only what more than one pane needs: **`SettingsRow`**,
+  **`FeatureSwitchSection`** (a feature's master switch plus its launcher-visibility companion) and
+  **`SettingsFilterField`** (the filter row above a long list). `Onboarding/OnboardingCard.swift`
+  keeps the older hand-drawn card, which that window still uses.
+- **A `Form` realizes every row it is handed.** `LauncherItemsSection` therefore holds its items in
+  a `LazyVStack` inside one Form row — 400 apps cost 55 ms and 69 views that way against 750 ms and
+  2040 eager. Any other unbounded list must do the same.
 
 ### The shortcut recorder callout
 
@@ -315,15 +365,15 @@ the bottom-right corner. Three states in one fixed frame — prompt (`⌥ A` at 
 shortcut"), live held modifiers, and conflict (rejected caps + owner, orange).
 
 - **An ancestor draws it.** The open recorder publishes its bounds via `ShortcutRecorderAnchorKey`;
-  `.shortcutRecorderPopoverHost()` sits on `SettingsPane` **outside** its `ScrollView` (and on
-  `OnboardingView`) and positions it. An overlay on the row would be clipped by the scroll view.
-- **`shortcutPopover.width` is load-bearing.** A recorder's centre is `xxl + xl + half the field` in
-  from the pane edge, so the callout must stay under twice that to centre on it with the caret dead
-  centre. Widen it and the clamp kicks in and skews the caret. `Tools/callout-test.swift` pins this.
-- **One glass shape.** `CalloutShape` (`Core/`) draws body and caret as a single path so `glassEffect`
+  `.shortcutRecorderPopoverHost()` sits on `SettingsDetailView` — one host above every pane's
+  `Form`, and on `OnboardingView`. An overlay on the row would be clipped by the scroll view.
+- **`shortcutPopover.width` is load-bearing.** The callout centres on the recorder only while it
+  fits either side of it; wider than that and the clamp kicks in and skews the caret.
+  `Tests/callout-test.swift` pins this.
+- **One glass shape.** `CalloutShape` (`HotKeys/UI/`) draws body and caret as a single path so `glassEffect`
   lenses them together. The caret is two straight edges meeting at an arc — a rounded-tip triangle,
   not a dome. Stock `.regular` glass, no hand-tuned shadow, as in `PopoverMenu`.
-- **Placement is pure.** `CalloutPlacement` (`Core/`) picks above-vs-below, clamps, and walks the caret;
+- **Placement is pure.** `CalloutPlacement` (`HotKeys/UI/`) picks above-vs-below, clamps, and walks the caret;
   the harness compiles it against the real `Theme` so a retuned token can't outdate the assertions.
 - **`KeyCapChip.Scale`** is `compact` / `standard` / `hero` — three tokenised sizes, no stray frames.
 - `allowsHitTesting(false)`: clicks fall through to the capture session's mouse monitor, which closes it.
@@ -337,7 +387,7 @@ The calculator's inline `CalculatorCard` reuses this card language (`cardFill` +
 Its placeholder is drawn by Tinycast, not by the field's `prompt` — an `NSTextField` renders a prompt
 through either its cell or its (one point taller) field editor, so a real prompt steps vertically when
 focus moves. Don't reintroduce `prompt:` on that field. See
-[palette.md](palette.md#the-placeholder-is-tinycasts-not-the-fields).
+[features/palette.md](features/palette.md#the-placeholder-is-tinycasts-not-the-fields).
 
 ## Rules for agents working on the UI
 
