@@ -40,7 +40,10 @@ brew trust --tap abue-ammar/tinycast   # required for third-party taps
 brew tap abue-ammar/tinycast
 brew install --cask tinycast          # stable
 brew install --cask tinycast@beta     # beta  (installs side-by-side)
+brew install --cask tinycast-sequoia  # stable channel  (macOS 15 Sequoia)
 ```
+
+Tinycast also runs on macOS 15 Sequoia — install the `tinycast-sequoia` cask above.
 
 Each channel is a separate app (`Tinycast.app`, `Tinycast Beta.app`) with its own settings and
 permissions, so you can run stable next to the beta.
