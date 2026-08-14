@@ -719,8 +719,9 @@ struct CalcTests {
     }
 
     static func expectDisplay(_ query: String, _ expected: String, region: String? = nil) {
-        guard case .value(let display, _)? = CalcEngine.evaluate(
-            query, rates: fx, region: region)?.payload
+        guard
+            case .value(let display, _)? = CalcEngine.evaluate(
+                query, rates: fx, region: region)?.payload
         else {
             fail(label(query, region), expected: expected, got: "nil / error")
             return
@@ -729,8 +730,9 @@ struct CalcTests {
     }
 
     static func expectCopy(_ query: String, _ expected: String, region: String? = nil) {
-        guard case .value(_, let copy)? = CalcEngine.evaluate(
-            query, rates: fx, region: region)?.payload
+        guard
+            case .value(_, let copy)? = CalcEngine.evaluate(
+                query, rates: fx, region: region)?.payload
         else {
             fail(label(query, region), expected: expected, got: "nil / error")
             return

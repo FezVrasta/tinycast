@@ -10,6 +10,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case systemAction
         case windowCommand
         case quicklink
+        case extensionCommand
 
         var descriptor: KindDescriptor {
             switch self {
@@ -45,6 +46,11 @@ struct AppEntry: Identifiable, Hashable, Sendable {
                 return KindDescriptor(
                     label: "Quicklink", sectionTitle: "Quicklinks",
                     openVerb: "Open Quicklink", canRevealInFinder: false, isSymbolIcon: true)
+            case .extensionCommand:
+                // The label is per-entry (the owning extension's title), so this is only the fallback.
+                return KindDescriptor(
+                    label: "Extension", sectionTitle: "Extensions",
+                    openVerb: "Run Command", canRevealInFinder: false, isSymbolIcon: true)
             }
         }
     }
@@ -71,6 +77,10 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     var alternateNames: [String] = []
     /// `CFBundleExecutable`, matched literally as a last resort. Applications only.
     var executableName: String?
+    /// Set by the feature that produced the entry when its glyph isn't derivable from `kind`.
+    var iconOverride: EntryIcon?
+    /// A per-entry label where the kind's own reads too flat — an extension's title, say.
+    var labelOverride: String?
 
     /// Stable identity for learned ranking, favorites, and other per-entry preferences.
     var preferenceKey: String { bundleID ?? id }
@@ -81,7 +91,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             bundleID: bundleID, executableName: executableName)
     }
 
-    var kindLabel: String { kind.descriptor.label }
+    var kindLabel: String { labelOverride ?? kind.descriptor.label }
 
     /// The hotkey action for this entry, or nil for built-ins and unaddressable bundles.
     var hotKeyAction: HotKeyAction? {
@@ -101,7 +111,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             return WindowCommandCatalog.command(forEntryID: id).map { .windowCommand(id: $0.id) }
         case .quicklink:
             return Quicklink.id(fromEntryID: id).map { .quicklink(id: $0) }
-        case .snippet:
+        case .snippet, .extensionCommand:
             return nil
         }
     }
@@ -109,11 +119,16 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     /// Synthetic entries have no file to reveal; a destination is its record's own action.
     var canRevealInFinder: Bool { kind.descriptor.canRevealInFinder }
 
-    /// Synthetic entries draw an SF Symbol tile; everything else uses its file icon.
-    var isSymbolIcon: Bool { kind.descriptor.isSymbolIcon }
+    /// What this row draws, and the only thing any icon path needs to ask.
+    var iconSource: EntryIcon { iconOverride ?? defaultIcon }
 
-    var symbolIconName: String {
-        if let symbolName { return symbolName }
+    /// Derived from the kind alone: synthetic entries get a symbol tile, everything else its file.
+    private var defaultIcon: EntryIcon {
+        guard kind.descriptor.isSymbolIcon else { return .file }
+        return .symbol(symbolName ?? kindSymbol)
+    }
+
+    private var kindSymbol: String {
         switch kind {
         case .quicklink: return Quicklink.sfSymbol
         case .snippet: return "text.quote"
@@ -122,14 +137,14 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case .systemAction: return SystemActionCatalog.action(forEntryID: id)?.sfSymbol ?? "questionmark"
         case .windowCommand:
             return WindowCommandCatalog.command(forEntryID: id)?.sfSymbol ?? "questionmark"
-        case .application, .systemSettings: return "questionmark"
+        case .application, .systemSettings, .extensionCommand: return "questionmark"
         }
     }
 
-    var icon: NSImage {
-        isSymbolIcon
-            ? IconCache.symbolIcon(named: symbolIconName) : IconCache.icon(forFile: url.path)
-    }
+    var icon: NSImage { IconCache.icon(for: iconSource, fileURL: url) }
+
+    /// Icon identity for a row's async load: re-skinning changes the glyph while `id` stays put.
+    var iconKey: String { "\(id)|\(iconSource)" }
 }
 
 @MainActor
@@ -181,6 +196,7 @@ final class AppIndex {
     private var customCommandEntries: [AppEntry] = []
     private var windowCommandEntries: [AppEntry] = []
     private var quicklinkEntries: [AppEntry] = []
+    private var extensionEntries: [AppEntry] = []
     private var commandEntries: [AppEntry]
     private var quicklinkCommandsVisible = false
     private var fileSearchCommandVisible = false
@@ -242,6 +258,14 @@ final class AppIndex {
         guard commands != commandEntries else { return }
         fileSearchCommandVisible = visible
         commandEntries = commands
+        publishEntries()
+    }
+
+    /// Replaces the extension-command slice. Called by `ExtensionManager` whenever the installed set,
+    /// or an extension's chosen appearance, changes.
+    func setExtensionCommands(_ entries: [AppEntry]) {
+        guard entries != extensionEntries else { return }
+        extensionEntries = entries
         publishEntries()
     }
 
@@ -359,8 +383,9 @@ final class AppIndex {
     private func publishEntries() {
         // Each slice arrives in its own display order; the slice order is the section order.
         let updated =
-            discoveredEntries + quicklinkEntries + snippetEntries + Self.systemActionEntries
-            + windowCommandEntries + customCommandEntries + commandEntries
+            discoveredEntries + extensionEntries + quicklinkEntries + snippetEntries
+            + Self.systemActionEntries + windowCommandEntries + customCommandEntries
+            + commandEntries
         guard updated != apps else { return }
         apps = updated
         entriesRevision &+= 1

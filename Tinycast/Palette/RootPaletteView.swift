@@ -16,8 +16,11 @@ struct RootPaletteView: View {
     @Environment(UninstallSession.self) private var uninstall
     @Environment(QuicklinkStore.self) private var quicklinks
     @Environment(QuicklinkArgumentSession.self) private var quicklinkArguments
+    @Environment(ExtensionManager.self) private var extensions
     @Environment(AppSettings.self) private var settings
     @FocusState private var searchFocused: Bool
+    /// Kept apart from the search field's own focus. See docs/features/palette.md.
+    @FocusState private var argumentFocused: String?
     /// Which in-window menu is open; at most one, so the state cannot disagree with itself.
     @State private var openMenu: OpenMenu?
     /// Sampled once by `openActions`, so the Quit row can't appear while the menu is up.
@@ -63,7 +66,19 @@ struct RootPaletteView: View {
             return CalculatorHistoryScreen(
                 history: calcHistory, currencyRates: currencyRates, core: core, vm: vm,
                 openActions: openActions)
+        case .extensionCommand:
+            return ExtensionCommandScreen(
+                screen: extensionScreen, extensions: extensions, core: core, vm: vm,
+                openActions: openActions)
         }
+    }
+
+    /// The running command's rendered screen, flattened. `.empty` until the first commit lands.
+    private var extensionScreen: ExtensionScreen {
+        guard vm.mode == .extensionCommand, case .rendered(let tree) = extensions.state else {
+            return .empty
+        }
+        return ExtensionScreen(tree: tree, query: vm.query)
     }
 
     /// Selection clamped into the results: one source for highlight, preview and activation.
@@ -144,6 +159,7 @@ struct RootPaletteView: View {
         }
         // The panel has no title bar, so this thin top margin is the only place left to grab it.
         .overlay(alignment: .top) { topDragStrip }
+        .modifier(ExtensionToastOverlay(extensions: extensions, showing: vm.mode == .extensionCommand))
         // In-window overlays, so a menu stays clipped inside the panel.
         .overlay {
             if menuOpen {
@@ -165,10 +181,18 @@ struct RootPaletteView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if openMenu == .actions, let content = actionsContent {
-                PopoverMenu(
-                    header: content.header, items: content.items, selection: $menuSelection,
-                    onActivate: activateMenuItem
-                )
+                Group {
+                    // An extension declares its own panel, which runs long enough to need scrolling.
+                    if vm.mode == .extensionCommand {
+                        ExtensionActionsPanel(
+                            header: content.header, items: content.items, selection: $menuSelection,
+                            onActivate: activateMenuItem)
+                    } else {
+                        PopoverMenu(
+                            header: content.header, items: content.items, selection: $menuSelection,
+                            onActivate: activateMenuItem)
+                    }
+                }
                 .padding(Self.menuInset)
                 .transition(Self.menuTransition(.bottomTrailing))
             }
@@ -201,6 +225,10 @@ struct RootPaletteView: View {
             vm.selection = 0
             scroll = ScrollIntent(kind: .top)
             if vm.mode == .fileSearch { fileSearch.search(vm.query) }
+            // A command that took over the search text filters its own list.
+            if vm.mode == .extensionCommand, let handler = extensionScreen.searchTextHandler {
+                extensions.dispatch(handler: handler, arguments: [vm.query])
+            }
         }
         // A narrower list means the old index points at a different row, or at none.
         .onChange(of: vm.clipboardFilter) {
@@ -215,6 +243,10 @@ struct RootPaletteView: View {
             // Every way out of the Uninstall screen: back chevron, bare backspace, a fresh summon.
             if vm.mode != .uninstall { uninstall.cancel() }
             if vm.mode != .fileSearch { fileSearch.cancel() }
+            // Leaving the screen any other way than Escape still ends the command's session.
+            if vm.mode != .extensionCommand, extensions.running != nil {
+                Task { await extensions.stop() }
+            }
             // Same for a half-filled argument form: leaving the screen abandons the pending open.
             if vm.mode != .quicklinkArguments { core.quicklinkCoordinator.cancelQuicklinkArguments() }
         }
@@ -300,14 +332,22 @@ struct RootPaletteView: View {
                 closeMenus()
                 return .handled
             }
+            // An extension pops its own navigation stack before the command is left.
+            if vm.mode == .extensionCommand {
+                core.extensionCoordinator.exitExtensionScreen()
+                return .handled
+            }
             core.paletteCoordinator.hidePalette()
             return .handled
         }
         .onKeyPress(.tab) {
-            if menuOpen { return .handled }
-            toggleMode()
+            if !menuOpen { advanceTabFocus() }
             return .handled
         }
+        .modifier(
+            ExtensionShortcutKeys(
+                screen: menuOpen ? nil : screen as? ExtensionCommandScreen, selection: sel)
+        )
         // ⌘K toggles the actions panel for the current selection.
         .onKeyPress(keys: ["k"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
@@ -356,8 +396,7 @@ struct RootPaletteView: View {
             if menuOpen { closeMenus() }
             return .handled
         }
-        // ⌘P toggles the clipboard's type filter; never gated on the rows, since an
-        // over-narrow filter empties them and this is the way back out.
+        // Never gated on the rows: an over-narrow filter empties them, and this is the way back out.
         .onKeyPress(keys: ["p"], phases: .down) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
             guard !isCollapsed, vm.mode == .clipboard else { return .ignored }
@@ -413,7 +452,14 @@ struct RootPaletteView: View {
                     .frame(width: Theme.Size.headerIconSlot)
             }
             headerGutter(width: Theme.Spacing.md)
-            searchField
+            // One structural position, always: putting the field inside a branch tears down its
+            // field editor when the branch flips, which drops first responder mid-navigation.
+            // The width shrinks to the typed text so argument fields sit right after it, as in Raycast.
+            searchField.frame(width: headerAccessory.map(searchFieldWidth))
+            if let accessory = headerAccessory {
+                accessory.view
+                Spacer(minLength: 0)
+            }
             // Keyed off the mode, which is what says which screen is up; the field just flexes narrower.
             if !isCollapsed, vm.mode == .clipboard {
                 headerGutter(width: Theme.Spacing.md)
@@ -443,9 +489,35 @@ struct RootPaletteView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Controls the selected row wants beside the search field. Only the expanded launcher offers
+    /// them — inside a sub-screen the search bar belongs to that screen.
+    private var headerAccessory: PaletteHeaderAccessory? {
+        guard vm.mode == .launcher, !isCollapsed else { return nil }
+        let screen = screen
+        return screen.headerAccessory(at: selection(in: screen), focus: $argumentFocused)
+    }
+
+    /// Width the search field shrinks to when an accessory sits beside it: the typed text's own
+    /// width, floored so the caret always has room and capped so the strip can't be pushed off-screen.
+    private func searchFieldWidth(for accessory: PaletteHeaderAccessory) -> CGFloat {
+        let font = Theme.Typography.searchFieldNSFont
+        let typed = (vm.query as NSString).size(withAttributes: [.font: font]).width
+        let chrome = Theme.Size.headerIconSlot + Theme.Spacing.md * 4
+        // +3pt so the caret sits after the last glyph rather than on top of it.
+        return min(
+            max(typed + 3, 18), max(Theme.Size.panelWidth - accessory.width - chrome, 60))
+    }
+
     /// In the argument form the field is that argument's input, so it names the argument.
     private var searchPrompt: String {
-        vm.mode == .quicklinkArguments ? quicklinkArguments.prompt : vm.mode.placeholder
+        // The field is only wide enough for the caret while argument fields are beside it.
+        if headerAccessory != nil { return "" }
+        if vm.mode == .quicklinkArguments { return quicklinkArguments.prompt }
+        // Inside a running command the search bar belongs to the extension.
+        if vm.mode == .extensionCommand, let placeholder = extensionScreen.searchPlaceholder {
+            return placeholder
+        }
+        return vm.mode.placeholder
     }
 
     /// The one search field — past its text it's a drag handle, matching Spotlight.
@@ -480,7 +552,9 @@ struct RootPaletteView: View {
                 }
             }
             // The panel resolves the pointer against this rather than hit-testing for the field.
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
                 vm.searchFieldFrame = $0
             }
     }
@@ -589,6 +663,11 @@ struct RootPaletteView: View {
 
     /// ↑/↓: the screen's own move where it has one, else a linear step through the rows.
     private func moveVertically(_ delta: Int) {
+        // Moving off a command takes its argument fields with it, so hand focus back first.
+        if argumentFocused != nil {
+            argumentFocused = nil
+            searchFocused = true
+        }
         let screen = screen
         guard let next = screen.move(delta, axis: .vertical, from: selection(in: screen)) else {
             move(delta, in: screen)
@@ -638,17 +717,36 @@ struct RootPaletteView: View {
         vm.mode = vm.mode == .launcher ? .clipboard : .launcher
     }
 
+    /// Tab walks the inline argument fields first — search field → each argument → back — and only
+    /// toggles the mode when the selection declares none.
+    private func advanceTabFocus() {
+        guard let accessory = headerAccessory else { return toggleMode() }
+        argumentFocused = accessory.fieldAfter(argumentFocused)
+        searchFocused = argumentFocused == nil
+    }
+
     /// Back out to a fresh root search, the same reset `prepare` does on show.
     private func exitToLauncher() {
+        if vm.mode == .extensionCommand {
+            core.extensionCoordinator.exitExtensionScreen()
+            return
+        }
         vm.prepare(mode: .launcher)
     }
 
     private func activateSelection() {
         // Nothing is visibly selected when collapsed, so launch via ⌘1–⌘5 or typing.
         guard !isCollapsed else { return }
+        // An unfilled field blocks the launch; focus it instead of acting on a half-typed row.
+        if let incomplete = headerAccessory?.firstIncompleteField {
+            argumentFocused = incomplete
+            searchFocused = false
+            return
+        }
         let screen = screen
         screen.activate(at: selection(in: screen))
     }
+
 }
 
 /// The palette's in-window menus. One optional of these is the whole "only one is open" invariant.
