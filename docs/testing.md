@@ -200,7 +200,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 
 - A copy appears at the top within about a second; an image copy records a thumbnail
 - Search is correct both under and over three characters
-- ⌘P pins and the highlight follows the row into Pinned; ⌘⌫ deletes; ⌘↵ copies without pasting
+- ⌘. pins and the highlight follows the row into Pinned; ⌘⌫ deletes; ⌘↵ copies without pasting
 - ⌃X deletes the selected entry and ⌃⇧X clears the history, from the list and from an open ⌘K menu
 - ⌃⇧X asks first, through Tinycast's own dialog; Cancel and Esc both leave every entry in place
 - ↵ pastes into the previous app; ⌥↵ pastes without closing the palette

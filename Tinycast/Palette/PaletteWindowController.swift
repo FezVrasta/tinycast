@@ -246,6 +246,10 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             case ",":
                 self.core.settingsCoordinator.showSettings()
                 return true
+            // Pin. Swallowed on every screen, since ⌘. only ever means cancel to a search field.
+            case ".":
+                self.core.palette.notePinChord()
+                return true
             case "w":
                 self.core.paletteCoordinator.hidePalette()
                 return true
