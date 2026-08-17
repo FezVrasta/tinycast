@@ -124,6 +124,15 @@ run snippets-test          Tinycast/Platform/NotificationToken.swift \
                            Tinycast/Platform/HealthTicker.swift \
                            Tinycast/Features/Snippets/Model/*.swift \
                            Tinycast/Features/Snippets/Service/*.swift
+run notes-test             Tinycast/Platform/Signposts.swift \
+                           $L/SearchRelevance.swift \
+                           Tinycast/Features/Notes/Model/*.swift \
+                           Tinycast/Features/Notes/Service/*.swift
+run notes-editor-test      Tinycast/Platform/Signposts.swift \
+                           Tinycast/DesignSystem/Theme.swift \
+                           Tinycast/Features/Notes/Model/NoteDocument.swift \
+                           Tinycast/Features/Notes/UI/NoteTextView.swift \
+                           Tinycast/Features/Notes/UI/NoteEditorView.swift
 run raycast-test           Tinycast/Features/Backup/Model/RaycastFormat.swift \
                            Tinycast/Features/Backup/Model/RaycastV1Decoder.swift \
                            Tinycast/Platform/Compression/Zlib.swift \
