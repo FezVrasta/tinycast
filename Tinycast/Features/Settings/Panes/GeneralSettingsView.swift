@@ -8,6 +8,7 @@ struct GeneralSettingsView: View {
     // The same key `MenuBarExtra(isInserted:)` binds, so this updates the icon live.
     @AppStorage(SettingsKey.showInMenuBar) private var showInMenuBar = true
     @State private var confirmingRankingReset = false
+    @State private var inputSources: [InputSourceSwitcher.Option] = []
 
     /// The Hyper modifier chord as prose glyphs, tracking the Include Shift toggle.
     private var hyperGlyphs: String { settings.hyperKeyIncludesShift ? "⌃⌥⇧⌘" : "⌃⌥⌘" }
@@ -160,6 +161,18 @@ struct GeneralSettingsView: View {
                     Text("Pop to Root Search")
                     Text("Reset to the launcher this long after the window closes.")
                 }
+                // Empty only when TIS fails; one layout still lists, so the row does not come and go.
+                if !inputSources.isEmpty {
+                    Picker(selection: $settings.autoSwitchInputSourceID) {
+                        Text("None").tag(nil as String?)
+                        ForEach(inputSources) { source in
+                            Text(source.title).tag(Optional(source.id))
+                        }
+                    } label: {
+                        Text("Auto-switch input source")
+                        Text("Switch the keyboard to this source while the launcher is open.")
+                    }
+                }
             } header: {
                 Text("General")
             }
@@ -177,5 +190,16 @@ struct GeneralSettingsView: View {
         } message: {
             Text("Tinycast will relearn your preferred results as you use the launcher.")
         }
+        .onAppear(perform: refreshInputSources)
+        .onReceive(
+            DistributedNotificationCenter.default().publisher(
+                for: InputSourceSwitcher.sourcesDidChange)
+        ) { _ in
+            refreshInputSources()
+        }
+    }
+
+    private func refreshInputSources() {
+        inputSources = core.inputSourceSwitcher.options(selecting: settings.autoSwitchInputSourceID)
     }
 }
