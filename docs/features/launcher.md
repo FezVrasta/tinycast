@@ -165,7 +165,7 @@ Public AppKit, CoreAudio and workspace APIs are preferred. Actions without a sta
 use fixed system tools, Apple Events, Accessibility, or a dynamically resolved Bluetooth power API.
 Those routes run only on explicit activation. Automation, Accessibility or Bluetooth permission is
 requested at first use, and denial produces an alert linking to the relevant System Settings pane.
-Tinycast remains locked to dark appearance even when Toggle System Appearance changes macOS.
+Toggle System Appearance changes macOS; Tinycast follows it only while its own Appearance is System.
 
 Restart, Shut Down, Log Out, Empty Trash and Quit All Applications confirm before execution: ↵ runs
 the action, Escape cancels. Every dialog is Tinycast's own: confirmations, failure reports and the Set

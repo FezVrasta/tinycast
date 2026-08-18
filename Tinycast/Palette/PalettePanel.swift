@@ -51,7 +51,7 @@ final class PalettePanel: NSPanel {
     /// Caret hiding on the focused text view. docs/features/palette.md#menu-open-input-freeze
     private func setSearchCaretHidden(_ hidden: Bool) {
         guard let editor = firstResponder as? NSTextView else { return }
-        editor.insertionPointColor = hidden ? .clear : .white
+        editor.insertionPointColor = hidden ? .clear : NSColor(Theme.Colors.textPrimary)
         // Force a redraw so the caret flips at once rather than waiting out the blink timer.
         editor.updateInsertionPointStateAndRestartTimer(!hidden)
     }

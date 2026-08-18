@@ -140,7 +140,11 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         }
     }
 
-    var icon: NSImage { IconCache.icon(for: iconSource, fileURL: url) }
+    /// Main-actor because it subscribes the calling view; every caller is a `body`.
+    @MainActor var icon: NSImage {
+        IconCache.observeStyle()
+        return IconCache.icon(for: iconSource, fileURL: url)
+    }
 
     /// Icon identity for a row's async load: re-skinning changes the glyph while `id` stays put.
     var iconKey: String { "\(id)|\(iconSource)" }

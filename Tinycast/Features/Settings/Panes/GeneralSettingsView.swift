@@ -108,6 +108,14 @@ struct GeneralSettingsView: View {
             }
 
             Section {
+                Picker(selection: $settings.appearance) {
+                    ForEach(AppAppearance.allCases) { appearance in
+                        Text(appearance.title).tag(appearance)
+                    }
+                } label: {
+                    Text("Theme")
+                    Text("Match macOS, or pin Tinycast to Light or Dark.")
+                }
                 Toggle(isOn: $settings.compactMode) {
                     Text("Compact mode")
                     Text(

@@ -329,7 +329,8 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
                 extension: owner.manifest.name, schemas: schemas),
             caches: storage.caches(extension: owner.manifest.name),
             arguments: command.completeArguments(arguments),
-            fallbackText: nil)
+            fallbackText: nil,
+            isDarkAppearance: NSApp.effectiveAppearance.isDark)
 
         await runtime.start(
             session: session, code: code, file: bundle, mode: command.mode, context: context)

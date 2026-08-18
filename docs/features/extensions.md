@@ -155,6 +155,13 @@ screens hold (see [palette.md](palette.md)).
   too. `isShowingDetail` splits the screen into rows plus a detail pane.
 - **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, remote
   images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
+- **Appearance** — `environment.appearance` reports the real one, so an extension that branches on it
+  is told the truth. It is an injected field on `ExtensionLaunchContext` (a `Model/` type owns no
+  environment), which means a **running command keeps the appearance it booted with**; a change
+  reaches it on the next launch. A `{light, dark}` icon or colour is picked by
+  `ExtensionImage.resolve(_:assetsPath:isDark:)`, whose `isDark` comes from the view's
+  `\.isDarkAppearance` so the pick re-renders when the surface flips; either side stands in when an
+  extension supplies only one. The feature's own fills live in `ExtensionColors` — never in `Theme`.
 - **Form** — label-left/control-right rows. Field values live in the extension (React owns them); every
   edit dispatches `onTinycastChange` and the resulting re-render is what updates the control, so
   `defaultValue`, a controlled `value`, and `ref.reset()` all behave.
@@ -423,8 +430,8 @@ nothing about extensions. It lends out only the pixel work (`displayPixel`, `art
 symbol tile both sit at `IconCache.artworkExtent` **0.83**. The gap is deliberate and optical, not a
 size correction — measured, all three paths already produce an identical 40pt box.
 
-In dark mode every macOS 26 app icon is a dark squircle with a bright glyph inside it. The ground
-disappears into the palette, so only the glyph reads. A Raycast icon is a flat, fully saturated tile,
+Every macOS 26 app icon is a squircle with a glyph inside it, and the ground disappears into the
+palette, so only the glyph reads. A Raycast icon is a flat, fully saturated tile,
 so every pixel of it reads. At equal geometry the extension shouts, and fitting it smaller is what
 makes the two match by eye. Shipped and fetched images take the same target, so an icon doesn't
 change size depending on where it came from.

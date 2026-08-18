@@ -124,7 +124,9 @@ imperatively from AppKit.
   `VolumeHUDController` (the level box), both over a shared `HUDPresenter` that owns the
   one-at-a-time, auto-dismiss and fade policy. See [ui.md](ui.md#dialogs--hud).
 
-`NSAlert` is never used, and the app forces `.darkAqua` globally. Both are load-bearing.
+`NSAlert` is never used, and that is load-bearing. Appearance is a setting: `AppCore.applyAppearance()`
+assigns `NSApp.appearance` from `AppSettings.appearance`, and `.system` assigns `nil` so AppKit follows
+macOS by itself. Nothing else in the app sets an appearance.
 
 ## Observation
 

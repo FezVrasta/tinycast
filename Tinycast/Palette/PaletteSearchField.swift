@@ -111,11 +111,11 @@ struct PaletteSearchField: NSViewRepresentable {
             width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.lineFragmentPadding = fieldEditorPadding
         textView.font = Theme.Typography.searchFieldNSFont
-        textView.textColor = .white
-        textView.insertionPointColor = .white
+        textView.textColor = NSColor(Theme.Colors.textPrimary)
+        textView.insertionPointColor = NSColor(Theme.Colors.textPrimary)
         textView.selectedTextAttributes = [
             .backgroundColor: NSColor(Theme.Colors.selection),
-            .foregroundColor: NSColor.white
+            .foregroundColor: NSColor(Theme.Colors.textPrimary)
         ]
         // A query is matched literally, so nothing may rewrite what was typed.
         textView.isAutomaticQuoteSubstitutionEnabled = false
