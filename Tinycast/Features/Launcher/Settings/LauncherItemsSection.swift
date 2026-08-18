@@ -128,7 +128,8 @@ private struct AliasField: View {
         .background(shape.fill(Theme.Colors.cardFill))
         .overlay(
             shape.strokeBorder(
-                isEditing ? Color.accentColor : Theme.Colors.cardStroke, lineWidth: 1))
+                isEditing ? Color.accentColor : Theme.Colors.cardStroke, lineWidth: 1)
+        )
         .clipShape(shape)
         .accessibilityLabel("Alias for \(entry.name)")
     }

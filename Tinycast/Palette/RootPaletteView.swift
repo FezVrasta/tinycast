@@ -503,7 +503,9 @@ struct RootPaletteView: View {
 
     /// The search field answers first and the caret keeps whatever the palette declines. Argument
     /// fields are SwiftUI's, so the same handlers stay on `onKeyPress` for when one holds focus.
-    private func handleSearchKey(_ key: PaletteSearchKey, _ modifiers: NSEvent.ModifierFlags)
+    private func handleSearchKey(
+        _ key: PaletteSearchKey, _ modifiers: NSEvent.ModifierFlags
+    )
         -> Bool
     {
         switch key {
