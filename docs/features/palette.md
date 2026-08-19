@@ -162,18 +162,21 @@ reason the Settings window autosaves its frame instead ([backup.md](backup.md)).
 Which display an *unremembered* palette anchors to depends on the **Follow the cursor across displays**
 setting (`AppSettings.openOnCursorScreen`, on by default):
 
-- **On** — the screen holding `NSEvent.mouseLocation`, i.e. the display under the pointer.
-- **Off** — `NSScreen.main`.
+- **On** — `NSScreen.underCursor`: the screen holding `NSEvent.mouseLocation`, i.e. the display under
+  the pointer.
+- **Off** — `NSScreen.primary`: the screen at the global origin, i.e. the one with the menu bar.
 
-`NSScreen.main` alone can't implement the follow-the-cursor case: it is documented as the _key window's_
-screen, and an accessory app driving a non-activating panel has no key window on the display the user is
-looking at, so `main` resolves to the menu-bar display regardless of where the pointer is.
+**Neither case may use `NSScreen.main`**, which is documented as the screen of the window with keyboard
+focus — the frontmost app's, wherever the user last clicked. It therefore follows the user across
+displays, which is the wrong answer for both settings and made the off case do exactly what turning it
+off was meant to stop ([#270](https://github.com/abue-ammar/tinycast/issues/270)). The menu-bar display
+is the one whose `frame.origin` is `.zero`, which is what `primary` looks for.
 
-The hit test is `NSMouseInRect(mouse, screen.frame, false)`, **not** `CGRect.contains`. A mouse location
-is the CoreGraphics cursor position flipped about the primary display's height, so a screen's rows land
-in the half-open interval `(minY, maxY]`: the topmost row is exactly `maxY`, which `contains` excludes,
-while that same value is the `minY` of the display stacked above. `contains` would therefore hand a
-pointer parked at the top of one display to its neighbour. `NSMouseInRect` exists for precisely this.
+The cursor hit test is `NSMouseInRect(mouse, screen.frame, false)`, **not** `CGRect.contains`. A mouse
+location is the CoreGraphics cursor position flipped about the primary display's height, so a screen's
+rows land in the half-open interval `(minY, maxY]`: the topmost row is exactly `maxY`, which `contains`
+excludes, while that same value is the `minY` of the display stacked above. `contains` would therefore
+hand a pointer parked at the top of one display to its neighbour. `NSMouseInRect` exists for this.
 
 ## The placeholder is Tinycast's, not the field's
 

@@ -176,7 +176,7 @@ Tinycast/
   App/              @main, AppDelegate, AppCore — the composition root
   DesignSystem/     Theme (the token source), KeyCapChip, Tooltip, SymbolImage,
                     VisualEffectView, PopoverMenu, SettingsComponents, Scrolling/, Interaction/
-  Platform/         system shims: Permissions, LaunchAtLogin, InputSourceSwitcher, CursorScreen,
+  Platform/         system shims: Permissions, LaunchAtLogin, InputSourceSwitcher, ScreenTarget,
                     AppDisplayName,
                     NotificationToken, AppPaths, Signposts, HealthTicker, Memo, ActivationPolicy,
                     Images/, Compression/

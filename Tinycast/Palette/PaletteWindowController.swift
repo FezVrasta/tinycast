@@ -291,12 +291,9 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         panel.setFrame(frame, display: true)
     }
 
-    /// The display to anchor to; `NSScreen.main` would give the menu-bar one instead.
+    /// The display to anchor to; never `NSScreen.main`, which follows the focused window either way.
     private func targetScreen() -> NSScreen? {
-        guard core.settings.openOnCursorScreen else { return NSScreen.main }
-        let mouse = NSEvent.mouseLocation
-        // NSMouseInRect, not `contains`: the topmost row otherwise reads as the display above.
-        return NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
+        core.settings.openOnCursorScreen ? NSScreen.underCursor : NSScreen.primary
     }
 
     /// The session anchor, cached until hide so both placements read one `visibleFrame`. A
