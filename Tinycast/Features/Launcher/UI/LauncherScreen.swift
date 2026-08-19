@@ -18,6 +18,8 @@ struct LauncherScreen: PaletteScreen {
     private let calc: CalcResult?
     /// Sections stand in for the ranked Results list, which a typed query collapses to.
     private let showSections: Bool
+    /// Only the empty query pins favorites — a category shows its sections without one of its own.
+    private let pinsFavorites: Bool
     /// How many of `results` are the pinned favorites; zero unless the Favorites section is showing.
     private let favoriteCount: Int
     /// Resolved in `init`: the palette indexes this several times per event, so it can't recompute.
@@ -41,11 +43,12 @@ struct LauncherScreen: PaletteScreen {
             query: vm.query, visibility: visibility, favorites: favorites)
         let calc = CalcMemo.evaluate(vm.query, rates: currencyRates.rates)
         let entries = results.map(Row.entry)
-        let showSections = vm.query.trimmingCharacters(in: .whitespaces).isEmpty
+        let pinsFavorites = vm.query.trimmingCharacters(in: .whitespaces).isEmpty
         self.results = results
         self.calc = calc
-        self.showSections = showSections
-        self.favoriteCount = showSections ? results.prefix(while: favorites.isFavorite).count : 0
+        self.showSections = pinsFavorites || AppEntry.Kind.named(by: vm.query) != nil
+        self.pinsFavorites = pinsFavorites
+        self.favoriteCount = pinsFavorites ? results.prefix(while: favorites.isFavorite).count : 0
         self.rows = calc.map { [.calc($0)] + entries } ?? entries
     }
 
@@ -177,7 +180,7 @@ struct LauncherScreen: PaletteScreen {
         let removed = favoriteIndex(of: app)
         favorites.toggle(app)
         // A typed query never pins favorites, so nothing moved and the highlight belongs where it is.
-        guard showSections else { return true }
+        guard pinsFavorites else { return true }
         selectFavorite(at: removed.map { $0 - 1 } ?? 0)
         return true
     }

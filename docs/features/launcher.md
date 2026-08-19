@@ -91,6 +91,26 @@ order. For the same reason a bundle id is matched with its leading component str
 (`apple.Photos`, not `com.apple.Photos`): `com` alone prefixes almost every installed app. The full id
 still matches exactly, so a pasted identifier resolves.
 
+### Category search
+
+A query that *equals* a category's own name lists that whole category under its section header, in the
+order the section shows when the field is empty. Both words a kind already carries work — the section
+title and the singular label, `Snippets`/`Snippet`, `Window Management`/`Window Command` — read straight
+off `KindDescriptor` by `AppEntry.Kind.named(by:)`, so no category name is written a second time and a
+new `Kind` case gets its category word for free.
+
+**The trigger is exact equality, never a prefix or a fuzzy hit**, because a looser rule would take a word
+away from a real entry: `System Settings` names both a category and an installed application. That one
+collision is answered rather than avoided — an entry whose display name equals the query joins the
+listing, so the app appears under Applications above the panes. Since slice order is section order
+(`publishEntries`), `categoryListing` is a filter with no sort, and the sectioned view stays 1:1 with the
+flat selection. Visibility still applies downstream, and no `limit` does, matching the empty query.
+
+`LauncherScreen` therefore separates the two jobs the empty query used to do at once: `showSections`
+draws the headers, `pinsFavorites` pins the Favorites prefix and hands out the ⌘-digit slots. A category
+listing takes the first only. Opening a row from one also records nothing in `LauncherRankingStore` — a
+category word is not a search for the row that ran, and learning it would rank that row under `s`.
+
 ### User aliases
 
 `AliasStore` (`Launcher/Service/`) keeps one user-chosen alias per entry, keyed by `preferenceKey`
