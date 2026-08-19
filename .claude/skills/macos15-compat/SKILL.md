@@ -79,7 +79,7 @@ Edit **`$SP/gated/Tinycast/...` only** to re-apply the gates, then:
 
 ```sh
 : > compat/macos15.patch
-for f in Core/Theme.swift Features/PopoverMenu.swift; do   # add any newly-gated file
+for f in DesignSystem/Theme.swift DesignSystem/PopoverMenu.swift; do   # add any newly-gated file
   diff -u --label "a/Tinycast/$f" --label "b/Tinycast/$f" \
     "$SP/pristine/Tinycast/$f" "$SP/gated/Tinycast/$f" >> compat/macos15.patch
 done
@@ -88,11 +88,12 @@ done
 `diff` exits 1 when files differ — that's the normal case, don't let it abort the loop.
 
 **Exit 2 — an unguarded macOS 26 API.** The gates, both funnelled through one `ViewModifier` in
-`Tinycast/Core/Theme.swift`:
+`Tinycast/DesignSystem/Theme.swift`:
 
 - `frosted(in:)` — interactive floating pill/circle. 26: `glassEffect(.regular.interactive().tint(Theme.Colors.glassFrost), in:)` + `.tint(.clear)`. Sequoia: `.ultraThinMaterial` + `Theme.Colors.glassFrost` overlay + 0.5pt `Theme.Colors.border.opacity(0.6)` hairline + `shadow(black 0.22, radius 6, y 2)`.
 - `frostedMenu(in:)` — non-interactive popover panel; same fallback, plain `.glassEffect(.regular, in:)` on 26.
-- `Tinycast/Features/PopoverMenu.swift` calls `.frostedMenu(in:)`, not `glassEffect` directly.
+- Every popover panel calls `.frostedMenu(in:)`, not `glassEffect` directly — grep `glassEffect` to
+  catch a panel a new feature added.
 
 For a new 26-only API, match that shape: route it through **one** helper in `Theme.swift` rather than
 sprinkling `#available` at call sites; plain `if #available(macOS 26.0, *)` (no `#if compiler` fence

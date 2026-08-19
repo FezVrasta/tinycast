@@ -1,6 +1,6 @@
 --- a/Tinycast/DesignSystem/Theme.swift
 +++ b/Tinycast/DesignSystem/Theme.swift
-@@ -179,10 +179,48 @@
+@@ -225,10 +225,48 @@
      }
  }
  
@@ -54,9 +54,9 @@
  }
 --- a/Tinycast/DesignSystem/PopoverMenu.swift
 +++ b/Tinycast/DesignSystem/PopoverMenu.swift
-@@ -80,8 +80,8 @@
+@@ -82,8 +82,8 @@
          .padding(Theme.Spacing.sm)
-         .frame(width: Theme.Size.menuWidth)
+         .frame(width: width)
          // Glass carries its own elevation, so a drop shadow on top reads heavy.
 -        .glassEffect(
 -            .regular, in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
@@ -78,3 +78,27 @@
      }
  
      private var state: State {
+--- a/Tinycast/Features/Extensions/UI/ExtensionActionsPanel.swift
++++ b/Tinycast/Features/Extensions/UI/ExtensionActionsPanel.swift
+@@ -69,8 +69,8 @@
+         .padding(Theme.Spacing.sm)
+         .frame(width: Metrics.width)
+         // Glass carries its own elevation, so a drop shadow on top reads heavy.
+-        .glassEffect(
+-            .regular, in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
++        .frostedMenu(
++            in: RoundedRectangle(cornerRadius: Theme.Radius.menuPanel, style: .continuous)
+         )
+     }
+ }
+--- a/Tinycast/Features/Notes/UI/NoteSwitcherView.swift
++++ b/Tinycast/Features/Notes/UI/NoteSwitcherView.swift
+@@ -15,7 +15,7 @@
+             results
+         }
+         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+-        .glassEffect(.regular, in: surface)
++        .frostedMenu(in: surface)
+         .clipShape(surface)
+         .onAppear(perform: focusSearch)
+         .onChange(of: notes.switcherFocusRevision) { _, _ in focusSearch() }

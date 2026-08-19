@@ -17,12 +17,12 @@ six SwiftUI glass symbols become **weak** imports, so dyld binds them to null on
 
 ## What's gated
 
-Both in one `ViewModifier` (`FrostedSurface`) in `Tinycast/Core/Theme.swift`:
+Both in one `ViewModifier` (`FrostedSurface`) in `Tinycast/DesignSystem/Theme.swift`:
 
 | Helper | macOS 26 | macOS 15 |
 |---|---|---|
 | `frosted(in:)` — floating pill + menu circle | `glassEffect(.regular.interactive().tint(glassFrost))` | `.ultraThinMaterial` + frost overlay + 0.5pt hairline + soft shadow |
-| `frostedMenu(in:)` — popover panels (`PopoverMenu`, `ShortcutRecorderPopover`) | `glassEffect(.regular)` | same fallback |
+| `frostedMenu(in:)` — popover panels (`PopoverMenu`, `ShortcutRecorderPopover`, `ExtensionActionsPanel`, `NoteSwitcherView`) | `glassEffect(.regular)` | same fallback |
 
 `docs/ui.md` confines glass to floating controls, so that is the entire visual surface affected. The
 main palette surface is `NSVisualEffectView` vibrancy — macOS 10.10 API, unchanged on Sequoia, it
