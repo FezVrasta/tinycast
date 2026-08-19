@@ -8,11 +8,48 @@ final class PalettePanel: NSPanel {
     var onBareBackspace: (() -> Bool)?
     /// Command chords the field editor swallows, plus the ones no main menu handles.
     var onCommandShortcut: ((NSEvent) -> Bool)?
+    /// The palette's typing context, handed over each time a field takes focus.
+    var onFieldEditorFocused: ((NSTextInputContext) -> Void)?
     /// Arms hover from `sendEvent`, the one place both event streams pass through.
     weak var paletteState: PaletteState? {
         didSet {
             paletteState?.onMenuOpenChanged = { [weak self] open in self?.setSearchCaretHidden(open) }
         }
+    }
+
+    /// Nil until a field takes focus; a non-activating panel can only scope input to this.
+    var fieldEditorContext: NSTextInputContext? { fieldEditor?.inputContext }
+
+    /// SwiftUI's text fields all edit through the window's one shared field editor.
+    private var fieldEditor: NSTextView? { firstResponder as? NSTextView }
+
+    /// Mirrors the field editor's marked text. docs/features/palette.md#ime-composition
+    private var compositionObserver: NotificationToken?
+
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        guard super.makeFirstResponder(responder) else { return false }
+        trackComposition()
+        if let context = fieldEditorContext { onFieldEditorFocused?(context) }
+        return true
+    }
+
+    /// Selection is the only notification a marked-text change posts; `didChange` waits for commit.
+    func trackComposition() {
+        guard let editor = fieldEditor else {
+            compositionObserver = nil
+            paletteState?.isComposing = false
+            return
+        }
+        paletteState?.isComposing = editor.hasMarkedText()
+        let center = NotificationCenter.default
+        let token = center.addObserver(
+            forName: NSTextView.didChangeSelectionNotification, object: editor, queue: .main
+        ) { [weak self, weak editor] _ in
+            MainActor.assumeIsolated {
+                self?.paletteState?.isComposing = editor?.hasMarkedText() ?? false
+            }
+        }
+        compositionObserver = NotificationToken(token, center: center)
     }
 
     /// Keys driving an open menu; they reach `onKeyPress` even while editing is frozen.
@@ -48,9 +85,9 @@ final class PalettePanel: NSPanel {
             keyCode: UInt16(arrow.code))
     }
 
-    /// Caret hiding on the focused text view. docs/features/palette.md#menu-open-input-freeze
+    /// Caret hiding on SwiftUI's own field editor. docs/features/palette.md#menu-open-input-freeze
     private func setSearchCaretHidden(_ hidden: Bool) {
-        guard let editor = firstResponder as? NSTextView else { return }
+        guard let editor = fieldEditor else { return }
         editor.insertionPointColor = hidden ? .clear : NSColor(Theme.Colors.textPrimary)
         // Force a redraw so the caret flips at once rather than waiting out the blink timer.
         editor.updateInsertionPointStateAndRestartTimer(!hidden)
@@ -63,16 +100,20 @@ final class PalettePanel: NSPanel {
     ]
 
     /// Two AppKit mechanisms disagree over the field — SwiftUI's clip view claims the arrow for
-    /// the whole window as a cursor rect, the search text view claims the I-beam from its tracking
+    /// the whole window as a cursor rect, the field editor claims the I-beam from its tracking
     /// area — so the panel settles it from the field's own frame, after `super` has had its say.
     private func applyCursorPolicy(for event: NSEvent) {
         guard Self.cursorEvents.contains(event.type) else { return }
+        // Outset: the field editor AppKit installs is a point taller than the field it serves.
+        let text = searchFieldRect.insetBy(dx: -Self.fieldEditorSlack, dy: -Self.fieldEditorSlack)
         let cursor: NSCursor =
-            searchFieldRect.contains(convertPoint(fromScreen: NSEvent.mouseLocation))
-            ? .iBeam : .arrow
+            text.contains(convertPoint(fromScreen: NSEvent.mouseLocation)) ? .iBeam : .arrow
         guard NSCursor.current !== cursor else { return }
         cursor.set()
     }
+
+    /// docs/features/palette.md: a 24pt editor in a 23pt field, so its I-beam overhangs.
+    private static let fieldEditorSlack: CGFloat = 2
 
     /// SwiftUI reports the field top-left down; AppKit reads the window bottom-left up.
     private var searchFieldRect: CGRect {

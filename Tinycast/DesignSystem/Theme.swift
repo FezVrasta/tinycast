@@ -151,9 +151,10 @@ enum Theme {
 
     /// System text styles (not hardcoded sizes) so the UI honors Dynamic Type.
     enum Typography {
+        /// One size, two frameworks: `TextTrailingDragHandle` measures what the field renders.
         static let searchFieldSize: CGFloat = 20
-        /// The palette's field is an `NSTextView`, so this is what it renders and what
-        /// `TextTrailingDragHandle` measures. `NSFont` is not `Sendable`; every reader is a view.
+        static let searchField = Font.system(size: searchFieldSize, weight: .regular)
+        /// `NSFont` is not `Sendable`, hence the isolation; every reader is a view anyway.
         @MainActor static let searchFieldNSFont = NSFont.systemFont(
             ofSize: searchFieldSize, weight: .regular)
         static let headerIcon = Font.system(size: 18, weight: .medium)

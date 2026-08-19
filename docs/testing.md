@@ -189,14 +189,9 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Palette hotkey opens the launcher; pressing it again closes it; Escape closes it; clicking away closes it
 - Reopening focuses the search field with an empty query, in the same position and at the same size
 - Compact mode: typing expands it, and the search bar does **not** shift vertically during the swap
-- The placeholder sits on the same baseline as typed text, and stepping between screens (each with its
-  own placeholder) never moves it a point — check the **first** summon after launch, which is where the
-  old field-editor step showed
-- Clicking anywhere in the field, including well past the last glyph, lands the caret
-- A query longer than the field scrolls horizontally and keeps the caret visible
-- The caret is the same thickness on an empty query as it is mid-word, and stays so after deleting back
-- With a CJK IME: the placeholder clears as soon as composition starts, the composing text never
-  overlaps it, and the list filters only once the candidate is committed
+- With a CJK IME: the placeholder clears as soon as composition starts and the composing text never
+  overlaps it; cancelling composition brings the placeholder back, and the list filters only once the
+  candidate is committed — check on a second summon too, where first responder never moved
 - Typing filters instantly; ↑/↓ move the highlight and scroll it into view without yanking the list
 - ⌃N/⌃P move the highlight as ↓/↑ do; ⌃F/⌃B step the emoji grid's selection, and the caret elsewhere
 - The highlight always sits on the row the footer pill describes

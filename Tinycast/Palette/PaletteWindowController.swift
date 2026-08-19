@@ -136,7 +136,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     /// Re-bump a turn later: on the first show a synchronous bump lands before `onChange`.
     func windowDidBecomeKey(_ notification: Notification) {
         DispatchQueue.main.async { [weak self] in
-            self?.core.palette.focusToken = UUID()
+            guard let self else { return }
+            core.palette.focusToken = UUID()
+            // A re-summon leaves first responder where it was, so neither of these gets an event.
+            panel?.trackComposition()
+            if let context = panel?.fieldEditorContext {
+                core.inputSourceSwitcher.applySession(to: context)
+            }
         }
     }
 
@@ -220,6 +226,10 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         let panel = PalettePanel(rootView: root)
         panel.delegate = self
         panel.paletteState = core.palette
+        // The switch is scoped to the palette's own editing context, never applied globally.
+        panel.onFieldEditorFocused = { [weak self] context in
+            self?.core.inputSourceSwitcher.applySession(to: context)
+        }
         // Backspace in an empty search backs out of a sub-screen to a fresh root.
         panel.onBareBackspace = { [weak self] in
             guard let core = self?.core, core.palette.mode != .launcher, core.palette.query.isEmpty
