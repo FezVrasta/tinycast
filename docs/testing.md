@@ -34,6 +34,14 @@ the pure-layer boundary real: a harness that stops *compiling* means AppKit or S
 `Model/` folder, or an effect has leaked into a decision. That is a more common failure than a broken
 assertion, and it is the more important one.
 
+A harness also runs in your own login session against the real system, with no sandbox and no fixture
+world, so it must never mutate state the machine shares with the apps you use. `NSPasteboard.general`
+is the trap: a running Tinycast records every write to it as a genuine copy, so a fixture left there
+lands in clipboard history looking like something the user copied. `notes-editor-test` seeded one on
+every run from #232 onward by calling the native `copy:`/`cut:`/`paste:` actions; it now drives the
+`writeSelection(to:types:)` and `readSelection(from:)` primitives those actions delegate to, against
+`NSPasteboard.withUniqueName()`. Same AppKit path, no shared side effect.
+
 Never join a compile to its run with `&&` in a `set -e` script. `set -e` is specified to ignore a
 failing command in a non-final AND-OR list member, so `swiftc … && /tmp/x` swallows a compile error and
 the script sails on. CI reported success over a harness that had not compiled for twenty-five phases
