@@ -115,6 +115,9 @@ Facts worth not re-deriving:
   `xcodegen` run.
 - Exit 3 with a non-weak glass symbol means a missing `#available` guard, not a linker flag — a
   strong undefined symbol makes dyld kill the app at launch on Sequoia.
+- This channel is **universal** (`arm64 x86_64`) — macOS 15 is the last release running on Intel, and
+  a thin arm64 build fails there with "incorrect executable format". Both scripts pass `ARCHS`
+  explicitly and assert every check per slice; never drop that to save build time.
 
 Then commit **only** `compat/` and re-run Step 1:
 

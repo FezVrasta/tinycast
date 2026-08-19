@@ -110,9 +110,11 @@ jobs:
           BUNDLE_ID: ${{ steps.meta.outputs.bundle_id }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
+          # Universal on purpose: macOS 15 is the last release that runs on Intel, and an arm64-only
+          # DMG is refused at install there with "incorrect executable format".
           xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Release \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            MACOSX_DEPLOYMENT_TARGET=15.0 \
+            MACOSX_DEPLOYMENT_TARGET=15.0 ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Tinycast Self-Signed" \
             OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
             PRODUCT_NAME="$DISPLAY_NAME" PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
@@ -121,25 +123,36 @@ jobs:
 
       # Belt and braces: assert the SHIPPING binary really has a 15.0 floor. A silently-dropped
       # MACOSX_DEPLOYMENT_TARGET override would otherwise publish a macOS 26 build as "sequoia".
-      - name: Assert macOS 15 floor on the shipping binary
+      - name: Assert macOS 15 floor and both slices on the shipping binary
         env:
           DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
         run: |
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/${DISPLAY_NAME}.app"
           BIN="$APP/Contents/MacOS/${DISPLAY_NAME}"
-          MINOS="$(xcrun vtool -show-build-version "$BIN" | awk '/minos/{print $2}')"
+          SLICES="$(lipo -archs "$BIN")"
           PLIST_MIN="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")"
-          echo "minos=$MINOS LSMinimumSystemVersion=$PLIST_MIN"
-          if [ "$MINOS" != "15.0" ] || [ "$PLIST_MIN" != "15.0" ]; then
-            echo "::error::expected a macOS 15.0 floor, got minos=$MINOS plist=$PLIST_MIN"
+          echo "arch=$SLICES LSMinimumSystemVersion=$PLIST_MIN"
+          if [ "$PLIST_MIN" != "15.0" ]; then
+            echo "::error::expected LSMinimumSystemVersion 15.0, got $PLIST_MIN"
             exit 1
           fi
-          STRONG="$(xcrun nm -m "$BIN" 2>/dev/null | grep -i glass | grep -v weak || true)"
-          if [ -n "$STRONG" ]; then
-            echo "$STRONG"
-            echo "::error::non-weak glass symbol — would crash at launch on macOS 15"
-            exit 1
-          fi
+          for A in arm64 x86_64; do
+            case " $SLICES " in
+              *" $A "*) ;;
+              *) echo "::error::no $A slice — Intel Macs cannot run this build"; exit 1 ;;
+            esac
+            MINOS="$(xcrun vtool -arch "$A" -show-build-version "$BIN" | awk '/minos/{print $2}')"
+            if [ "$MINOS" != "15.0" ]; then
+              echo "::error::$A: expected a macOS 15.0 floor, got minos=$MINOS"
+              exit 1
+            fi
+            STRONG="$(xcrun nm -m -arch "$A" "$BIN" 2>/dev/null | grep -i glass | grep -v weak || true)"
+            if [ -n "$STRONG" ]; then
+              echo "$STRONG"
+              echo "::error::$A: non-weak glass symbol — would crash at launch on macOS 15"
+              exit 1
+            fi
+          done
 
       - name: Package DMG
         env:
@@ -171,7 +184,7 @@ jobs:
             --notes "**Channel:** ${{ steps.meta.outputs.channel }} · macOS 15 Sequoia
           **Version:** ${{ steps.meta.outputs.full_version }}
           **Bundle ID:** \`${{ steps.meta.outputs.bundle_id }}\`
-          **Requires:** macOS 15.0 or later
+          **Requires:** macOS 15.0 or later · universal (Apple silicon and Intel)
           Built from ${{ github.sha }} (main + \`compat/macos15.patch\`).
 
           This is the **macOS 15 (Sequoia)** build. On macOS 26 or later, use the regular release

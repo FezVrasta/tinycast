@@ -28,6 +28,16 @@ Both in one `ViewModifier` (`FrostedSurface`) in `Tinycast/DesignSystem/Theme.sw
 main palette surface is `NSVisualEffectView` vibrancy — macOS 10.10 API, unchanged on Sequoia, it
 just renders as classic blur.
 
+## Universal, unlike the mainline build
+
+macOS 15 is the last release that runs on Intel, so this channel — and only this channel — ships
+`arm64 x86_64`. A thin arm64 DMG installs on an Intel Mac and then fails to launch with *"the
+application cannot be opened because it has an incorrect executable format"*, which is what shipped
+up to `v0.9.4-sequoia`. Both `verify.sh` and the workflow pass `ARCHS="arm64 x86_64"` explicitly
+rather than trusting `ARCHS_STANDARD`, and assert the 15.0 floor and weak glass linkage **per
+slice** — `vtool -show-build-version` without `-arch` reports every slice at once, so the old
+single-value check could not have caught this.
+
 ## Build with Xcode 26, not Xcode 16
 
 The artifact is built against the **new** SDK with only the deployment target lowered. An abandoned

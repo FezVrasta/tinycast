@@ -87,7 +87,8 @@ echo "==> Release build @ deployment target 15.0"
 BUILD_LOG="$STAGE/build.log"
 if ! (cd "$STAGE" && xcodebuild -project Tinycast.xcodeproj -scheme Tinycast \
         -configuration Release -derivedDataPath "$STAGE/DD" \
-        MACOSX_DEPLOYMENT_TARGET=15.0 CODE_SIGNING_ALLOWED=NO build) > "$BUILD_LOG" 2>&1; then
+        MACOSX_DEPLOYMENT_TARGET=15.0 ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+        CODE_SIGNING_ALLOWED=NO build) > "$BUILD_LOG" 2>&1; then
   grep -E "error:" "$BUILD_LOG" | sed "s|$STAGE/||" | sort -u | head -20
   echo "::error::Release build failed"
   exit 2
@@ -95,22 +96,34 @@ fi
 
 APP="$STAGE/DD/Build/Products/Release/Tinycast.app"
 BIN="$APP/Contents/MacOS/Tinycast"
-MINOS="$(xcrun vtool -show-build-version "$BIN" | awk '/minos/{print $2}')"
+SLICES="$(lipo -archs "$BIN")"
 PLIST_MIN="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")"
-echo "    minos=$MINOS  LSMinimumSystemVersion=$PLIST_MIN"
-if [ "$MINOS" != "15.0" ] || [ "$PLIST_MIN" != "15.0" ]; then
-  echo "::error::expected a macOS 15.0 floor, got minos=$MINOS plist=$PLIST_MIN"
+echo "    arch=$SLICES  LSMinimumSystemVersion=$PLIST_MIN"
+if [ "$PLIST_MIN" != "15.0" ]; then
+  echo "::error::expected LSMinimumSystemVersion 15.0, got $PLIST_MIN"
   exit 3
 fi
 
-# The gates are only honored at runtime if the glass symbols are WEAK imports. A strong
-# undefined symbol means dyld kills the app at launch on Sequoia — a green build that ships broken.
-STRONG="$(xcrun nm -m "$BIN" 2>/dev/null | grep -i glass | grep -v weak || true)"
-if [ -n "$STRONG" ]; then
-  echo "$STRONG"
-  echo "::error::non-weak glass symbol — would crash at launch on macOS 15"
-  exit 3
-fi
-echo "    all glass symbols weak-imported"
+# Sequoia still runs on Intel — unlike macOS 26 — so a thin arm64 build is refused at install with
+# "incorrect executable format". Both slices need the floor and the weak glass linkage.
+for A in arm64 x86_64; do
+  case " $SLICES " in
+    *" $A "*) ;;
+    *) echo "::error::no $A slice — Intel Macs cannot run this build"; exit 3 ;;
+  esac
+  MINOS="$(xcrun vtool -arch "$A" -show-build-version "$BIN" | awk '/minos/{print $2}')"
+  if [ "$MINOS" != "15.0" ]; then
+    echo "::error::$A: expected a macOS 15.0 floor, got minos=$MINOS"
+    exit 3
+  fi
+  # A strong undefined glass symbol means dyld kills the app at launch on Sequoia — green, but broken.
+  STRONG="$(xcrun nm -m -arch "$A" "$BIN" 2>/dev/null | grep -i glass | grep -v weak || true)"
+  if [ -n "$STRONG" ]; then
+    echo "$STRONG"
+    echo "::error::$A: non-weak glass symbol — would crash at launch on macOS 15"
+    exit 3
+  fi
+done
+echo "    universal, 15.0 floor on both slices, all glass symbols weak-imported"
 
 echo "==> OK: main + $PATCH builds for macOS 15 and still compiles for macOS 26"
