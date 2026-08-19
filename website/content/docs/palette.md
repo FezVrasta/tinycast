@@ -94,7 +94,8 @@ Tinycast follows that only while its own theme is set to System.
 expands into the full list as you type. <kbd>↓</kbd> expands it and selects the first row.
 
 With **Show favorites in compact mode** on, your favorite app icons sit at the right of the bar and
-<kbd>⌘</kbd><kbd>1</kbd> through <kbd>⌘</kbd><kbd>5</kbd> launch them. See
+<kbd>⌘</kbd><kbd>1</kbd> through <kbd>⌘</kbd><kbd>5</kbd> launch them; a **…** button appears past
+five to expand into the rest. The same numbers work in the expanded list. See
 [Favorites](/docs/launcher/favorites).
 
 ## Pop to root

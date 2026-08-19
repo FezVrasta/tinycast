@@ -249,6 +249,55 @@ paths; see the command in `development.md`.
 Launcher icons use a persistent 32 MB cost-capped `NSCache`. Fitted file-row icons use a separate
 transient 8 MB cache that is purged when its palette list disappears (`IconCache`).
 
+## Favorites
+
+`FavoritesStore.keys` is the order — the array *is* the ranking, and it only shows while the query is
+empty, where `AppIndex.orderedResults` pins it as a prefix of the results. `LauncherScreen` resolves
+that prefix once in `init` (`favoriteCount`), and the list, the reorder rows and the chord guards all
+read that one number, so the visible section and what a move acts on can't disagree.
+
+The ⌘K menu carries **Add / Remove from Favorites** (⇧⌘F) plus **Move Favorite Up / Down** (⌥⌘↑ /
+⌥⌘↓). A move row is only built in a direction that exists, so the first favorite has no Up row and
+the last has no Down.
+
+**Every one of those rows runs the same call its chord does** — the menu is handed an
+`AppActionsMenu.FavoriteActions` built by `LauncherScreen` and never touches `FavoritesStore` itself.
+A row that mutates the store directly looks identical on screen and then behaves differently from its
+chord, because the store knows nothing about where the highlight should land.
+
+`FavoritesStore.exchange` swaps two stored positions rather than removing and re-inserting. `keys`
+retains entries that `VisibilityStore` hides or that aren't currently indexed — `ordered(_:)` drops
+them with `compactMap` and never prunes them, which is how a favorite survives an unmounted volume —
+so exchanging the two *visible* keys leaves every such key on its own slot.
+
+Both actions re-ask `orderedResults` afterwards and restate `vm.selection` against it; the mutation
+already invalidated the memo, so that call warms the exact key the next render reads. Where the
+highlight lands differs on purpose: a **move** follows the entry, since the point of the action is
+where that entry now sits, while a **toggle** stays with the section rather than chasing an entry
+across the list — the top of Favorites on add, the neighbour above the one that left on remove.
+
+### ⌘-digit slots
+
+`FavoriteSlots` (`Launcher/Model/FavoriteSlots.swift`) is the whole rule: **⌘1…⌘9 then ⌘0 for the
+tenth**, ten digit keys being the physical ceiling — there is no ⌘10. The eleventh favorite is still
+listed and reorderable, and simply has no chord and no number. Three places read that table — the key
+handler, the row's number, the compact tooltip — so none of them can invent an eleventh slot.
+
+Both palette sizes serve the chords from the same prefix, because `paletteIsCollapsed` already
+requires an empty query: **compact implies empty implies `favoriteCount` is the pinned prefix**. That
+is why `LauncherScreen.pinnedFavorites` feeds the strip, the chords and the numbered rows alike,
+rather than the compact bar re-deriving an empty-query order of its own. In compact the strip draws
+the first five; ⌘6–⌘0 still launch favorites it has no room for, and the "…" is a button after them
+rather than a slot, so no favorite loses its digit to the overflow.
+
+Holding ⌘ swaps each numbered row's kind label for its chord. `PalettePanel` publishes the modifier
+into `PaletteState.commandHeld` from `.flagsChanged` and clears it in `resignKey` — not in `prepare`,
+which a re-show that preserves state skips entirely. **`AppRow` observes that flag itself**: reading
+it any higher would attach it to `RootPaletteView`'s body and rebuild the whole palette on every ⌘
+press, where a row-level read re-runs only the handful of rows the `LazyVStack` has realized. The
+digit each row shows is carried on its `Row` case from the section build, so no row searches for its
+own position.
+
 ## Reveal in Finder
 
 Application and System Settings results expose **Show in Finder** in their ⌘K Actions menu and on

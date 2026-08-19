@@ -130,6 +130,8 @@ final class PalettePanel: NSPanel {
         // Keys and scrolling both slide rows under the pointer without it choosing any of them.
         case .keyDown, .scrollWheel:
             paletteState?.disarmHoverHighlight(pointerAt: NSEvent.mouseLocation)
+        case .flagsChanged:
+            paletteState?.noteCommandHeld(event.modifierFlags.contains(.command))
         default: break
         }
         defer { applyCursorPolicy(for: event) }
@@ -188,6 +190,12 @@ final class PalettePanel: NSPanel {
         // The controller owns the frame; without this the top edge drifts on the swap.
         hosting.sizingOptions = []
         contentView = hosting
+    }
+
+    /// Losing the keyboard is the last modifier news the panel gets; a re-show may skip `prepare`.
+    override func resignKey() {
+        super.resignKey()
+        paletteState?.noteCommandHeld(false)
     }
 
     override var canBecomeKey: Bool { true }

@@ -251,6 +251,9 @@ filter (`.topTrailing`, hung under its header button). `menuContent` resolves th
 menu without knowing which is up. Every open path goes through `open(_:highlighting:)` and states
 where the highlight starts: the first row, except the type filter, which opens on the active filter.
 
+Every row closes the menu behind it — `activateMenuItem` is the one path, and a row that reorders the
+list under itself (Move Favorite Up/Down) is no exception, so no row ever runs against a rebuilt menu.
+
 ## Menu-open input freeze
 
 While a popover menu (⌘K Actions / app menu / clipboard type filter) is open the search field reads as inert but
