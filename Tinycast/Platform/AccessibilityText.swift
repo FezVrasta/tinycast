@@ -30,10 +30,33 @@ enum AccessibilityText {
     static func selection(in app: NSRunningApplication) -> String? {
         guard let element = focusedElement(in: app) else { return nil }
         var value: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &value)
+        let text = status == .success ? value as? String : nil
+        if let text, !text.isEmpty { return text }
+        return webSelection(in: element) ?? text
+    }
+
+    /// Browsers have no `AXSelectedText`: web selection exists only as an opaque marker range.
+    private static func webSelection(in element: AXUIElement) -> String? {
+        var range: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(
                 element,
-                kAXSelectedTextAttribute as CFString,
+                kAXSelectedTextMarkerRangeAttribute as CFString,
+                &range) == .success,
+            let range,
+            CFGetTypeID(range) == AXTextMarkerRangeGetTypeID()
+        else { return nil }
+
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyParameterizedAttributeValue(
+                element,
+                kAXStringForTextMarkerRangeParameterizedAttribute as CFString,
+                range,
                 &value) == .success
         else { return nil }
         return value as? String
