@@ -13,6 +13,8 @@ final class LauncherCoordinator {
     private let windowCommandCoordinator: WindowCommandCoordinator
     private let snippetExpansion: SnippetExpansionCoordinator
     private let fileSearchCoordinator: FileSearchCoordinator
+    private let notesCoordinator: NotesCoordinator
+    private let extensionCoordinator: ExtensionCoordinator
     /// The backup commands only, which need the live stores to gather from and apply to.
     private unowned let core: AppCore
 
@@ -27,6 +29,8 @@ final class LauncherCoordinator {
         windowCommandCoordinator: WindowCommandCoordinator,
         snippetExpansion: SnippetExpansionCoordinator,
         fileSearchCoordinator: FileSearchCoordinator,
+        notesCoordinator: NotesCoordinator,
+        extensionCoordinator: ExtensionCoordinator,
         core: AppCore
     ) {
         self.ranking = ranking
@@ -39,13 +43,18 @@ final class LauncherCoordinator {
         self.windowCommandCoordinator = windowCommandCoordinator
         self.snippetExpansion = snippetExpansion
         self.fileSearchCoordinator = fileSearchCoordinator
+        self.notesCoordinator = notesCoordinator
+        self.extensionCoordinator = extensionCoordinator
         self.core = core
     }
 
     // MARK: - Activation
 
-    func launch(_ app: AppEntry, searchQuery: String? = nil) {
-        if let searchQuery {
+    func launch(
+        _ app: AppEntry, searchQuery: String? = nil, arguments: [String: String] = [:]
+    ) {
+        // A category listing is not a search for the row that ran; learning it would rank it under "s".
+        if let searchQuery, AppEntry.Kind.named(by: searchQuery) == nil {
             ranking.record(itemKey: app.preferenceKey, query: searchQuery)
         }
         // Commands dispatch before the palette hides: mode-switching commands keep it open.
@@ -68,6 +77,11 @@ final class LauncherCoordinator {
             windowCommandCoordinator.runWindowCommand(id: command.id)
             return
         }
+        // Before the palette hides: a view command takes the palette over rather than closing it.
+        if app.kind == .extensionCommand {
+            extensionCoordinator.runExtensionCommand(app, arguments: arguments)
+            return
+        }
         // Before the palette hides: an unfilled quicklink stays up to ask first.
         if app.kind == .quicklink {
             guard let id = Quicklink.id(fromEntryID: app.id) else { return }
@@ -85,7 +99,8 @@ final class LauncherCoordinator {
         case .snippet:
             let snippetID = String(app.id.dropFirst("snippet:".count))
             snippetExpansion.expandSnippet(id: snippetID, targetApp: previous)
-        case .command, .customCommand, .systemAction, .windowCommand, .quicklink:
+        case .command, .customCommand, .systemAction, .windowCommand, .quicklink,
+            .extensionCommand:
             break  // handled above
         }
     }
@@ -100,6 +115,15 @@ final class LauncherCoordinator {
             paletteCoordinator.showPalette(mode: .emoji)
         case .searchFiles:
             fileSearchCoordinator.show()
+        case .showNotes:
+            paletteCoordinator.hidePalette(restoreFocus: false)
+            notesCoordinator.show()
+        case .createNote:
+            paletteCoordinator.hidePalette(restoreFocus: false)
+            notesCoordinator.createNote()
+        case .searchNotes:
+            paletteCoordinator.hidePalette(restoreFocus: false)
+            notesCoordinator.searchNotes()
         case .searchQuicklinks:
             paletteCoordinator.showPalette(mode: .quicklinks)
         case .createQuicklink:

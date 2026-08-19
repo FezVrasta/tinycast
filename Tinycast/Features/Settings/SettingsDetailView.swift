@@ -15,13 +15,14 @@ struct SettingsDetailView: View {
             case .commands: CommandsSettingsView()
             case .quicklinks: QuicklinksSettingsView()
             case .fileSearch: FileSearchSettingsView()
+            case .notes: NotesSettingsView()
             case .snippets: SnippetsSettingsView()
             case .windowManagement: WindowManagementSettingsView()
             case .clipboard: ClipboardSettingsView()
             case .emoji: EmojiSettingsView()
+            case .extensions: ExtensionsSettingsView()
             case .permissions: PermissionsSettingsView()
             case .backup: BackupSettingsView()
-            case .miscellaneous: MiscellaneousSettingsView()
             case .about: AboutView()
             }
         }

@@ -1,6 +1,6 @@
 enum SettingsTab: CaseIterable, Identifiable {
     case general, applications, systemSettings, systemActions, commands, quicklinks, fileSearch,
-        snippets, windowManagement, clipboard, emoji, permissions, backup, miscellaneous, about
+        notes, snippets, windowManagement, clipboard, emoji, extensions, permissions, backup, about
     /// The case, never an index: a selectable `List` flattens section and row IDs together.
     var id: Self { self }
 
@@ -13,13 +13,14 @@ enum SettingsTab: CaseIterable, Identifiable {
         case .commands: return "Commands"
         case .quicklinks: return "Quicklinks"
         case .fileSearch: return "File Search"
+        case .notes: return "Notes"
         case .snippets: return "Snippets"
         case .windowManagement: return "Window Management"
         case .clipboard: return "Clipboard"
         case .emoji: return "Emoji & Symbols"
+        case .extensions: return "Extensions"
         case .permissions: return "Permissions"
         case .backup: return "Backup"
-        case .miscellaneous: return "Miscellaneous"
         case .about: return "About"
         }
     }
@@ -33,13 +34,14 @@ enum SettingsTab: CaseIterable, Identifiable {
         case .commands: return "terminal"
         case .quicklinks: return "link"
         case .fileSearch: return "doc.text.magnifyingglass"
+        case .notes: return "text.page"
         case .snippets: return "curlybraces"
         case .windowManagement: return "macwindow"
         case .clipboard: return "doc.on.clipboard"
         case .emoji: return "face.smiling"
+        case .extensions: return "puzzlepiece.extension"
         case .permissions: return "lock.shield"
         case .backup: return "arrow.up.arrow.down.circle"
-        case .miscellaneous: return "ellipsis.circle"
         case .about: return "info.circle"
         }
     }
@@ -65,8 +67,11 @@ enum SettingsSection: CaseIterable, Identifiable {
         case .general: return [.general, .permissions]
         case .launcher:
             return [.applications, .systemSettings, .systemActions, .commands, .quicklinks]
-        case .features: return [.fileSearch, .snippets, .windowManagement, .clipboard, .emoji]
-        case .advanced: return [.backup, .miscellaneous, .about]
+        case .features:
+            return [
+                .fileSearch, .notes, .snippets, .windowManagement, .clipboard, .emoji, .extensions
+            ]
+        case .advanced: return [.backup, .about]
         }
     }
 }

@@ -1,7 +1,7 @@
 import AppKit
 
 struct AppEntry: Identifiable, Hashable, Sendable {
-    enum Kind: String, Sendable {
+    enum Kind: String, CaseIterable, Sendable {
         case application
         case systemSettings
         case command
@@ -10,6 +10,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case systemAction
         case windowCommand
         case quicklink
+        case extensionCommand
 
         var descriptor: KindDescriptor {
             switch self {
@@ -45,6 +46,11 @@ struct AppEntry: Identifiable, Hashable, Sendable {
                 return KindDescriptor(
                     label: "Quicklink", sectionTitle: "Quicklinks",
                     openVerb: "Open Quicklink", canRevealInFinder: false, isSymbolIcon: true)
+            case .extensionCommand:
+                // The label is per-entry (the owning extension's title), so this is only the fallback.
+                return KindDescriptor(
+                    label: "Extension", sectionTitle: "Extensions",
+                    openVerb: "Run Command", canRevealInFinder: false, isSymbolIcon: true)
             }
         }
     }
@@ -71,6 +77,10 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     var alternateNames: [String] = []
     /// `CFBundleExecutable`, matched literally as a last resort. Applications only.
     var executableName: String?
+    /// Set by the feature that produced the entry when its glyph isn't derivable from `kind`.
+    var iconOverride: EntryIcon?
+    /// A per-entry label where the kind's own reads too flat — an extension's title, say.
+    var labelOverride: String?
 
     /// Stable identity for learned ranking, favorites, and other per-entry preferences.
     var preferenceKey: String { bundleID ?? id }
@@ -81,14 +91,13 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             bundleID: bundleID, executableName: executableName)
     }
 
-    var kindLabel: String { kind.descriptor.label }
+    var kindLabel: String { labelOverride ?? kind.descriptor.label }
 
-    /// The hotkey action for this entry, or nil for built-ins and unaddressable bundles.
+    /// The hotkey action for this entry, or nil when the entry has no addressable action.
     var hotKeyAction: HotKeyAction? {
         switch kind {
         case .command:
-            // Search Files is the one built-in with its own action; the rest open from the launcher.
-            return CommandCatalog.command(for: self) == .searchFiles ? .searchFiles : nil
+            return CommandCatalog.command(for: self)?.hotKeyAction
         case .application:
             return bundleID.map { .app(bundleID: $0) }
         case .systemSettings:
@@ -101,7 +110,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
             return WindowCommandCatalog.command(forEntryID: id).map { .windowCommand(id: $0.id) }
         case .quicklink:
             return Quicklink.id(fromEntryID: id).map { .quicklink(id: $0) }
-        case .snippet:
+        case .snippet, .extensionCommand:
             return nil
         }
     }
@@ -109,11 +118,16 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     /// Synthetic entries have no file to reveal; a destination is its record's own action.
     var canRevealInFinder: Bool { kind.descriptor.canRevealInFinder }
 
-    /// Synthetic entries draw an SF Symbol tile; everything else uses its file icon.
-    var isSymbolIcon: Bool { kind.descriptor.isSymbolIcon }
+    /// What this row draws, and the only thing any icon path needs to ask.
+    var iconSource: EntryIcon { iconOverride ?? defaultIcon }
 
-    var symbolIconName: String {
-        if let symbolName { return symbolName }
+    /// Derived from the kind alone: synthetic entries get a symbol tile, everything else its file.
+    private var defaultIcon: EntryIcon {
+        guard kind.descriptor.isSymbolIcon else { return .file }
+        return .symbol(symbolName ?? kindSymbol)
+    }
+
+    private var kindSymbol: String {
         switch kind {
         case .quicklink: return Quicklink.sfSymbol
         case .snippet: return "text.quote"
@@ -122,13 +136,30 @@ struct AppEntry: Identifiable, Hashable, Sendable {
         case .systemAction: return SystemActionCatalog.action(forEntryID: id)?.sfSymbol ?? "questionmark"
         case .windowCommand:
             return WindowCommandCatalog.command(forEntryID: id)?.sfSymbol ?? "questionmark"
-        case .application, .systemSettings: return "questionmark"
+        case .application, .systemSettings, .extensionCommand: return "questionmark"
         }
     }
 
-    var icon: NSImage {
-        isSymbolIcon
-            ? IconCache.symbolIcon(named: symbolIconName) : IconCache.icon(forFile: url.path)
+    /// Main-actor because it subscribes the calling view; every caller is a `body`.
+    @MainActor var icon: NSImage {
+        IconCache.observeStyle()
+        return IconCache.icon(for: iconSource, fileURL: url)
+    }
+
+    /// Icon identity for a row's async load: re-skinning changes the glyph while `id` stays put.
+    var iconKey: String { "\(id)|\(iconSource)" }
+}
+
+extension AppEntry.Kind {
+    /// The descriptors' own words, lowercased once, so a keystroke costs a lookup and not a scan.
+    private static let byCategoryName: [String: AppEntry.Kind] = allCases.reduce(into: [:]) {
+        $0[$1.descriptor.sectionTitle.lowercased()] = $1
+        $0[$1.descriptor.label.lowercased()] = $1
+    }
+
+    /// The category a query names outright. Exact only — a prefix would take a word from an entry.
+    static func named(by query: String) -> AppEntry.Kind? {
+        byCategoryName[query.trimmingCharacters(in: .whitespaces).lowercased()]
     }
 }
 
@@ -143,12 +174,14 @@ final class AppIndex {
         let query: String
         let entriesRevision: Int
         let rankingRevision: Int
+        let aliasRevision: Int
     }
 
     private struct ResultsKey: Equatable {
         let query: String
         let entriesRevision: Int
         let rankingRevision: Int
+        let aliasRevision: Int
         let visibilityRevision: Int
         let favoritesRevision: Int
     }
@@ -181,21 +214,37 @@ final class AppIndex {
     private var customCommandEntries: [AppEntry] = []
     private var windowCommandEntries: [AppEntry] = []
     private var quicklinkEntries: [AppEntry] = []
-    private var commandEntries: [AppEntry]
-    private var quicklinkCommandsVisible = false
-    private var fileSearchCommandVisible = false
+    private var extensionEntries: [AppEntry] = []
+    /// The catalog's commands a disabled feature hides; the Commands slice is recomputed from it.
+    private var hiddenCommands: Set<CommandID> = []
     private var alternateNameCache = SpotlightNames.Cache()
     private var paneCache: SettingsPaneScanner.Cache?
     private var isRefreshing = false
     /// Set when a refresh lands mid-scan, so a scope edit is never silently dropped.
     private var refreshPending = false
     private let ranking: LauncherRankingStore
+    private let aliases: AliasStore
     private var settings: AppSettings?
 
-    init(ranking: LauncherRankingStore) {
+    init(ranking: LauncherRankingStore, aliases: AliasStore) {
         self.ranking = ranking
-        commandEntries = Self.projectedCommandEntries(
-            quicklinksVisible: false, fileSearchVisible: false)
+        self.aliases = aliases
+    }
+
+    /// The always-relevant built-ins, plus whatever a disabled feature has not hidden.
+    private var commandEntries: [AppEntry] {
+        CommandCatalog.all.filter {
+            guard let command = CommandCatalog.command(for: $0) else { return true }
+            return !hiddenCommands.contains(command)
+        }
+    }
+
+    /// A feature's commands leave the Commands slice when the feature is off; `visible` restores them.
+    func setCommandsVisible(_ commands: Set<CommandID>, _ visible: Bool) {
+        let updated = visible ? hiddenCommands.subtracting(commands) : hiddenCommands.union(commands)
+        guard updated != hiddenCommands else { return }
+        hiddenCommands = updated
+        publishEntries()
     }
 
     /// Replaces the command slice without rescanning, so Settings edits land at once.
@@ -212,8 +261,8 @@ final class AppIndex {
         publishEntries()
     }
 
-    /// Replaces the quicklink slice and its built-ins together, so a toggle can't split them.
-    func setQuicklinks(_ quicklinks: [Quicklink], commandsVisible: Bool) {
+    /// Replaces the quicklink slice; a toggle can't split its entries from their section.
+    func setQuicklinks(_ quicklinks: [Quicklink]) {
         let entries =
             quicklinks
             .filter(\.showsInRootSearch)
@@ -226,22 +275,16 @@ final class AppIndex {
                     symbolName: quicklink.iconSymbol
                         ?? QuicklinkDestination.detect(quicklink.link)?.defaultSymbol)
             }
-        let commands = Self.projectedCommandEntries(
-            quicklinksVisible: commandsVisible, fileSearchVisible: fileSearchCommandVisible)
-        guard entries != quicklinkEntries || commands != commandEntries else { return }
+        guard entries != quicklinkEntries else { return }
         quicklinkEntries = entries
-        quicklinkCommandsVisible = commandsVisible
-        commandEntries = commands
         publishEntries()
     }
 
-    /// Shows or hides Search Files without disturbing another feature's built-in commands.
-    func setFileSearchCommandVisible(_ visible: Bool) {
-        let commands = Self.projectedCommandEntries(
-            quicklinksVisible: quicklinkCommandsVisible, fileSearchVisible: visible)
-        guard commands != commandEntries else { return }
-        fileSearchCommandVisible = visible
-        commandEntries = commands
+    /// Replaces the extension-command slice. Called by `ExtensionManager` whenever the installed set,
+    /// or an extension's chosen appearance, changes.
+    func setExtensionCommands(_ entries: [AppEntry]) {
+        guard entries != extensionEntries else { return }
+        extensionEntries = entries
         publishEntries()
     }
 
@@ -359,31 +402,31 @@ final class AppIndex {
     private func publishEntries() {
         // Each slice arrives in its own display order; the slice order is the section order.
         let updated =
-            discoveredEntries + quicklinkEntries + snippetEntries + Self.systemActionEntries
-            + windowCommandEntries + customCommandEntries + commandEntries
+            discoveredEntries + extensionEntries + quicklinkEntries + snippetEntries
+            + Self.systemActionEntries + windowCommandEntries + customCommandEntries
+            + commandEntries
         guard updated != apps else { return }
         apps = updated
         entriesRevision &+= 1
     }
 
-    private static func projectedCommandEntries(
-        quicklinksVisible: Bool, fileSearchVisible: Bool
-    ) -> [AppEntry] {
-        CommandCatalog.all.filter { entry in
-            guard let command = CommandCatalog.command(for: entry) else { return true }
-            if command.isQuicklinkCommand { return quicklinksVisible }
-            if command == .searchFiles { return fileSearchVisible }
-            return true
-        }
-    }
-
-    /// Ranked matches. Empty query returns the full alphabetical list.
+    /// Ranked matches, or a whole category when the query names one. Empty returns the full list.
     func matches(_ query: String, limit: Int = 200) -> [AppEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return apps }
         let key = MatchKey(
-            query: q, entriesRevision: entriesRevision, rankingRevision: ranking.revision)
-        return matchMemo.value(for: key) { rank(q, limit: limit) }
+            query: q, entriesRevision: entriesRevision, rankingRevision: ranking.revision,
+            aliasRevision: aliases.revision)
+        return matchMemo.value(for: key) {
+            guard let kind = AppEntry.Kind.named(by: q) else { return rank(q, limit: limit) }
+            return categoryListing(kind, query: q)
+        }
+    }
+
+    /// A whole category, plus any entry the query names outright — `System Settings` is both. Slice
+    /// order is section order, so filtering alone keeps the sections and the flat selection aligned.
+    private func categoryListing(_ kind: AppEntry.Kind, query: String) -> [AppEntry] {
+        apps.filter { $0.kind == kind || $0.name.caseInsensitiveCompare(query) == .orderedSame }
     }
 
     /// The launcher's ordered list: ranked matches minus hidden entries, favorites pinned first.
@@ -393,7 +436,8 @@ final class AppIndex {
         let q = query.trimmingCharacters(in: .whitespaces)
         let key = ResultsKey(
             query: q, entriesRevision: entriesRevision, rankingRevision: ranking.revision,
-            visibilityRevision: visibility.revision, favoritesRevision: favorites.revision)
+            aliasRevision: aliases.revision, visibilityRevision: visibility.revision,
+            favoritesRevision: favorites.revision)
         return resultsMemo.value(for: key) {
             // Filtering stays downstream of `matches` so that memo is never keyed on hidden state.
             let base = matches(q).filter(visibility.isVisible)
@@ -407,8 +451,10 @@ final class AppIndex {
         Signposts.interval("AppIndex.rank") {
             let learned = ranking.boosts(query: q)
             let scored = apps.compactMap { app -> (AppEntry, Int)? in
+                var fields = app.searchFields
+                fields.userAlias = aliases.alias(for: app.preferenceKey)
                 // Base relevance is the strongest field; the boost is added blind to it.
-                guard let score = SearchRelevance.score(query: q, fields: app.searchFields) else {
+                guard let score = SearchRelevance.score(query: q, fields: fields) else {
                     return nil
                 }
                 return (app, score + (learned[app.preferenceKey] ?? 0))

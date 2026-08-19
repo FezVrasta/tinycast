@@ -11,7 +11,7 @@ enum RaycastImportV2 {
     // MARK: - Decrypt
 
     static func decrypt(_ raw: Data, passphrase: String) throws -> Data {
-        guard let envelopeData = try? Gunzip.decompress(raw),
+        guard let envelopeData = try? Zlib.gunzip(raw),
             let env = try? JSONSerialization.jsonObject(with: envelopeData) as? [String: Any],
             let dataHex = env["data"] as? String,
             let enc = env["encryption"] as? [String: String],
@@ -32,7 +32,7 @@ enum RaycastImportV2 {
         } catch {
             throw RaycastImportError.incorrectPassphrase
         }
-        guard let plaintext = try? Gunzip.decompress(plaintextGz) else {
+        guard let plaintext = try? Zlib.gunzip(plaintextGz) else {
             throw RaycastImportError.corrupt
         }
         return plaintext
@@ -48,6 +48,7 @@ enum RaycastImportV2 {
         backup.settings = mapSettings(json)
         backup.hotkeys = mapHotkeys(json)
         backup.favoriteApps = mapFavorites(json)
+        backup.launcherAliases = mapAliases(json)
         let (clipboard, missing) = mapClipboard(json)
         let snippets = RaycastSnippetImport.parse(
             (json["builtin_package_snippets"] as? [String: Any])?["snippets"])
@@ -190,6 +191,24 @@ enum RaycastImportV2 {
             .sorted { $0.order < $1.order }
             .map(\.bundleID)
         return favorites.isEmpty ? nil : favorites
+    }
+
+    /// Only application aliases map over, keyed by bundle ID like the hotkeys above.
+    private static func mapAliases(_ json: [String: Any]) -> [String: String]? {
+        guard let commands = (json["settings"] as? [String: Any])?["commands"] as? [[String: Any]]
+        else { return nil }
+        var aliases: [String: String] = [:]
+        for command in commands {
+            guard command["extensionId"] as? String == "e:r:applications",
+                let alias = (command["alias"] as? String)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                !alias.isEmpty,
+                let path = appPath(fromCommandID: command["id"] as? String),
+                let bundleID = Bundle(url: URL(fileURLWithPath: path))?.bundleIdentifier
+            else { continue }
+            aliases[bundleID] = alias
+        }
+        return aliases.isEmpty ? nil : aliases
     }
 
     /// The launched app's path is the tail of an applications command id.
