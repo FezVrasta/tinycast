@@ -19,6 +19,7 @@ final class AppCore {
     let hotKeys = HotKeyManager()
     let hyperKeyTap = HyperKeyTap()
     let windowMover = WindowMover()
+    let spaceSwitcher = SpaceSwitcher()
     let inputSourceSwitcher = InputSourceSwitcher()
     let settings: AppSettings
     @ObservationIgnored private var appearanceObservation: NSKeyValueObservation?
@@ -73,7 +74,8 @@ final class AppCore {
         extensions: extensions, palette: palette, paletteCoordinator: paletteCoordinator,
         settingsCoordinator: settingsCoordinator, settings: settings, core: self)
     @ObservationIgnored private(set) lazy var windowCommandCoordinator = WindowCommandCoordinator(
-        settings: settings, paletteCoordinator: paletteCoordinator, windowMover: windowMover)
+        settings: settings, paletteCoordinator: paletteCoordinator, windowMover: windowMover,
+        spaceSwitcher: spaceSwitcher)
     @ObservationIgnored private(set) lazy var customCommandCoordinator = CustomCommandCoordinator(
         store: customCommands, settings: settings, appIndex: appIndex,
         paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,

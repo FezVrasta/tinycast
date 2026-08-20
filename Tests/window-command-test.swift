@@ -71,7 +71,7 @@ struct WindowCommandTests {
 
     static func testCatalog() {
         let commands = WindowCommandCatalog.all
-        expect(commands.count == 30, "catalog contains all 30 agreed commands")
+        expect(commands.count == 32, "catalog contains all 32 agreed commands")
         expect(commands.map(\.id) == WindowCommand.ID.allCases, "catalog covers every ID once")
         expect(
             Set(commands.map { $0.name.lowercased() }).count == commands.count, "names are unique")
@@ -110,6 +110,17 @@ struct WindowCommandTests {
         expect(
             Set(commands.filter { $0.kind == .restore }.map(\.id)) == [.restore],
             "only Restore is a restore command")
+        expect(
+            Set(commands.filter { $0.kind == .space }.map(\.id)) == [.previousSpace, .nextSpace],
+            "only the two Space switches are space commands")
+        expect(
+            commands.filter { $0.kind == .space }.allSatisfy {
+                WindowLayout.placement(
+                    for: WindowLayout.Input(
+                        command: $0.id, windowFrame: mainScreen.frame, screens: [mainScreen],
+                        gap: 0, step: 0, restoreFrame: nil, lastTileCommand: nil)) == nil
+            },
+            "a space command resolves no placement, so the mover writes nothing")
 
         // Grouping drives the Settings list; every command must land in exactly one group.
         let grouped = WindowCommandCatalog.grouped()
@@ -123,6 +134,7 @@ struct WindowCommandTests {
         expect(grouped.first { $0.group == .thirds }?.commands.count == 5, "five thirds")
         expect(grouped.first { $0.group == .sizing }?.commands.count == 10, "ten sizing commands")
         expect(grouped.first { $0.group == .moving }?.commands.count == 6, "six moving commands")
+        expect(grouped.first { $0.group == .spaces }?.commands.count == 2, "two space commands")
 
         expect(
             WindowLayout.isTileCommand(.leftHalf) && WindowLayout.isTileCommand(.centerHalf),
