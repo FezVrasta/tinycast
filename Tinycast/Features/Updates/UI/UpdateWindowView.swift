@@ -22,7 +22,10 @@ struct UpdateWindowView: View {
             detail
             actions
         }
-        .padding(Theme.Spacing.xxl)
+        // Less on top: the title bar already contributes its own 32pt above this, and clearing the
+        // traffic lights is the only reason the hero cannot start at the inset the other edges use.
+        .padding(.top, Theme.Spacing.sm)
+        .padding([.horizontal, .bottom], Theme.Spacing.xxl)
         // Take the ideal height rather than the window's, so the measurement is the content's own
         // and sizing the window to it converges instead of feeding back.
         .fixedSize(horizontal: false, vertical: true)
