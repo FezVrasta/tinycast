@@ -144,6 +144,9 @@ final class LauncherCoordinator {
         case .importFromRaycast:
             paletteCoordinator.hidePalette(restoreFocus: false)
             settingsCoordinator.showBackupSettings()
+        case .checkForUpdates:
+            paletteCoordinator.hidePalette(restoreFocus: false)
+            core.updateCoordinator.checkForUpdates()
         case .settings:
             paletteCoordinator.hidePalette(restoreFocus: false)
             settingsCoordinator.showSettings()

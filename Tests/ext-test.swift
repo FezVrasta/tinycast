@@ -630,7 +630,8 @@ struct ExtensionTests {
                 .map { ExtensionScreen(tree: $0, query: "").items.first?.node.string("title") == "count=1" }
                 == true,
             rerunRecorder.trees.last
-                .flatMap { ExtensionScreen(tree: $0, query: "").items.first?.node.string("title") } ?? "no tree")
+                .flatMap { ExtensionScreen(tree: $0, query: "").items.first?.node.string("title") }
+                ?? "no tree")
         await runtime.stop(session: "s1b")
         runtime.setDelegate(recorder)
 

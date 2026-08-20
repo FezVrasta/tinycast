@@ -174,6 +174,7 @@ run ext-test               -parse-as-library \
                            Tinycast/Platform/Compression/Zlib.swift
 run settings-history-test  Tinycast/Features/Settings/SettingsTab.swift \
                            Tinycast/Features/Settings/SettingsHistory.swift
+run updates-test           Tinycast/Features/Updates/Model/*.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

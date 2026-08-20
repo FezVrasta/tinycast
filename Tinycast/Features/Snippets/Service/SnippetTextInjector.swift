@@ -41,6 +41,9 @@ final class SnippetTextInjector {
         self.settings = settings
     }
 
+    /// A paste is still in flight, or we still hold the pasteboard it borrowed.
+    var isDelivering: Bool { !deliveryQueue.isIdle || activePasteboardLease != nil }
+
     func prepareInteractiveExpansion(targetApp: NSRunningApplication?) -> Bool {
         guard targetApp?.isTerminated != true, Permissions.ensureAccessibility() else {
             activate(targetApp)
