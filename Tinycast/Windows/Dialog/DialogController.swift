@@ -7,6 +7,10 @@ final class DialogController: NSObject, NSWindowDelegate {
     private var panel: DialogPanel?
     private var continuation: CheckedContinuation<Int, Never>?
 
+    /// True while a question is on screen and unanswered — the palette reads this so its own dialog
+    /// taking key doesn't read as a click-away.
+    var isPresenting: Bool { continuation != nil }
+
     func confirm(
         title: String, message: String?, symbol: String?, tone: DialogTone, confirmTitle: String,
         confirmRole: DialogAction.Role, dismissTitle: String = "Cancel"

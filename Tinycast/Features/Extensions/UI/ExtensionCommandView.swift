@@ -166,7 +166,7 @@ enum ExtensionActionsMenu {
         guard !actions.isEmpty else { return nil }
         let header =
             screen.items.indices.contains(selection)
-            ? screen.items[selection].string("title") : screen.navigationTitle
+            ? screen.items[selection].node.string("title") : screen.navigationTitle
         return PopoverMenuContent(
             header: header,
             items: actions.map { action in

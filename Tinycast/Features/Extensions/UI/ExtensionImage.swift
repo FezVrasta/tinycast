@@ -8,10 +8,14 @@ extension EnvironmentValues {
 }
 
 enum ExtensionImage {
-    /// A resolved icon: an SF Symbol, a file on disk, a remote URL, or a bare emoji/text glyph.
+    /// A resolved icon: an SF Symbol, an image file, the Finder icon of a path, a remote URL, or a
+    /// bare emoji/text glyph.
     enum Source: Equatable {
         case symbol(String)
         case file(String)
+        /// Raycast's `{ fileIcon }` — the path names a bundle or document to ask `NSWorkspace` about,
+        /// not an image to decode.
+        case fileIcon(String)
         case remote(URL)
         case glyph(String)
     }
@@ -32,13 +36,14 @@ enum ExtensionImage {
         case .object(let fields):
             // Raycast's icon-with-tooltip form; unwrap only when it looks like one, not when themed.
             if let wrapped = fields["value"]?.objectValue,
-                wrapped["source"] != nil || wrapped["value"] != nil
+                wrapped["source"] != nil || wrapped["value"] != nil || wrapped["fileIcon"] != nil
             {
                 return resolve(.object(wrapped), assetsPath: assetsPath, isDark: isDark)
             }
-            let raw = fields["source"] ?? fields["value"]
-            let text = string(from: raw, isDark: isDark)
-            guard let text, let source = source(from: text, assetsPath: assetsPath) else {
+            // Falling back to the object itself covers the two forms that are a source rather than
+            // carry one: `{fileIcon}` and a bare `{light, dark}` pair.
+            let raw = fields["source"] ?? fields["value"] ?? .object(fields)
+            guard let source = source(from: raw, assetsPath: assetsPath, isDark: isDark) else {
                 // A tinted icon with no usable source still deserves the fallback tile.
                 return nil
             }
@@ -60,6 +65,24 @@ enum ExtensionImage {
             let preferred = fields[isDark ? "dark" : "light"]?.stringValue
             return preferred ?? fields[isDark ? "light" : "dark"]?.stringValue
         default: return nil
+        }
+    }
+
+    /// An `Image.Source`: a string, a `{fileIcon}`, or a `{light, dark}` pair naming either.
+    private static func source(
+        from value: RenderValue, assetsPath: String?, isDark: Bool
+    ) -> Source? {
+        switch value {
+        case .string(let text):
+            return source(from: text, assetsPath: assetsPath)
+        case .object(let fields):
+            if let path = fields["fileIcon"]?.stringValue, !path.isEmpty {
+                return .fileIcon((path as NSString).expandingTildeInPath)
+            }
+            let preferred = fields[isDark ? "dark" : "light"] ?? fields[isDark ? "light" : "dark"]
+            return preferred.flatMap { source(from: $0, assetsPath: assetsPath, isDark: isDark) }
+        default:
+            return nil
         }
     }
 
@@ -316,7 +339,7 @@ struct ExtensionIconView: View {
             Text(text)
                 .font(.system(size: size * 0.72))
                 .frame(width: size, height: size)
-        case .file, .remote:
+        case .file, .fileIcon, .remote:
             if let loaded {
                 // Only a multi-frame image pays for `NSImageView`; a still stays on SwiftUI's path.
                 if animates, loaded.isAnimated {
@@ -346,6 +369,7 @@ struct ExtensionIconView: View {
     private var cacheKey: String {
         switch resolved?.source {
         case .file(let path): return "file:" + path
+        case .fileIcon(let path): return "fileIcon:" + path
         case .remote(let url): return "remote:" + url.absoluteString
         default: return ""
         }
@@ -359,6 +383,10 @@ struct ExtensionIconView: View {
                 animates
                 ? await ExtensionIconCache.loadOriginalAsync(atPath: path)
                 : await ExtensionIconCache.loadAsync(atPath: path)
+        case .fileIcon(let path):
+            // Fitted rather than raw: a `fileIcon` list mixes app bundles with documents and folders,
+            // and only the normalized draw keeps them the same optical size down the column.
+            loaded = await IconCache.loadFittedAsync(forFile: path)
         case .remote(let url):
             loaded = await ExtensionIconCache.loadRemoteAsync(url, asIcon: !animates)
         default:

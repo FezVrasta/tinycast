@@ -69,20 +69,18 @@ struct ExtensionListView: View {
                                 title: [title, subtitle].compactMap { $0 }.filter { !$0.isEmpty }
                                     .joined(separator: "  ·  "),
                                 isFirst: row.id == screen.rows.first?.id)
-                        case .item(let node):
-                            let index = screen.items.firstIndex(of: node) ?? 0
+                        case .item(let item):
                             ExtensionItemRow(
-                                node: node, selected: index == selection, assetsPath: assetsPath,
-                                compact: screen.showsDetail
+                                node: item.node, selected: item.index == selection,
+                                assetsPath: assetsPath, compact: screen.showsDetail
                             )
-                            .id(String(node.id))
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                onSelect(index)
+                                onSelect(item.index)
                                 onActivate()
                             }
-                            .onRightClick { onActions(index) }
-                            .selectionFrame(index == selection)
+                            .onRightClick { onActions(item.index) }
+                            .selectionFrame(item.index == selection)
                         }
                     }
                 }
@@ -101,7 +99,7 @@ struct ExtensionListView: View {
 
     /// Scroll id of the selected item, or nil when the selection is out of range.
     private var selectedRowID: String? {
-        screen.items.indices.contains(selection) ? String(screen.items[selection].id) : nil
+        screen.items.indices.contains(selection) ? screen.items[selection].id : nil
     }
 
     private func gridBody(columns: Int) -> some View {
@@ -112,18 +110,18 @@ struct ExtensionListView: View {
                         repeating: GridItem(.flexible(), spacing: Theme.Spacing.sm), count: columns),
                     spacing: Theme.Spacing.sm
                 ) {
-                    ForEach(Array(screen.items.enumerated()), id: \.element.id) { index, node in
+                    ForEach(screen.items) { item in
                         ExtensionGridCell(
-                            node: node, selected: index == selection, assetsPath: assetsPath
+                            node: item.node, selected: item.index == selection,
+                            assetsPath: assetsPath
                         )
-                        .id(String(node.id))
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            onSelect(index)
+                            onSelect(item.index)
                             onActivate()
                         }
-                        .onRightClick { onActions(index) }
-                        .selectionFrame(index == selection)
+                        .onRightClick { onActions(item.index) }
+                        .selectionFrame(item.index == selection)
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -142,7 +140,7 @@ struct ExtensionListView: View {
     @ViewBuilder
     private var detailPane: some View {
         if screen.items.indices.contains(selection),
-            let detail = screen.items[selection].node("detail")
+            let detail = screen.items[selection].node.node("detail")
         {
             ExtensionDetailBody(
                 markdown: detail.string("markdown"), metadata: detail.node("metadata"),

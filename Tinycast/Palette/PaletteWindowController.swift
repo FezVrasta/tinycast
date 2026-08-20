@@ -127,9 +127,11 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    /// Dismiss when the palette loses key status (click-away, ⌘-Tab, app switch).
+    /// Dismiss when the palette loses key status (click-away, ⌘-Tab, app switch). One of our own
+    /// dialogs is none of those: hiding would pop to root, which tears down an extension command
+    /// while its `confirmAlert` is still waiting for the answer.
     func windowDidResignKey(_ notification: Notification) {
-        guard isVisible else { return }
+        guard isVisible, !core.isShowingDialog else { return }
         core.paletteCoordinator.hidePalette(restoreFocus: false)
     }
 

@@ -152,7 +152,9 @@ screens hold (see [palette.md](palette.md)).
 - **List / Grid** — sections and items flattened in render order. When `filtering` is on (Raycast's
   default unless the command supplies `onSearchTextChange`) rows are filtered with the launcher's own
   `FuzzyMatch` over title, subtitle and keywords, and a section whose items all drop loses its header
-  too. `isShowingDetail` splits the screen into rows plus a detail pane.
+  too. `isShowingDetail` splits the screen into rows plus a detail pane. `ExtensionScreen.Item`
+  carries both the flat `selection` index and the scroll id, and is the `ForEach` identity of the row
+  and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
 - **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, remote
   images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
 - **Appearance** — `environment.appearance` reports the real one, so an extension that branches on it
@@ -161,7 +163,9 @@ screens hold (see [palette.md](palette.md)).
   reaches it on the next launch. A `{light, dark}` icon or colour is picked by
   `ExtensionImage.resolve(_:assetsPath:isDark:)`, whose `isDark` comes from the view's
   `\.isDarkAppearance` so the pick re-renders when the surface flips; either side stands in when an
-  extension supplies only one. The feature's own fills live in `ExtensionColors` — never in `Theme`.
+  extension supplies only one. `{fileIcon: path}` is its own source: the path names a bundle or
+  document whose Finder icon is wanted, so it goes to `NSWorkspace` rather than being decoded as an
+  image file — an `.app` has no bitmap to read. The feature's own fills live in `ExtensionColors` — never in `Theme`.
 - **Form** — label-left/control-right rows. Field values live in the extension (React owns them); every
   edit dispatches `onTinycastChange` and the resulting re-render is what updates the control, so
   `defaultValue`, a controlled `value`, and `ref.reset()` all behave.
@@ -169,7 +173,9 @@ screens hold (see [palette.md](palette.md)).
   action is the primary ↵ action; an action's own `shortcut` is matched against modified keystrokes.
 - **Feedback** — `showToast` stacks above the footer, `showHUD` is a centred pill, and `confirmAlert`
   goes through `DialogController` like every other question the app asks. Its dialog sits at
-  `.modalPanel`, above the palette's `.floating`, so a view command keeps its screen behind it.
+  `.modalPanel`, above the palette's `.floating`, so a view command keeps its screen behind it — and
+  the palette does not dismiss while it is up (`AppCore.isShowingDialog`), because dismissing pops to
+  root, which would tear the command down before its `await confirmAlert(…)` ever returns.
 - **Command arguments** — a command declaring `arguments` shows inline fields sized to their
   placeholders, right after the typed text, exactly as Raycast does. Tab walks search field → each
   argument → back; ↵ from any of them runs the command with the values as `props.arguments`; a blank

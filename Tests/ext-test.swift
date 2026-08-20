@@ -370,7 +370,7 @@ struct ExtensionTests {
         check("filters locally", list.filtersLocally)
         check(
             "items flattened in order",
-            list.items.map { $0.string("title") } == ["Apple", "Banana", "Cherry"])
+            list.items.map { $0.node.string("title") } == ["Apple", "Banana", "Cherry"])
         check("rows interleave the section header", list.rows.count == 4, "\(list.rows.count)")
         if case .header(let title, let subtitle, _) = list.rows.first {
             check("header title", title == "Alpha")
@@ -383,11 +383,11 @@ struct ExtensionTests {
         let filtered = ExtensionScreen(tree: tree(listJSON), query: "an")
         check(
             "filter matches title and keyword",
-            filtered.items.map { $0.string("title") } == ["Banana"],
-            String(describing: filtered.items.map { $0.string("title") }))
+            filtered.items.map { $0.node.string("title") } == ["Banana"],
+            String(describing: filtered.items.map { $0.node.string("title") }))
         check("empty section drops its header", filtered.rows.count == 2, "\(filtered.rows.count)")
         let byKeyword = ExtensionScreen(tree: tree(listJSON), query: "red")
-        check("keyword match", byKeyword.items.map { $0.string("title") } == ["Cherry"])
+        check("keyword match", byKeyword.items.map { $0.node.string("title") } == ["Cherry"])
 
         // A command that owns the search text must not be filtered behind its back.
         let controlled = ExtensionScreen(
@@ -514,22 +514,22 @@ struct ExtensionTests {
         check("navigation title", screen.navigationTitle == "Synthetic")
         check(
             "timer fired and re-rendered",
-            screen.items.first?.string("title") == "count=1",
-            screen.items.first?.string("title") ?? "nil")
+            screen.items.first?.node.string("title") == "count=1",
+            screen.items.first?.node.string("title") ?? "nil")
         check(
-            "node path shim", screen.items.first?.string("subtitle") == "/a/c",
-            screen.items.first?.string("subtitle") ?? "nil")
+            "node path shim", screen.items.first?.node.string("subtitle") == "/a/c",
+            screen.items.first?.node.string("subtitle") ?? "nil")
         check(
             "crypto shim",
-            ExtensionAccessoriesView_labelForTest(screen.items.first?.array("accessories").first)
+            ExtensionAccessoriesView_labelForTest(screen.items.first?.node.array("accessories").first)
                 == "ba7816bf",
-            String(describing: screen.items.first?.array("accessories").first))
+            String(describing: screen.items.first?.node.array("accessories").first))
         check("toast reached the host", host.toasts == ["hello"], host.toasts.joined(separator: ","))
         check(
             "AbortSignal carries its statics",
-            ExtensionAccessoriesView_labelForTest(screen.items.first?.array("accessories").last)
+            ExtensionAccessoriesView_labelForTest(screen.items.first?.node.array("accessories").last)
                 == "function,function,function,false,AbortError",
-            String(describing: screen.items.first?.array("accessories").last))
+            String(describing: screen.items.first?.node.array("accessories").last))
 
         // Dispatch the row's action and confirm the re-render.
         let actions = ExtensionScreen.actions(in: screen.actionPanel(forItemAt: 0))
@@ -542,8 +542,8 @@ struct ExtensionTests {
             screen = ExtensionScreen(tree: recorder.trees.last!, query: "")
             check(
                 "action re-rendered the row",
-                screen.items.first?.string("title") == "count=11",
-                screen.items.first?.string("title") ?? "nil")
+                screen.items.first?.node.string("title") == "count=11",
+                screen.items.first?.node.string("title") ?? "nil")
         }
 
         // Command arguments must reach `props.arguments`, and the bag must exist even when empty.
@@ -627,10 +627,10 @@ struct ExtensionTests {
         check(
             "the second run's timers still fire",
             rerunRecorder.trees.last
-                .map { ExtensionScreen(tree: $0, query: "").items.first?.string("title") == "count=1" }
+                .map { ExtensionScreen(tree: $0, query: "").items.first?.node.string("title") == "count=1" }
                 == true,
             rerunRecorder.trees.last
-                .flatMap { ExtensionScreen(tree: $0, query: "").items.first?.string("title") } ?? "no tree")
+                .flatMap { ExtensionScreen(tree: $0, query: "").items.first?.node.string("title") } ?? "no tree")
         await runtime.stop(session: "s1b")
         runtime.setDelegate(recorder)
 
@@ -763,12 +763,13 @@ struct ExtensionTests {
             let screen = ExtensionScreen(tree: tree, query: "")
             print("root: \(screen.kind)  rows: \(screen.rows.count)  fields: \(screen.fields.count)")
             for item in screen.items.prefix(12) {
-                let accessories = item.array("accessories").count
+                let node = item.node
+                let accessories = node.array("accessories").count
                 print(
-                    "  • \(item.string("title") ?? "")"
-                        + (item.string("subtitle").map { "  —  \($0)" } ?? "")
+                    "  • \(node.string("title") ?? "")"
+                        + (node.string("subtitle").map { "  —  \($0)" } ?? "")
                         + (accessories > 0 ? "  [\(accessories) accessories]" : "")
-                        + (item.node("actions") != nil ? "  ⌘K" : ""))
+                        + (node.node("actions") != nil ? "  ⌘K" : ""))
             }
             if case .detail = screen.kind {
                 print("  markdown: \((screen.root?.string("markdown") ?? "").prefix(200))")

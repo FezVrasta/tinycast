@@ -20,7 +20,7 @@ struct ExtensionCommandScreen: PaletteScreen {
     }
 
     /// Selectable rows only: a section header is drawn but never landed on.
-    var rows: [RenderNode] { screen.items }
+    var rows: [ExtensionScreen.Item] { screen.items }
 
     /// A Grid needs both axes: ↑/↓ move a whole row, ←/→ move one cell. Without this the palette's
     /// linear step applies, and ↓ walked sideways through the grid one tile at a time.

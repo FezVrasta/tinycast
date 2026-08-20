@@ -356,6 +356,9 @@ final class AppCore {
         await dialogs.notice(title: title, message: message, symbol: symbol, tone: tone)
     }
 
+    /// True while a dialog is up, so a surface behind one can tell it apart from losing focus.
+    var isShowingDialog: Bool { dialogs.isPresenting }
+
     /// `tone` styles the glyph, `confirmRole` the button; separate on purpose.
     func confirm(
         title: String, message: String?, symbol: String?, confirmTitle: String,
