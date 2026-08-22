@@ -59,6 +59,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `ranking-test` | `Launcher/Model/LauncherRankingStore.swift` |
 | `scopes-test` | `Launcher/Model/SearchScopes.swift` |
 | `calc-test` | all of `Calculator/Model/` |
+| `calendar-test` | all of `Calendar/Model/` — link detection, the join window, the day buckets |
 | `clipboard-test` | `Clipboard/Model/ClipboardStore.swift` |
 | `emoji-test` | `Emoji/Model/EmojiCatalog.swift`, `EmojiGridGeometry.swift`, the generated data |
 | `palette-selection-test` | `Features/PaletteRowIndex.swift` |
@@ -335,6 +336,19 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - A bare amount (`1 usd`) answers in the Mac's region currency, and follows a change to
   System Settings ▸ General ▸ Language & Region without a relaunch — and nothing prompts for location
 - A crypto query (`1 btc`, `0.5 sol to eur`) answers, and `1 usd to btc` stays in plain notation
+
+### Calendar and meetings
+
+- With Calendar **off**: no launcher entries, no card, no permission prompt at launch
+- Enabling shows the consent dialog **before** the macOS prompt; declining prompts for nothing
+- With a meeting four minutes out, an empty palette shows the card on top, provider glyph and all
+- The countdown steps on the minute boundary rather than on a keystroke
+- ↵ joins: a Zoom link opens the Zoom app, and the browser where no app claims the scheme
+- Typing a character swaps the card for the calculator's; ↑/↓ never lands on a phantom row
+- Unchecking a calendar drops its events from the launcher and My Schedule, and survives a relaunch
+- Adding or deleting an event in Calendar.app updates an open palette without a reopen
+- A meeting with no link is listed and searchable, and answers Open in Calendar rather than Join
+- Import a backup taken with Calendar on: it comes back **off**, and no calendar toggle travels
 
 ### System actions and window management
 

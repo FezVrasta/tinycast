@@ -24,6 +24,19 @@ enum PopToRootTimeout: Int, CaseIterable, Identifiable, Sendable {
     var interval: TimeInterval { TimeInterval(rawValue) }
 }
 
+/// How early the join card appears, and how long past the start it stays. See UpcomingWindow.
+enum JoinWindow: Int, CaseIterable, Identifiable, Sendable {
+    case one = 1
+    case two = 2
+    case five = 5
+    case ten = 10
+    case fifteen = 15
+
+    var id: Int { rawValue }
+
+    var title: String { rawValue == 1 ? "1 minute" : "\(rawValue) minutes" }
+}
+
 @MainActor
 @Observable
 final class AppSettings {
@@ -206,6 +219,21 @@ final class AppSettings {
         }
     }
 
+    /// Doubles as calendar-access consent, so only `CalendarCoordinator` may write it.
+    var calendarEnabled: Bool {
+        didSet { defaults.set(calendarEnabled, forKey: Key.calendarEnabled.rawValue) }
+    }
+
+    var calendarShowInLauncher: Bool {
+        didSet {
+            defaults.set(calendarShowInLauncher, forKey: Key.calendarShowInLauncher.rawValue)
+        }
+    }
+
+    var joinWindowMinutes: JoinWindow {
+        didSet { defaults.set(joinWindowMinutes.rawValue, forKey: Key.joinWindowMinutes.rawValue) }
+    }
+
     /// Off means fully off: no launcher entries, and a still-registered shortcut moves nothing.
     var windowManagementEnabled: Bool {
         didSet {
@@ -340,6 +368,13 @@ final class AppSettings {
             ?? ExtensionRegistry.defaults
         extensionCustomSearchPaths =
             defaults.stringArray(forKey: Key.extensionCustomSearchPaths.rawValue) ?? []
+        // Opt-in, like extensions: until it is asked for, EventKit is never loaded.
+        calendarEnabled = defaults.bool(forKey: Key.calendarEnabled.rawValue)
+        calendarShowInLauncher =
+            defaults.object(forKey: Key.calendarShowInLauncher.rawValue) == nil
+            || defaults.bool(forKey: Key.calendarShowInLauncher.rawValue)
+        joinWindowMinutes =
+            JoinWindow(rawValue: defaults.integer(forKey: Key.joinWindowMinutes.rawValue)) ?? .five
         windowManagementEnabled = defaults.bool(forKey: Key.windowManagementEnabled.rawValue)
         windowManagementShowInLauncher =
             defaults.object(forKey: Key.windowManagementShowInLauncher.rawValue) == nil

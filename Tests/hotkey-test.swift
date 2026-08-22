@@ -92,6 +92,7 @@ struct DoubleTapDetectorTests {
             (.clipboardHistory, .toggleClipboard, "hotkey.toggleClipboard"),
             (.searchEmoji, .toggleEmoji, "hotkey.toggleEmoji"),
             (.searchFiles, .searchFiles, "hotkey.searchFiles"),
+            (.joinNextMeeting, .joinNextMeeting, "hotkey.joinNextMeeting"),
             (.showNotes, .showNotes, "hotkey.showNotes"),
             (.createNote, .createNote, "hotkey.createNote"),
             (.searchNotes, .searchNotes, "hotkey.searchNotes")

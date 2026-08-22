@@ -51,6 +51,9 @@ struct SettingsBackup: Codable {
         var quicklinkOpensNewWindow: Bool?
         var quicklinkSelectionFallback: String?
         var quicklinkConfirmsBeforeDelete: Bool?
+        // `calendarEnabled` is absent: an import must not grant calendar access.
+        var calendarShowInLauncher: Bool?
+        var joinWindowMinutes: Int?
     }
 
     /// Combos keep the legacy shape, so older files import. docs/features/hotkeys.md#persistence
@@ -62,6 +65,7 @@ struct SettingsBackup: Codable {
         var createNote: HotKeyBinding?
         var searchNotes: HotKeyBinding?
         var searchFiles: HotKeyBinding?
+        var joinNextMeeting: HotKeyBinding?
         var apps: [String: HotKeyBinding]?
         var panes: [String: HotKeyBinding]?
         var customCommands: [String: HotKeyBinding]?
@@ -122,7 +126,9 @@ extension SettingsBackup {
             extensionsShowInLauncher: s.extensionsShowInLauncher,
             quicklinkOpensNewWindow: s.quicklinkOpensNewWindow,
             quicklinkSelectionFallback: s.quicklinkSelectionFallback.rawValue,
-            quicklinkConfirmsBeforeDelete: s.quicklinkConfirmsBeforeDelete)
+            quicklinkConfirmsBeforeDelete: s.quicklinkConfirmsBeforeDelete,
+            calendarShowInLauncher: s.calendarShowInLauncher,
+            joinWindowMinutes: s.joinWindowMinutes.rawValue)
 
         let hk = core.hotKeys
         var hotkeys = HotkeyBackup()
@@ -133,6 +139,7 @@ extension SettingsBackup {
         hotkeys.createNote = hk.binding(for: .createNote)
         hotkeys.searchNotes = hk.binding(for: .searchNotes)
         hotkeys.searchFiles = hk.binding(for: .searchFiles)
+        hotkeys.joinNextMeeting = hk.binding(for: .joinNextMeeting)
         hotkeys.apps = Dictionary(
             uniqueKeysWithValues: hk.boundBundleIDs.compactMap { id in
                 hk.binding(for: .app(bundleID: id)).map { (id, $0) }
@@ -333,6 +340,14 @@ extension SettingsBackup {
             settings.quicklinkConfirmsBeforeDelete = flag
             count += 1
         }
+        if let flag = s.calendarShowInLauncher {
+            settings.calendarShowInLauncher = flag
+            count += 1
+        }
+        if let raw = s.joinWindowMinutes, let window = JoinWindow(rawValue: raw) {
+            settings.joinWindowMinutes = window
+            count += 1
+        }
         return count
     }
 
@@ -352,6 +367,7 @@ extension SettingsBackup {
         if let b = hotkeys.createNote { apply(b, .createNote) }
         if let b = hotkeys.searchNotes { apply(b, .searchNotes) }
         if let b = hotkeys.searchFiles { apply(b, .searchFiles) }
+        if let b = hotkeys.joinNextMeeting { apply(b, .joinNextMeeting) }
         for (id, b) in hotkeys.apps ?? [:] { apply(b, .app(bundleID: id)) }
         for (id, b) in hotkeys.panes ?? [:] { apply(b, .settingsPane(bundleID: id)) }
         for (rawID, b) in hotkeys.customCommands ?? [:] {

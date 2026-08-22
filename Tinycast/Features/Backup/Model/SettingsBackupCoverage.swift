@@ -33,7 +33,9 @@ enum SettingsBackupCoverage {
         "quicklinkOpensNewWindow": .quicklinkOpensNewWindow,
         "quicklinkSelectionFallback": .quicklinkSelectionFallback,
         "quicklinkConfirmsBeforeDelete": .quicklinkConfirmsBeforeDelete,
-        "extensionsShowInLauncher": .extensionsShowInLauncher
+        "extensionsShowInLauncher": .extensionsShowInLauncher,
+        "calendarShowInLauncher": .calendarShowInLauncher,
+        "joinWindowMinutes": .joinWindowMinutes
     ]
 
     /// The `SettingsData` fields no `AppSettings` key stands behind, and what they read instead.
@@ -58,6 +60,8 @@ enum SettingsBackupCoverage {
         AppSettingsKey.palettePosition.rawValue:
             "Machine-local geometry: a point restored onto another display layout lands nowhere.",
         AppSettingsKey.autoSwitchInputSource.rawValue:
-            "Names a keyboard input source installed on this Mac; another Mac may not have it."
+            "Names a keyboard input source installed on this Mac; another Mac may not have it.",
+        AppSettingsKey.calendarEnabled.rawValue:
+            "Doubles as consent to read your calendar; an import must not grant calendar access."
     ]
 }

@@ -29,6 +29,8 @@ final class AppCore {
     let aliases = AliasStore()
     let calcHistory = CalculatorHistoryStore()
     let currencyRates = CurrencyRateStore()
+    let calendarStore = CalendarStore()
+    let meetingClock = MeetingClock()
     let updateChecker = UpdateCheckStore()
     let emojiIndex = EmojiIndex()
     let frequentEmoji = FrequentEmojiStore()
@@ -98,6 +100,7 @@ final class AppCore {
         windowCommandCoordinator: windowCommandCoordinator,
         snippetExpansion: snippetExpansion, fileSearchCoordinator: fileSearchCoordinator,
         notesCoordinator: notesCoordinator, extensionCoordinator: extensionCoordinator,
+        calendarCoordinator: calendarCoordinator,
         core: self)
     @ObservationIgnored private(set) lazy var clipboardCoordinator = ClipboardCoordinator(
         clipboardStore: clipboardStore, palette: palette, windowController: windowController,
@@ -107,6 +110,9 @@ final class AppCore {
         paletteCoordinator: paletteCoordinator)
     @ObservationIgnored private(set) lazy var calculatorCoordinator = CalculatorCoordinator(
         calcHistory: calcHistory, paletteCoordinator: paletteCoordinator, core: self)
+    @ObservationIgnored private(set) lazy var calendarCoordinator = CalendarCoordinator(
+        store: calendarStore, clock: meetingClock, appIndex: appIndex, settings: settings,
+        paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var fileSearchCoordinator = FileSearchCoordinator(
         settings: settings, appIndex: appIndex, session: fileSearch, palette: palette,
         paletteCoordinator: paletteCoordinator, core: self)
@@ -173,6 +179,7 @@ final class AppCore {
             quicklinks.load()
             quicklinkCoordinator.applyQuicklinksPresence()
             updateCoordinator.applyEnabled()
+            calendarCoordinator.applyEnabled()
             Task { await appIndex.refresh() }
             Task { await emojiIndex.load() }
             currencyRates.start()
@@ -192,6 +199,9 @@ final class AppCore {
             hotKeys.onCreateNote = { [weak self] in self?.notesCoordinator.createNote() }
             hotKeys.onSearchNotes = { [weak self] in self?.notesCoordinator.searchNotes() }
             hotKeys.onSearchFiles = { [weak self] in self?.fileSearchCoordinator.show() }
+            hotKeys.onJoinNextMeeting = { [weak self] in
+                self?.calendarCoordinator.joinNextMeeting()
+            }
             hotKeys.onRunCustomCommand = { [weak self] id in
                 self?.customCommandCoordinator.runCustomCommand(id: id)
             }
@@ -268,7 +278,7 @@ final class AppCore {
         case .extensionCommand(let entryID):
             return appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
         case .togglePalette, .toggleClipboard, .toggleEmoji, .searchFiles, .systemAction,
-            .showNotes, .createNote, .searchNotes, .windowCommand:
+            .showNotes, .createNote, .searchNotes, .windowCommand, .joinNextMeeting:
             return nil
         }
     }
@@ -306,6 +316,11 @@ final class AppCore {
             }, reproject: { $0.quicklinkCoordinator.applyQuicklinksPresence() })
         track({ _ = $0.fileSearchEnabled }, reproject: { $0.fileSearchCoordinator.applyEnabled() })
         track({ _ = $0.notesEnabled }, reproject: { $0.notesCoordinator.applyEnabled() })
+        track(
+            {
+                _ = $0.calendarEnabled
+                _ = $0.calendarShowInLauncher
+            }, reproject: { $0.calendarCoordinator.applyEnabled() })
         track(
             {
                 _ = $0.fileSearchScopes
