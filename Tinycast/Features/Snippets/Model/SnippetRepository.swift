@@ -299,15 +299,6 @@ struct SnippetRepository: Sendable {
         }
     }
 
-    private func nextAvailableFileURL(for name: String, in directory: URL) -> URL {
-        var suffix = 1
-        while true {
-            let candidate = uniqueFileURL(for: name, suffix: suffix, in: directory)
-            if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
-            suffix += 1
-        }
-    }
-
     private func uniqueFileURL(for name: String, suffix: Int, in directory: URL) -> URL {
         let base = SnippetMarkdownSerializer.slug(for: name)
         let filename = suffix == 1 ? "\(base).md" : "\(base)-\(suffix).md"

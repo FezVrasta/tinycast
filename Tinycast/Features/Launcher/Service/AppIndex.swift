@@ -463,11 +463,12 @@ final class AppIndex {
     private func rank(_ q: String, limit: Int) -> [AppEntry] {
         Signposts.interval("AppIndex.rank") {
             let learned = ranking.boosts(query: q)
+            let query = FuzzyMatch.Query(q)
             let scored = apps.compactMap { app -> (AppEntry, Int)? in
                 var fields = app.searchFields
                 fields.userAlias = aliases.alias(for: app.preferenceKey)
                 // Base relevance is the strongest field; the boost is added blind to it.
-                guard let score = SearchRelevance.score(query: q, fields: fields) else {
+                guard let score = SearchRelevance.score(query, fields: fields) else {
                     return nil
                 }
                 return (app, score + (learned[app.preferenceKey] ?? 0))

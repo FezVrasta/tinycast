@@ -142,12 +142,6 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         publishLauncherEntries()
     }
 
-    /// Bulk apply from a settings backup.
-    func replaceAppearances(_ overrides: [String: ExtensionAppearance]) {
-        appearances.replace(overrides)
-        publishLauncherEntries()
-    }
-
     /// An appearance wins, else the shipped artwork: the launcher is handed the answer, not the why.
     private func icon(
         for command: ExtensionCommand, in owner: InstalledExtension,
