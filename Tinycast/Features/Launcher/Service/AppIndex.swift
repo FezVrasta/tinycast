@@ -389,9 +389,7 @@ final class AppIndex {
                 if let bundleID, !seenBundleIDs.insert(bundleID).inserted { continue }
 
                 let name =
-                    (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-                    ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
-                    ?? url.deletingPathExtension().lastPathComponent
+                    bundle?.installedAppName ?? url.deletingPathExtension().lastPathComponent
                 let executable =
                     bundle?.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
                 result.append(

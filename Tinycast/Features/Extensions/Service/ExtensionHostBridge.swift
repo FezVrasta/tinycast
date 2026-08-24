@@ -428,10 +428,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
     private func describe(application url: URL) -> [String: Any] {
         let bundle = Bundle(url: url)
-        let name =
-            (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
-            ?? url.deletingPathExtension().lastPathComponent
+        let name = bundle?.installedAppName ?? url.deletingPathExtension().lastPathComponent
         return [
             "name": name, "path": url.path, "bundleId": bundle?.bundleIdentifier ?? NSNull(),
             "localizedName": name

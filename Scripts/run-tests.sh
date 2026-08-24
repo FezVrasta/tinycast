@@ -72,6 +72,7 @@ run file-search-session-test Tinycast/Platform/Signposts.swift \
                              Tinycast/Features/FileSearch/Service/*.swift
 run ranking-test           $L/SearchRelevance.swift $L/LauncherRankingStore.swift
 run scopes-test            $L/SearchScopes.swift
+run app-name-test          Tinycast/Platform/AppDisplayName.swift
 run favorites-test         $L/FavoriteSlots.swift
 run calc-test              Tinycast/Features/Calculator/Model/*.swift
 run calendar-test          Tinycast/Features/Calendar/Model/*.swift

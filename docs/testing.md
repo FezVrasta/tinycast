@@ -58,6 +58,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `file-search-session-test` | serialized query execution, debounce coalescing and cancellation |
 | `ranking-test` | `Launcher/Model/LauncherRankingStore.swift` |
 | `scopes-test` | `Launcher/Model/SearchScopes.swift` |
+| `app-name-test` | `Platform/AppDisplayName.swift` — every path that names a scanned bundle |
 | `calc-test` | all of `Calculator/Model/` |
 | `calendar-test` | all of `Calendar/Model/` — link detection, the join window, the day buckets |
 | `clipboard-test` | `Clipboard/Model/ClipboardStore.swift` |
