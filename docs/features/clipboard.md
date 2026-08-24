@@ -81,8 +81,7 @@ a narrow filter over a broad query can show fewer rows than the history holds.
 ## Pinned entries
 
 A row's ⌘K Actions menu carries **Pin Entry / Unpin Entry** (⌘., since ⌘P opens the type filter),
-persisted as a `pinned_at` column
-on `items` (added to existing databases by an `ALTER TABLE` migration, alongside `source_app`'s) —
+persisted as a `pinned_at` column on `items` —
 a stamp rather than a flag, because the Pinned section is ordered by _when you pinned_, not by
 recency.
 
