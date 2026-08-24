@@ -88,6 +88,7 @@ same arrangement as `EmojiData.generated.swift`: building Tinycast never needs N
 | `src/reconciler.js` | `react-reconciler` host config that commits into a JSON tree |
 | `src/api/components.js` | every `@raycast/api` component |
 | `src/api/system.js` | Clipboard, LocalStorage, Cache, Toast, preferences, environment |
+| `src/api/oauth.js` | `OAuth.PKCEClient`, `OAuth.TokenSet`, redirect url builders |
 | `src/api/enums.generated.js` | Icon / Color / Toast.Style / … extracted from the real `@raycast/api` types |
 | `src/node-shims.js` | `path`, `fs`, `os`, `child_process`, `crypto`, `zlib`, `util`, `events`, `buffer`, `punycode`, … |
 | `src/url.js`, `src/punycode.js`, `src/buffer.js` | web/Node primitives JavaScriptCore lacks |
@@ -95,7 +96,7 @@ same arrangement as `EmojiData.generated.swift`: building Tinycast never needs N
 Two host-call flavours:
 
 - **Async** (`invoke`) for anything that needs the main actor — clipboard, toasts, window control,
-  `fetch`, `exec`. Swift answers later through `__tinycast.settle`, so the JS thread never blocks on the
+  `fetch`, `exec`, `oauth`. Swift answers later through `__tinycast.settle`, so the JS thread never blocks on the
   UI.
 - **Blocking** (`invokeSync`) for the synchronous Node shims only — `fs.readFileSync`,
   `execSync`, `createHash`, `gunzipSync`. Safe because Swift services these entirely on the JS queue;
@@ -108,9 +109,11 @@ Two host-call flavours:
 | File | Role |
 | --- | --- |
 | `Service/ExtensionRuntime.swift` | the `JSContext`, host-function installation, timers, exception reporting |
-| `Service/ExtensionHostBridge.swift` | main-actor host APIs (clipboard, storage, cache, window, toasts, system) |
+| `Service/ExtensionHostBridge.swift` | main-actor host APIs (clipboard, storage, cache, window, toasts, system, oauth) |
 | `Service/ExtensionNodeShims.swift` | the synchronous `fs` / `child_process` / `crypto` / `zlib` services |
 | `Service/ExtensionFetcher.swift` | `fetch` over `URLSession`, plus the async `exec` and the shared PATH resolver |
+| `Service/ExtensionOAuthKeychain.swift` | secure OAuth token storage backed by macOS Keychain |
+| `Service/ExtensionOAuthSession.swift` | PKCE state tracking, browser launch, and callback redirect resolution |
 | `Service/ExtensionStorage.swift` | per-extension `LocalStorage`, `Cache` and preference values (one JSON file each) |
 | `Service/ExtensionCatalog.swift` | discovery on disk, install, uninstall, import-from-Raycast |
 | `Service/ExtensionCleanup.swift` | the build workspace's name, the launch sweep, and reclaiming orphans |
@@ -300,7 +303,26 @@ along with the extension's stored preferences and its chosen icon.
 `showHUD`, `confirmAlert`, `closeMainWindow`, `popToRoot`, `clearSearchBar`, `open`, `trash`,
 `showInFinder`, `getApplications`, `getDefaultApplication`, `getFrontmostApplication`,
 `getSelectedText`, `getSelectedFinderItems`, `launchCommand`, `openExtensionPreferences`,
-`useNavigation`, `Icon`, `Color`, `Image.Mask`, `Keyboard.Shortcut.Common`, `LaunchType`.
+`useNavigation`, `OAuth`, `Icon`, `Color`, `Image.Mask`, `Keyboard.Shortcut.Common`, `LaunchType`.
+
+**OAuth 2.0 PKCE** — `OAuth.PKCEClient`, `OAuth.TokenSet`, `OAuth.RedirectMethod`, with S256 challenges and
+tokens in the login Keychain (service `com.tinycast.extensions.oauth`, `kSecAttrAccessibleWhenUnlocked`),
+scoped per extension and dropped on uninstall.
+
+The redirect address belongs to the extension author's OAuth app registration, so Tinycast cannot choose
+it — it can only be there to catch it. **Tinycast therefore claims `raycast`, `com.raycast` and `tinycast`
+as URL schemes**, which is what makes all three of Raycast's redirect methods land back in the app:
+
+| `RedirectMethod` | Registered address | How it returns |
+| --- | --- | --- |
+| `App` | `raycast://oauth?package_name=Extension` | straight to Tinycast, no server |
+| `AppURI` | `com.raycast:/oauth?package_name=Extension` | straight to Tinycast, no server |
+| `Web` | `https://raycast.com/redirect?packageName=Extension` | through Raycast's page, which reopens a claimed scheme |
+
+Claiming `raycast` means an installed Raycast competes with Tinycast for those links and macOS picks the
+winner. That is a deliberate trade: without it, `App` redirects have nowhere to land. `Web` additionally
+depends on a page Raycast can change at any time — `ExtensionOAuthSession` times out after five minutes so
+a redirect that never arrives cannot wedge the palette.
 
 **`raycast://` URLs** — extensions address Raycast by scheme; the most common is a bare
 `open("raycast://")` to bring the window back after something stole focus (1Password's auth flow does
@@ -319,14 +341,15 @@ Both receive `props.arguments` and `props.launchType`.
 
 Measured against the 37 extensions installed in a real Raycast on the development machine: **32
 extensions / 114 of 147 view commands** boot and render. `Scripts/raycast-runtime/test.mjs <dir>` and
-`Scripts/run-tests.sh ext-test` reproduce that measurement.
+`Scripts/run-tests.sh ext-test` reproduce that measurement. OAuth landed after this run, so the three
+OAuth extensions it excluded are not counted yet — re-measure before quoting these numbers.
 
 ## What isn't supported yet
 
 | Gap | Why |
 | --- | --- |
-| **OAuth** (`OAuth.PKCEClient`) | The `Web` redirect method routes through `raycast.com/redirect`, which the provider's app registration is bound to. Not portable without that service; `App`/`AppURI` redirects would need a Tinycast URL scheme. This is the single biggest gap — 3 of the 37 extensions measured, 26 commands. |
 | **`menu-bar` commands** | The launcher lists them and explains why they don't open. |
+| **Raycast's PKCE proxy (`oauth.raycast.com`)** | Extensions whose provider has no PKCE support exchange tokens through Raycast's proxy. `OAuth.PKCEClient` works; a provider that needs that proxy still fails. |
 | **`AI`, `BrowserExtension`, `WindowManagement`** | Raycast services with no local equivalent. Importing them works; calling one throws with a clear reason. |
 | **WebSocket** | No polyfill yet; `URLSessionWebSocketTask` could back one. |
 | **Aborting a `fetch` already in flight** | `AbortSignal` is complete — `timeout`, `abort` and `any` included — and `fetch` checks it on both sides of the host call, so a caller gets its `AbortError`. The request itself still runs to completion: the signal isn't carried across the bridge, so nothing cancels the `URLSessionTask`. A timeout bounds the caller, not the network. |
@@ -387,6 +410,7 @@ never shares with an installed copy.
 | The extension | `extensions/<name>/` | yes |
 | `LocalStorage`, `Cache`, preferences | `extension-data/<safe name>.json` | yes |
 | `environment.supportPath` | `extension-support/<safe name>/` | yes |
+| OAuth tokens | macOS Keychain (`com.tinycast.extensions.oauth`) | yes |
 | Icon override | `UserDefaults` → `extensionAppearances` | yes |
 | Command shortcuts | `UserDefaults` → `hotkey.extensionCommand.<entry id>` | yes |
 | Favorites, hidden items | `UserDefaults` → `favoriteApps`, `hiddenItemKeys` | yes |

@@ -172,6 +172,8 @@ run ext-test               -parse-as-library \
                            $E/Service/ExtensionCatalog.swift \
                            $E/Service/ExtensionFetcher.swift \
                            $E/Service/ExtensionNodeShims.swift \
+                           $E/Service/ExtensionOAuthKeychain.swift \
+                           $E/Service/ExtensionOAuthSession.swift \
                            $E/Service/ExtensionRuntime.swift \
                            $E/UI/ExtensionScreen.swift \
                            $L/SearchRelevance.swift \
