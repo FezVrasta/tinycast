@@ -1,14 +1,23 @@
 # Calendar and meeting join
 
-Two surfaces over the Mac's own calendar: a **join card** at the top of an empty launcher, and a
-**Join Next Meeting** global shortcut that never opens the palette at all. Around them sit four
-launcher commands, a `My Schedule` sub-screen, and individual events as searchable launcher entries.
+Four surfaces over the Mac's own calendar: a **join card** at the top of an empty launcher, a
+**Join Next Meeting** global shortcut, the **menu bar**, and meetings that **join themselves**.
+Around them sit five launcher commands, a `My Schedule` sub-screen, a camera preview, and individual
+events as searchable launcher entries.
 
 ## Invariants
 
-- **Nothing polls.** `.EKEventStoreChanged` is the reload signal, held through the RAII
-  `NotificationToken`. The only timer is `MeetingClock`, which ticks on the minute boundary and only
-  while the palette is up. Its `Task` is stored and cancelled in `stop()` and in an `isolated deinit`.
+- **Nothing polls, and there is one timer.** `.EKEventStoreChanged` is the reload signal, held
+  through the RAII `NotificationToken`, and `NSWorkspace.didWakeNotification` covers the sleep it
+  cannot. `MeetingClock` is the only timer: one tick on the minute boundary, running **while
+  something is watching** — the palette, the menu bar, or auto join. With all three off, an idle Mac
+  owns no timer at all. `CalendarCoordinator.applyClock` is the one place that decides, and the
+  clock's `Task` is stored and cancelled in `stop()` and in an `isolated deinit`.
+- **Auto join fires at most once per meeting per launch**, and only for a meeting starting at or
+  after the moment the switch was armed. Both are why `AutoJoinPolicy` takes `armedAt` and the
+  already-joined set rather than reading a clock of its own.
+- **The camera stops with the panel.** `CameraPreviewSession.stop()` runs on every exit path, so the
+  camera light never outlives the preview.
 - **The card's window is `[start - lead, min(start + lead, end)]`.** The grace period exists because
   everyone joins late; the `min` is why it never outlives a meeting shorter than the lead.
 - **Recurrence comes from `predicateForEvents(withStart:end:calendars:)`**, which expands occurrences
@@ -34,6 +43,9 @@ launcher commands, a `My Schedule` sub-screen, and individual events as searchab
 - **`MeetingEvent`** — one occurrence, flattened out of `EKEvent`.
 - **`UpcomingWindow`** — `agenda`, `carded`, `joinable` and `countdown`.
 - **`MeetingDay`** — the Today / Tomorrow buckets, mirroring the clipboard's `DateBucket`.
+- **`MenuBarSummary`** — which event the menu bar carries, and for how long.
+- **`AutoJoinPolicy`** — whether a meeting should open itself, and which one.
+- **`EventDraft`** — what the New Event prompt collects, before anything touches the calendar.
 
 ### Finding the link
 
@@ -87,16 +99,19 @@ nothing ticking.
 
 ## Commands
 
-`Join Next Meeting` is the only one with a `HotKeyAction`; the other three are launcher rows and ⌘K
-actions. All four leave the launcher when the feature is off, through
-`CalendarCoordinator.applyEnabled`, the `applyQuicklinksPresence` twin.
+All five leave the launcher when the feature is off, through `CalendarCoordinator.applyEnabled`,
+the `applyQuicklinksPresence` twin.
 
-| Command | Does |
-| --- | --- |
-| Join Next Meeting | Opens the link for the carded, running, or next meeting. Bindable. |
-| Copy Meeting Link | The same meeting's link, to the pasteboard. |
-| My Schedule | Opens the `.schedule` palette mode. |
-| Open in Calendar | Hands the meeting to Calendar.app. |
+| Command | Does | Bindable |
+| --- | --- | --- |
+| Join Next Meeting | Opens the link for the carded, running, or next meeting. | yes |
+| My Schedule | Opens the `.schedule` palette mode. | yes |
+| Create Event | Prompts for a title, a start and a duration, and writes the event. | yes |
+| Copy Meeting Link | The same meeting's link, to the pasteboard. | no |
+| Open in Calendar | Hands the meeting to Calendar.app. | no |
+
+**A command that opens a surface is bindable**; the two that act on the next meeting are reached
+through the join card's own ⌘K menu instead, where the meeting they act on is on screen.
 
 A miss reports through the HUD (`Nothing to join right now`), not a dialog: it is transient and there
 is nothing to acknowledge.
@@ -120,6 +135,46 @@ handle `ical://ekevent/…` accepts, and a recurring occurrence opens its series
 A cancelled event never reaches a surface. A declined one is dropped by `agenda`, and an all-day one
 with it.
 
+## The menu bar
+
+`MenuBarSummary` decides what the menu-bar item carries: the earliest event still inside its window,
+which is `[start - lead, start)` for **Automatically** and `[start - lead, min(start + hideAfter, end))`
+for the timed options. Because the earliest qualifying event wins, one hiding hands the space to the
+next with no extra logic.
+
+`MenuBarLabel` reads the coordinator rather than the stores, which is what scopes Observation to the
+label instead of re-running the whole `MenuBarExtra` scene. It falls back to the app's own glyph when
+nothing is due, so the item never disappears out from under the user, and the title is capped at
+`MenuBarSummary.titleCap` characters — a hard cap is the only thing that bounds a menu bar.
+
+A click opens the usual menu, with `Join <title>` added on top. **A bare click never joins**: the
+menu bar is not a button, and a mis-click there would open a call.
+
+## Auto join and the preview
+
+`AutoJoinPolicy` answers the meeting the join card is already showing, narrowed by three rules —
+`start >= armedAt`, `now >= start`, and not already joined. Reusing `UpcomingWindow.carded` rather
+than inventing a second window is what keeps one knob, `joinWindowMinutes`, governing the card, the
+chord and auto join alike.
+
+The meeting is marked joined **before** the confirmation is raised, so declining does not re-ask a
+minute later.
+
+Every join — the card, the chord, the menu bar, auto join — funnels through
+`CalendarCoordinator.join(_:uninvited:)`:
+
+```
+join(meeting)
+  ├─ no link ────────────► openInCalendar
+  ├─ camera preview on ──► CameraPreviewController.present → join, or drop
+  ├─ uninvited + confirm ► core.confirm → join, or drop
+  └─ otherwise ──────────► MeetingLauncher.join
+```
+
+**The preview is itself a confirmation**, so it stands in for one when both are on rather than asking
+twice. `CameraPreviewPanel` sits at `.floating`, below a dialog's `.modalPanel`, so a failure report
+still lands on top of it.
+
 ## Settings
 
 The Calendar pane carries the master switch (routed through the coordinator so the consent gate cannot
@@ -129,6 +184,14 @@ list — `LauncherItemsSection`'s shape, including the one `Form` row holding a 
 
 The hidden-calendar set stores **exclusions**, so a calendar added after the setting was written
 defaults to on. Holidays and Birthdays are what people switch off.
+
+`autoJoinMeetings` and `cameraPreview` join `calendarEnabled` in
+`SettingsBackupCoverage.deliberatelyExcluded`: one arms the app to open links unattended and the
+other turns on the camera, and an import must grant neither. The menu-bar settings carry over
+normally.
+
+Both menu-bar enums put their default at `rawValue == 0`, so `defaults.integer(forKey:)` returning 0
+for an unset key lands on `.never` and `.automatically` rather than fighting them.
 
 The Permissions pane shows calendar access alongside Accessibility, but only ever opens System
 Settings: the Calendar pane's own switch is the one place that may prompt.

@@ -12,6 +12,8 @@ final class HotKeyManager {
     var onSearchNotes: (() -> Void)?
     var onSearchFiles: (() -> Void)?
     var onJoinNextMeeting: (() -> Void)?
+    var onShowSchedule: (() -> Void)?
+    var onCreateEvent: (() -> Void)?
     var onRunCustomCommand: ((UUID) -> Void)?
     var onRunSystemAction: ((SystemAction.ID) -> Void)?
     var onRunWindowCommand: ((WindowCommand.ID) -> Void)?
@@ -140,7 +142,8 @@ final class HotKeyManager {
             if binding == nil { set.remove(entryID) } else { set.insert(entryID) }
             UserDefaults.standard.set(Array(set), forKey: boundExtensionCommandKey)
         case .togglePalette, .toggleClipboard, .toggleEmoji, .showNotes, .createNote, .searchNotes,
-            .searchFiles, .joinNextMeeting, .systemAction, .windowCommand:
+            .searchFiles, .joinNextMeeting, .mySchedule, .createEvent, .systemAction,
+            .windowCommand:
             break
         }
         candidateActionsCache = nil
@@ -205,6 +208,10 @@ final class HotKeyManager {
             return CommandID.searchFiles.name
         case .joinNextMeeting:
             return CommandID.joinNextMeeting.name
+        case .mySchedule:
+            return CommandID.mySchedule.name
+        case .createEvent:
+            return CommandID.createEvent.name
         case .app(let bundleID), .settingsPane(let bundleID):
             return displayName?(action) ?? bundleID
         case .customCommand:
@@ -248,6 +255,8 @@ final class HotKeyManager {
         case .searchNotes: onSearchNotes?()
         case .searchFiles: onSearchFiles?()
         case .joinNextMeeting: onJoinNextMeeting?()
+        case .mySchedule: onShowSchedule?()
+        case .createEvent: onCreateEvent?()
         case .app(let bundleID): AppLauncher.toggle(bundleID: bundleID)
         case .settingsPane(let bundleID): AppLauncher.openSettingsPane(bundleID: bundleID)
         case .customCommand(let id): onRunCustomCommand?(id)

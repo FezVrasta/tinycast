@@ -35,7 +35,11 @@ enum SettingsBackupCoverage {
         "quicklinkConfirmsBeforeDelete": .quicklinkConfirmsBeforeDelete,
         "extensionsShowInLauncher": .extensionsShowInLauncher,
         "calendarShowInLauncher": .calendarShowInLauncher,
-        "joinWindowMinutes": .joinWindowMinutes
+        "joinWindowMinutes": .joinWindowMinutes,
+        "autoJoinConfirms": .autoJoinConfirms,
+        "menuBarEvents": .menuBarEvents,
+        "menuBarLinkedEventsOnly": .menuBarLinkedEventsOnly,
+        "hideCurrentEvent": .hideCurrentEvent
     ]
 
     /// The `SettingsData` fields no `AppSettings` key stands behind, and what they read instead.
@@ -62,6 +66,10 @@ enum SettingsBackupCoverage {
         AppSettingsKey.autoSwitchInputSource.rawValue:
             "Names a keyboard input source installed on this Mac; another Mac may not have it.",
         AppSettingsKey.calendarEnabled.rawValue:
-            "Doubles as consent to read your calendar; an import must not grant calendar access."
+            "Doubles as consent to read your calendar; an import must not grant calendar access.",
+        AppSettingsKey.autoJoinMeetings.rawValue:
+            "Arms the app to open meeting links unattended; an import must not switch that on.",
+        AppSettingsKey.cameraPreview.rawValue:
+            "Turns the camera on before a meeting; an import must not grant that."
     ]
 }

@@ -131,6 +131,8 @@ final class LauncherCoordinator {
             calendarCoordinator.showSchedule()
         case .openInCalendar:
             calendarCoordinator.openNextMeetingInCalendar()
+        case .createEvent:
+            calendarCoordinator.createEvent()
         case .showNotes:
             paletteCoordinator.hidePalette(restoreFocus: false)
             notesCoordinator.show()

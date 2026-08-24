@@ -1,19 +1,14 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// One dialog's panel; keys go through `sendEvent`, so Esc/↵ need no focused subview.
-final class DialogPanel: NSPanel {
-    /// What the panel saw, not what it means: how far a step moves is the caller's business.
+/// The join preview's panel; keys go through `sendEvent`, so ↵ and Esc need no focused subview.
+final class CameraPreviewPanel: NSPanel {
     enum Key {
+        case join
         case cancel
-        case confirm
-        case increment
-        case decrement
     }
 
     var onKey: ((Key) -> Void)?
-    /// Arrows are a control's keys, not the panel's; a text field needs them for its caret.
-    var handlesArrowKeys = false
 
     init(content: NSView) {
         super.init(
@@ -23,10 +18,10 @@ final class DialogPanel: NSPanel {
             defer: false
         )
         isFloatingPanel = true
-        // Above the palette, so a confirmation is never buried under its trigger.
-        level = .modalPanel
+        // Above the palette, below a dialog: a confirmation must still land on top of it.
+        level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        isMovableByWindowBackground = false
+        isMovableByWindowBackground = true
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isOpaque = false
@@ -35,6 +30,7 @@ final class DialogPanel: NSPanel {
         // Suppresses AppKit's own window animation; `fadeIn`/`fadeOut` replace it.
         animationBehavior = .none
         isReleasedWhenClosed = false
+        isRestorable = false
         contentView = content
     }
 
@@ -47,13 +43,7 @@ final class DialogPanel: NSPanel {
         case kVK_Escape:
             onKey(.cancel)
         case kVK_Return, kVK_ANSI_KeypadEnter:
-            onKey(.confirm)
-        case kVK_LeftArrow,
-            kVK_DownArrow where handlesArrowKeys:
-            onKey(.decrement)
-        case kVK_RightArrow,
-            kVK_UpArrow where handlesArrowKeys:
-            onKey(.increment)
+            onKey(.join)
         default:
             super.sendEvent(event)
         }

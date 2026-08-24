@@ -54,6 +54,11 @@ struct SettingsBackup: Codable {
         // `calendarEnabled` is absent: an import must not grant calendar access.
         var calendarShowInLauncher: Bool?
         var joinWindowMinutes: Int?
+        // `autoJoinMeetings` and `cameraPreview` are absent: an import must arm neither.
+        var autoJoinConfirms: Bool?
+        var menuBarEvents: Int?
+        var menuBarLinkedEventsOnly: Bool?
+        var hideCurrentEvent: Int?
     }
 
     /// Combos keep the legacy shape, so older files import. docs/features/hotkeys.md#persistence
@@ -66,6 +71,8 @@ struct SettingsBackup: Codable {
         var searchNotes: HotKeyBinding?
         var searchFiles: HotKeyBinding?
         var joinNextMeeting: HotKeyBinding?
+        var mySchedule: HotKeyBinding?
+        var createEvent: HotKeyBinding?
         var apps: [String: HotKeyBinding]?
         var panes: [String: HotKeyBinding]?
         var customCommands: [String: HotKeyBinding]?
@@ -128,7 +135,11 @@ extension SettingsBackup {
             quicklinkSelectionFallback: s.quicklinkSelectionFallback.rawValue,
             quicklinkConfirmsBeforeDelete: s.quicklinkConfirmsBeforeDelete,
             calendarShowInLauncher: s.calendarShowInLauncher,
-            joinWindowMinutes: s.joinWindowMinutes.rawValue)
+            joinWindowMinutes: s.joinWindowMinutes.rawValue,
+            autoJoinConfirms: s.autoJoinConfirms,
+            menuBarEvents: s.menuBarEvents.rawValue,
+            menuBarLinkedEventsOnly: s.menuBarLinkedEventsOnly,
+            hideCurrentEvent: s.hideCurrentEvent.rawValue)
 
         let hk = core.hotKeys
         var hotkeys = HotkeyBackup()
@@ -140,6 +151,8 @@ extension SettingsBackup {
         hotkeys.searchNotes = hk.binding(for: .searchNotes)
         hotkeys.searchFiles = hk.binding(for: .searchFiles)
         hotkeys.joinNextMeeting = hk.binding(for: .joinNextMeeting)
+        hotkeys.mySchedule = hk.binding(for: .mySchedule)
+        hotkeys.createEvent = hk.binding(for: .createEvent)
         hotkeys.apps = Dictionary(
             uniqueKeysWithValues: hk.boundBundleIDs.compactMap { id in
                 hk.binding(for: .app(bundleID: id)).map { (id, $0) }
@@ -348,6 +361,22 @@ extension SettingsBackup {
             settings.joinWindowMinutes = window
             count += 1
         }
+        if let flag = s.autoJoinConfirms {
+            settings.autoJoinConfirms = flag
+            count += 1
+        }
+        if let raw = s.menuBarEvents, let lead = MenuBarEvents(rawValue: raw) {
+            settings.menuBarEvents = lead
+            count += 1
+        }
+        if let flag = s.menuBarLinkedEventsOnly {
+            settings.menuBarLinkedEventsOnly = flag
+            count += 1
+        }
+        if let raw = s.hideCurrentEvent, let hide = HideCurrentEvent(rawValue: raw) {
+            settings.hideCurrentEvent = hide
+            count += 1
+        }
         return count
     }
 
@@ -368,6 +397,8 @@ extension SettingsBackup {
         if let b = hotkeys.searchNotes { apply(b, .searchNotes) }
         if let b = hotkeys.searchFiles { apply(b, .searchFiles) }
         if let b = hotkeys.joinNextMeeting { apply(b, .joinNextMeeting) }
+        if let b = hotkeys.mySchedule { apply(b, .mySchedule) }
+        if let b = hotkeys.createEvent { apply(b, .createEvent) }
         for (id, b) in hotkeys.apps ?? [:] { apply(b, .app(bundleID: id)) }
         for (id, b) in hotkeys.panes ?? [:] { apply(b, .settingsPane(bundleID: id)) }
         for (rawID, b) in hotkeys.customCommands ?? [:] {

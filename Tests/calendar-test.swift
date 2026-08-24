@@ -1,4 +1,5 @@
-// Standalone test for meeting-link detection, the join window and the day buckets.
+// Standalone test for meeting-link detection, the join and menu-bar windows, auto-join,
+// the event draft and the day buckets.
 import Foundation
 
 @main
@@ -25,6 +26,12 @@ struct CalendarTests {
         chordFallsBackWiderThanTheCard()
         countdownStrings()
         dayBuckets()
+        menuBarWindow()
+        menuBarFiltering()
+        menuBarTitles()
+        autoJoinFiresOnce()
+        autoJoinRespectsArming()
+        eventDrafts()
 
         print("\(passes)/\(passes + failures) passed")
         if failures > 0 { exit(1) }
@@ -218,6 +225,153 @@ struct CalendarTests {
         expect(
             UpcomingWindow.countdown(to: start, now: start.addingTimeInterval(120)) == "2 min ago",
             "past the start it counts up")
+    }
+
+    // MARK: - The menu bar
+
+    static let automatic = MenuBarSummary(leadMinutes: 5, hideAfterMinutes: nil, linkedOnly: false)
+
+    static func menuBarWindow() {
+        let meeting = event(id: "standup", start: 60, minutes: 30)
+        let start = at(60)
+        expect(
+            automatic.event(from: [meeting], now: start.addingTimeInterval(-300))?.id == "standup",
+            "the menu bar picks the event up exactly at the lead time")
+        expect(
+            automatic.event(from: [meeting], now: start.addingTimeInterval(-301)) == nil,
+            "one second earlier it is not there yet")
+        expect(
+            automatic.event(from: [meeting], now: start.addingTimeInterval(-1))?.id == "standup",
+            "it is still there a second before the start")
+        expect(
+            automatic.event(from: [meeting], now: start) == nil,
+            "Automatically clears it exactly at the start")
+
+        let lingering = MenuBarSummary(leadMinutes: 5, hideAfterMinutes: 5, linkedOnly: false)
+        expect(
+            lingering.event(from: [meeting], now: start.addingTimeInterval(299))?.id == "standup",
+            "a five-minute grace keeps it up counting past the start")
+        expect(
+            lingering.event(from: [meeting], now: start.addingTimeInterval(300)) == nil,
+            "and clears it when the grace runs out")
+
+        let brief = event(id: "brief", start: 60, minutes: 3)
+        expect(
+            lingering.event(from: [brief], now: start.addingTimeInterval(180)) == nil,
+            "the grace never outlives the meeting")
+
+        let next = event(id: "next", start: 62)
+        expect(
+            automatic.event(from: [meeting, next], now: start)?.id == "next",
+            "when the current one hides, the next inside its lead time takes the space")
+    }
+
+    static func menuBarFiltering() {
+        let linkless = event(id: "linkless", start: 60, link: nil)
+        let linked = event(id: "linked", start: 61)
+        let now = at(60).addingTimeInterval(-120)
+        expect(
+            automatic.event(from: [linkless, linked], now: now)?.id == "linkless",
+            "with the filter off an appointment can hold the menu bar")
+        let linkedOnly = MenuBarSummary(leadMinutes: 5, hideAfterMinutes: nil, linkedOnly: true)
+        expect(
+            linkedOnly.event(from: [linkless, linked], now: now)?.id == "linked",
+            "Only show events with meetings skips the one there is nothing to join")
+        expect(
+            linkedOnly.event(from: [linkless], now: now) == nil,
+            "and shows nothing when no event has a link")
+        expect(
+            automatic.event(from: [event(id: "allday", start: 60, isAllDay: true)], now: now) == nil,
+            "the menu bar reads the same agenda as everything else, so all-day events are out")
+    }
+
+    static func menuBarTitles() {
+        expect(MenuBarSummary.title("Standup") == "Standup", "a short title is untouched")
+        let long = String(repeating: "a", count: MenuBarSummary.titleCap + 5)
+        let capped = MenuBarSummary.title(long)
+        expect(capped.count == MenuBarSummary.titleCap, "a long title is capped")
+        expect(capped.hasSuffix("…"), "and says it was cut")
+        expect(
+            MenuBarSummary.title(String(repeating: "b", count: MenuBarSummary.titleCap))
+                == String(repeating: "b", count: MenuBarSummary.titleCap),
+            "a title exactly at the cap keeps every character")
+    }
+
+    // MARK: - Auto join
+
+    static func autoJoinFiresOnce() {
+        let window = UpcomingWindow(leadMinutes: 5)
+        let policy = AutoJoinPolicy(armedAt: at(0))
+        let meeting = event(id: "standup", start: 60, minutes: 30)
+        let start = at(60)
+
+        expect(
+            policy.meeting(
+                from: [meeting], now: start.addingTimeInterval(-60), window: window,
+                joined: []) == nil,
+            "auto join never fires early, however close the card is")
+        expect(
+            policy.meeting(from: [meeting], now: start, window: window, joined: [])?.id == "standup",
+            "it fires at the start")
+        expect(
+            policy.meeting(from: [meeting], now: start, window: window, joined: ["standup"]) == nil,
+            "and never twice for the same meeting")
+        expect(
+            policy.meeting(
+                from: [meeting], now: start.addingTimeInterval(299), window: window,
+                joined: [])?.id == "standup",
+            "a Mac waking inside the window still joins")
+        expect(
+            policy.meeting(
+                from: [meeting], now: start.addingTimeInterval(300), window: window,
+                joined: []) == nil,
+            "past the window it stays out of the way")
+        expect(
+            policy.meeting(
+                from: [event(id: "linkless", start: 60, link: nil)], now: start,
+                window: window, joined: []) == nil,
+            "a meeting with no link is never auto joined")
+    }
+
+    static func autoJoinRespectsArming() {
+        let window = UpcomingWindow(leadMinutes: 5)
+        let running = event(id: "running", start: 60, minutes: 60)
+        // Armed a minute into a meeting that was already under way.
+        let policy = AutoJoinPolicy(armedAt: at(61))
+        expect(
+            policy.meeting(from: [running], now: at(61), window: window, joined: []) == nil,
+            "arming the switch mid-call does not yank you into the call")
+        let later = event(id: "later", start: 90)
+        expect(
+            policy.meeting(from: [running, later], now: at(90), window: window, joined: [])?.id
+                == "later",
+            "but the next meeting after arming is fair game")
+    }
+
+    // MARK: - The event draft
+
+    static func eventDrafts() {
+        var draft = EventDraft()
+        expect(!draft.isValid, "a blank draft cannot be written")
+        draft.title = "   "
+        expect(!draft.isValid, "nor one that is only whitespace")
+        draft.title = "  Standup  "
+        expect(draft.isValid, "a real title is enough")
+        expect(draft.trimmedTitle == "Standup", "the title is trimmed on the way out")
+
+        let now = at(0)
+        expect(draft.start(from: now) == now, "an offset of zero starts now")
+        expect(
+            draft.end(from: now) == now.addingTimeInterval(1800), "the default runs thirty minutes")
+        draft.startOffsetMinutes = 30
+        draft.durationMinutes = 60
+        expect(draft.start(from: now) == at(30), "an offset pushes the start out")
+        expect(draft.end(from: now) == at(90), "and the duration runs from there")
+
+        expect(EventDraft.label(startOffset: 0) == "Now", "a zero offset reads as Now")
+        expect(EventDraft.label(startOffset: 15) == "15 min", "a smaller offset reads in minutes")
+        expect(EventDraft.label(duration: 45) == "45 min", "so does a sub-hour duration")
+        expect(EventDraft.label(duration: 60) == "1 hr", "an hour reads as an hour")
     }
 
     // MARK: - Day buckets

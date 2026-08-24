@@ -202,6 +202,8 @@ final class AppCore {
             hotKeys.onJoinNextMeeting = { [weak self] in
                 self?.calendarCoordinator.joinNextMeeting()
             }
+            hotKeys.onShowSchedule = { [weak self] in self?.calendarCoordinator.showSchedule() }
+            hotKeys.onCreateEvent = { [weak self] in self?.calendarCoordinator.createEvent() }
             hotKeys.onRunCustomCommand = { [weak self] id in
                 self?.customCommandCoordinator.runCustomCommand(id: id)
             }
@@ -278,7 +280,8 @@ final class AppCore {
         case .extensionCommand(let entryID):
             return appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
         case .togglePalette, .toggleClipboard, .toggleEmoji, .searchFiles, .systemAction,
-            .showNotes, .createNote, .searchNotes, .windowCommand, .joinNextMeeting:
+            .showNotes, .createNote, .searchNotes, .windowCommand, .joinNextMeeting, .mySchedule,
+            .createEvent:
             return nil
         }
     }
@@ -321,6 +324,11 @@ final class AppCore {
                 _ = $0.calendarEnabled
                 _ = $0.calendarShowInLauncher
             }, reproject: { $0.calendarCoordinator.applyEnabled() })
+        track(
+            {
+                _ = $0.autoJoinMeetings
+                _ = $0.menuBarEvents
+            }, reproject: { $0.calendarCoordinator.applyClock() })
         track(
             {
                 _ = $0.fileSearchScopes
@@ -414,5 +422,10 @@ final class AppCore {
     /// The volume slider, so `dialogs` stays the single owner of every prompt in the app.
     func pickVolume(current: Float32) async -> Float32? {
         await dialogs.pickVolume(current: current)
+    }
+
+    /// The new-event prompt, for the same reason.
+    func createEvent() async -> EventDraft? {
+        await dialogs.createEvent()
     }
 }

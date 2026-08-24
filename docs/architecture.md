@@ -22,7 +22,8 @@ Independently of the folder tree, every mature subsystem has converged on the sa
 │ Quicklink{,Destination,Store,Archive} · Notes/Model/* · Snippets/Model/* · │
 │ ShellCommandRunner · DoubleTap{Modifier,Detector} · ClipboardStore ·       │
 │ RaycastFormat · RaycastV1Decoder · AppSettingsKey · SettingsBackupCoverage │
-│ MeetingLink · MeetingEvent · UpcomingWindow · MeetingDay                   │
+│ MeetingLink · MeetingEvent · UpcomingWindow · MeetingDay · MenuBarSummary  │
+│ AutoJoinPolicy · EventDraft                                                │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                                    │ consumed by
 ┌─ EFFECT ─────────────────────────▼─────────────────────────────────────────┐
@@ -32,7 +33,7 @@ Independently of the folder tree, every mature subsystem has converged on the sa
 │ SystemActionRunner · QuicklinkLauncher · SnippetTextInjector ·             │
 │ SnippetKeywordListener · NotesRepository · CurrencyRateStore · Paster ·    │
 │ HotKeyCenter · HyperKeyTap · DoubleTapMonitor · RunningAppsMonitor ·       │
-│ CalendarStore · MeetingLauncher · MeetingClock                             │
+│ CalendarStore · MeetingLauncher · MeetingClock · CameraPreviewSession      │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                                    │ published through
 ┌─ OBSERVABLE STATE ───────────────▼─────────────────────────────────────────┐
@@ -124,6 +125,10 @@ imperatively from AppKit.
   confirmations, failure reports and value prompts. Presentation is `async`, so nothing blocks the main
   actor, and the presenter refuses a second dialog while one is up — that, not a flag, is what stops a
   held hotkey stacking dialogs.
+- **The camera preview** — a borderless, non-activating `CameraPreviewPanel` at `.floating`,
+  managed by `CameraPreviewController` and owned by `CalendarCoordinator` the way `NotesCoordinator`
+  owns its window. It gates a join and doubles as auto join's confirmation.
+  See [features/calendar.md](features/calendar.md).
 - **HUDs** are separate, because a dialog asks and a HUD reports: `MessageHUDController` (the pill) and
   `VolumeHUDController` (the level box), both over a shared `HUDPresenter` that owns the
   one-at-a-time, auto-dismiss and fade policy. See [ui.md](ui.md#dialogs--hud).

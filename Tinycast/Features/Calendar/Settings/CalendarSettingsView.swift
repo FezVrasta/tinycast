@@ -29,9 +29,6 @@ struct CalendarSettingsView: View {
             }
 
             Section {
-                SettingsRow(title: "Join Next Meeting") {
-                    ShortcutRecorder(action: .joinNextMeeting)
-                }
                 Picker(selection: $settings.joinWindowMinutes) {
                     ForEach(JoinWindow.allCases) { window in
                         Text(window.title).tag(window)
@@ -40,10 +37,54 @@ struct CalendarSettingsView: View {
                     Text("Show the join card")
                     Text("How early the card appears, and how long past the start it stays.")
                 }
+                Toggle(isOn: $settings.autoJoinMeetings) {
+                    Text("Auto Join Meetings")
+                    Text("Automatically join meetings as they start.")
+                }
+                Toggle(isOn: $settings.autoJoinConfirms) {
+                    Text("Confirm before joining")
+                }
+                .toggleStyle(.checkbox)
+                .settingsEnabled(settings.autoJoinMeetings)
+                Toggle(isOn: $settings.cameraPreview) {
+                    Text("Camera Preview")
+                    Text("Open camera preview before joining meetings.")
+                }
             } header: {
                 Text("Joining")
             }
             .settingsEnabled(settings.calendarEnabled)
+
+            Section {
+                Picker(selection: $settings.menuBarEvents) {
+                    ForEach(MenuBarEvents.allCases) { lead in
+                        Text(lead.title).tag(lead)
+                    }
+                } label: {
+                    Text("Show Events in Menu Bar")
+                    Text("Show current or upcoming events in the menu bar.")
+                }
+                Toggle(isOn: $settings.menuBarLinkedEventsOnly) {
+                    Text("Only show events with meetings")
+                }
+                .toggleStyle(.checkbox)
+                .settingsEnabled(settings.menuBarEvents != .never)
+                Picker(selection: $settings.hideCurrentEvent) {
+                    ForEach(HideCurrentEvent.allCases) { hide in
+                        Text(hide.title).tag(hide)
+                    }
+                } label: {
+                    Text("Hide Current Event")
+                    Text("Hide a started event automatically, or after the time you choose.")
+                }
+                .settingsEnabled(settings.menuBarEvents != .never)
+            } header: {
+                Text("Menu Bar")
+            }
+            .settingsEnabled(settings.calendarEnabled)
+
+            CalendarCommandsSection()
+                .settingsEnabled(settings.calendarEnabled)
 
             CalendarPickerSection()
                 .settingsEnabled(settings.calendarEnabled)
@@ -57,6 +98,49 @@ struct CalendarSettingsView: View {
         Binding(
             get: { settings.calendarEnabled },
             set: { core.calendarCoordinator.setCalendarEnabled($0) }
+        )
+    }
+}
+
+/// The feature's own commands, so a shortcut or an alias is set beside what it acts on.
+private struct CalendarCommandsSection: View {
+    @Environment(VisibilityStore.self) private var visibility
+
+    private let entries = [
+        CommandID.joinNextMeeting, .mySchedule, .createEvent, .copyMeetingLink, .openInCalendar
+    ]
+    .compactMap(CommandCatalog.entry(for:))
+
+    var body: some View {
+        Section {
+            ForEach(entries) { entry in
+                SettingsRow(title: entry.name) {
+                    AppIconView(app: entry)
+                        .frame(width: Theme.Size.settingsRowIcon, height: Theme.Size.settingsRowIcon)
+                } trailing: {
+                    AliasField(entry: entry)
+                    if let action = entry.hotKeyAction {
+                        ShortcutRecorder(action: action)
+                    }
+                    Toggle("", isOn: visibilityBinding(entry))
+                        .labelsHidden()
+                        .toggleStyle(.checkbox)
+                        .accessibilityLabel("Show \(entry.name) in launcher")
+                }
+            }
+        } header: {
+            Text("Calendar")
+        } footer: {
+            Text("A shortcut works even when its command is hidden from the launcher.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func visibilityBinding(_ entry: AppEntry) -> Binding<Bool> {
+        Binding(
+            get: { visibility.isItemVisible(entry) },
+            set: { visibility.setItemVisible($0, for: entry) }
         )
     }
 }

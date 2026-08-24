@@ -349,6 +349,26 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Adding or deleting an event in Calendar.app updates an open palette without a reopen
 - A meeting with no link is listed and searchable, and answers Open in Calendar rather than Join
 - Import a backup taken with Calendar on: it comes back **off**, and no calendar toggle travels
+- Menu bar on Never: the item is the plain icon; on 5 minutes the title and countdown appear at T-5
+  and step on the minute boundary, not on a keystroke
+- `Only show events with meetings` hides a linkless event and shows it again when unchecked
+- Hide Current Event on Automatically clears the entry at the start and hands the space to the next
+  event inside its lead time; on 5 minutes it lingers counting up, then clears
+- Clicking the menu bar item opens the menu with `Join <title>` on top — a bare click never joins
+- Camera Preview on: ↵ on the join card opens the panel, ↵ joins, Esc drops the join; the camera
+  light goes out with the panel, and the first run prompts once
+- Auto Join on: the meeting opens itself at its start, **once** — dismiss it and it does not return.
+  With confirm on and camera preview off, the dialog asks first
+- Arming Auto Join during a meeting already under way joins nothing
+- Sleeping over a meeting's start and waking past it reloads the events; one still inside the window
+  joins, one long past does not
+- Create Event writes to the default calendar and shows up on the card, the schedule and the launcher
+  without a relaunch; a blank title leaves the dialog up on ↵ and on a click
+- Arrow keys move the caret in the New Event title field, and still step the Set Volume slider
+- Every row of Settings ▸ Calendar has Add Alias, Record Hotkey and a checkbox, and an alias set
+  there is the alias the Commands pane shows
+- Export with auto join and camera preview on, import onto a clean profile: both come back **off**,
+  while the menu-bar settings carry over
 
 ### System actions and window management
 

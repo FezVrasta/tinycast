@@ -1,5 +1,5 @@
+import AppKit
 import EventKit
-import Foundation
 
 /// Today's and tomorrow's meetings, read from EventKit. See docs/features/calendar.md.
 @MainActor
@@ -21,6 +21,12 @@ final class CalendarStore {
     /// Built on first use, so a Mac with the feature off never loads EventKit at launch.
     @ObservationIgnored private var eventStore: EKEventStore?
     @ObservationIgnored private var changeObserver: NotificationToken?
+    @ObservationIgnored private var wakeObserver: NotificationToken?
+    @ObservationIgnored private var lastReloadAt: Date?
+
+    /// How long a snapshot is trusted with the palette closed. `.EKEventStoreChanged` covers edits;
+    /// this covers the day rolling over and a Mac that slept through both.
+    private static let staleAfter: TimeInterval = 10 * 60
 
     init() {
         hiddenCalendarIDs = Set(defaults.stringArray(forKey: hiddenKey) ?? [])
@@ -31,13 +37,16 @@ final class CalendarStore {
     func start() {
         access = Permissions.calendarAccess()
         guard access == .granted else { return }
+        observeWake()
         // Deferred: the first EventKit query pays for its XPC warm-up, and launch protects itself.
         Task { reload() }
     }
 
     func stop() {
         changeObserver = nil
+        wakeObserver = nil
         eventStore = nil
+        lastReloadAt = nil
         publish([])
         calendars = []
     }
@@ -66,7 +75,32 @@ final class CalendarStore {
         changeObserver = NotificationToken(token, center: center)
     }
 
+    /// A Mac asleep through a meeting wakes with a stale snapshot and no edit to trigger a reload.
+    private func observeWake() {
+        guard wakeObserver == nil else { return }
+        let center = NSWorkspace.shared.notificationCenter
+        let token = center.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.reload() }
+        }
+        wakeObserver = NotificationToken(token, center: center)
+    }
+
     // MARK: - Reading
+
+    /// The per-minute refresh: cheap when the snapshot still holds, which is almost always.
+    func reloadIfStale(now: Date) {
+        guard let lastReloadAt else {
+            reload()
+            return
+        }
+        let aged = now.timeIntervalSince(lastReloadAt) >= Self.staleAfter
+        // A day boundary invalidates the two-day span itself, however fresh the snapshot is.
+        let rolled = !Calendar.current.isDate(lastReloadAt, inSameDayAs: now)
+        guard aged || rolled else { return }
+        reload()
+    }
 
     /// Two days of events is a sub-millisecond query and `EKEventStore` is not `Sendable`, so this
     /// stays on the main actor; only pure `MeetingEvent` values leave it.
@@ -79,6 +113,7 @@ final class CalendarStore {
         let store = eventStore ?? EKEventStore()
         eventStore = store
         observeStoreChanges()
+        lastReloadAt = Date()
 
         let sources = store.calendars(for: .event)
         calendars =
@@ -141,6 +176,24 @@ final class CalendarStore {
 
     func event(id: String) -> MeetingEvent? {
         events.first { $0.id == id }
+    }
+
+    /// Writes the draft to the calendar new events go to. False means there is no such calendar,
+    /// which is a report rather than a silent no-op.
+    func createEvent(_ draft: EventDraft, now: Date) -> Bool {
+        let store = eventStore ?? EKEventStore()
+        eventStore = store
+        guard access == .granted, let calendar = store.defaultCalendarForNewEvents else {
+            return false
+        }
+        let event = EKEvent(eventStore: store)
+        event.calendar = calendar
+        event.title = draft.trimmedTitle
+        event.startDate = draft.start(from: now)
+        event.endDate = draft.end(from: now)
+        guard (try? store.save(event, span: .thisEvent, commit: true)) != nil else { return false }
+        reload()
+        return true
     }
 
     // MARK: - Per-calendar switches
