@@ -158,8 +158,8 @@ screens hold (see [palette.md](palette.md)).
   too. `isShowingDetail` splits the screen into rows plus a detail pane. `ExtensionScreen.Item`
   carries both the flat `selection` index and the scroll id, and is the `ForEach` identity of the row
   and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
-- **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, remote
-  images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
+- **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, fetched
+  and inline images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
 - **Appearance** — `environment.appearance` reports the real one, so an extension that branches on it
   is told the truth. It is an injected field on `ExtensionLaunchContext` (a `Model/` type owns no
   environment), which means a **running command keeps the appearance it booted with**; a change
@@ -168,7 +168,10 @@ screens hold (see [palette.md](palette.md)).
   `\.isDarkAppearance` so the pick re-renders when the surface flips; either side stands in when an
   extension supplies only one. `{fileIcon: path}` is its own source: the path names a bundle or
   document whose Finder icon is wanted, so it goes to `NSWorkspace` rather than being decoded as an
-  image file — an `.app` has no bitmap to read. The feature's own fills live in `ExtensionColors` — never in `Theme`.
+  image file — an `.app` has no bitmap to read. A `data:` URL is a source of its own too: an extension
+  that renders its own SVG hands over the bytes, so they are decoded inline rather than fetched. A
+  `tintColor` on any of them draws the image as a template, which is what colours an SVG written
+  against `currentColor`. The feature's own fills live in `ExtensionColors` — never in `Theme`.
 - **Form** — label-left/control-right rows. Field values live in the extension (React owns them); every
   edit dispatches `onTinycastChange` and the resulting re-render is what updates the control, so
   `defaultValue`, a controlled `value`, and `ref.reset()` all behave.
@@ -464,10 +467,12 @@ Every macOS 26 app icon is a squircle with a glyph inside it, and the ground dis
 palette, so only the glyph reads. A Raycast icon is a flat, fully saturated tile,
 so every pixel of it reads. At equal geometry the extension shouts, and fitting it smaller is what
 makes the two match by eye. Shipped and fetched images take the same target, so an icon doesn't
-change size depending on where it came from.
+change size depending on where it came from. An inline `data:` image is the one exception and is never
+fitted: the extension that drew it has already sized it, and rasterizing would cost the vector.
 
 Change the number only against a rendered strip of real icons; it means nothing on its own.
-`ext-icon-test` guards the invariant: padding in the source cannot change the drawn size.
+`ext-icon-test` guards the invariant: padding in the source cannot change the drawn size, and a
+`data:` payload decodes in either encoding.
 
 - `ExtensionAppearance` (symbol + `ExtensionTint`) is stored per extension by manifest name in
   `ExtensionAppearanceStore`, and applies to **every command** of that extension — the same inheritance
