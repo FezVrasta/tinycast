@@ -184,7 +184,7 @@ final class AppCore {
             Task { await emojiIndex.load() }
             currencyRates.start()
             updateChecker.onUpdateAvailable = { [weak self] release in
-                self?.updateCoordinator.presentIfAvailable(release)
+                self?.updateCoordinator.presentIfAvailable(release) ?? true
             }
             updateChecker.start()
 
