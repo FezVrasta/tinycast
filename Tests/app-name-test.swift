@@ -6,7 +6,6 @@ struct AppNameTest {
         let fm = FileManager.default
         let root = fm.temporaryDirectory
             .appendingPathComponent("tinycast-app-name-\(UUID().uuidString)")
-        defer { try? fm.removeItem(at: root) }
 
         var failures = 0
 
@@ -76,6 +75,7 @@ struct AppNameTest {
             "two blank keys still fall back to the filename",
             blankBoth?.installedAppName == "Ghost")
 
+        try? fm.removeItem(at: root)
         print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
         exit(failures == 0 ? 0 : 1)
     }

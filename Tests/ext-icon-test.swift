@@ -57,7 +57,9 @@ struct ExtensionIconTests {
             expect(image?.size == NSSize(width: 24, height: 24), "percent-encoded SVG\(suffix)")
         }
 
-        let png = writePNG("inline", inset: 0).flatMap { try? Data(contentsOf: $0) }
+        let pngURL = writePNG("inline", inset: 0)
+        defer { pngURL.map { try? FileManager.default.removeItem(at: $0.deletingLastPathComponent()) } }
+        let png = pngURL.flatMap { try? Data(contentsOf: $0) }
         guard let png else { return expect(false, "the PNG fixture writes") }
         let base64 = URL(string: "data:image/png;base64,\(png.base64EncodedString())")!
         let decoded = await ExtensionIconCache.loadInlineAsync(base64)

@@ -427,9 +427,9 @@ struct AIProviderTests {
     }
 
     static func settingsPersistAndRepairSelections() {
-        let suite = "AIProviderTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let suite = "AIProviderTests.persistence"
+        let defaults = isolatedDefaults(suite)
+        defer { discardSuite(suite, defaults) }
         let firstID = UUID()
         let secondID = UUID()
 
@@ -460,9 +460,9 @@ struct AIProviderTests {
     }
 
     static func subscriptionSelectionsReconcile() {
-        let suite = "AIProviderTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let suite = "AIProviderTests.subscription"
+        let defaults = isolatedDefaults(suite)
+        defer { discardSuite(suite, defaults) }
         let store = AISettingsStore(defaults: defaults)
         let model = ChatGPTSubscription.Model(
             id: "gpt", name: "GPT",
@@ -477,4 +477,21 @@ struct AIProviderTests {
         store.reconcile(chatGPTModels: [], isSignedOut: true)
         expect(store.defaultModel == nil, "signing out clears an unusable subscription default")
     }
+}
+
+/// `removePersistentDomain` only empties the domain; cfprefsd still leaves the plist on disk.
+private func discardSuite(_ name: String, _ defaults: UserDefaults) {
+    defaults.removePersistentDomain(forName: name)
+    UserDefaults.standard.removeSuite(named: name)
+    CFPreferencesAppSynchronize(name as CFString)
+    try? FileManager.default.removeItem(
+        at: URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Preferences/\(name).plist"))
+}
+
+/// A fixed suite name stops cfprefsd accumulating a plist per run; the domain is cleared at both ends.
+private func isolatedDefaults(_ name: String) -> UserDefaults {
+    let defaults = UserDefaults(suiteName: name)!
+    defaults.removePersistentDomain(forName: name)
+    return defaults
 }

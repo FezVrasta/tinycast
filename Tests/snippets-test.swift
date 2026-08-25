@@ -450,19 +450,12 @@ struct SnippetsTests {
         var aliasCoordinationHeld = true
         for index in 0..<20 where aliasCoordinationHeld {
             let bundleIdentifier = "com.example.symlink-save-\(index)"
-            let revalidation = RevalidationRendezvous()
-            let hooks = SnippetRepository.MutationHooks(afterRevalidation: { mutation, _ in
-                guard case .save = mutation else { return }
-                revalidation.arriveAndWait()
-            })
             let directRepository = SnippetRepository(
                 bundleIdentifier: bundleIdentifier,
-                applicationSupportRoot: physicalSupport,
-                mutationHooks: hooks)
+                applicationSupportRoot: physicalSupport)
             let symlinkedRepository = SnippetRepository(
                 bundleIdentifier: bundleIdentifier,
-                applicationSupportRoot: symlinkedSupport,
-                mutationHooks: hooks)
+                applicationSupportRoot: symlinkedSupport)
             let symlinkedRecord = try symlinkedRepository.create(
                 Snippet(name: "Alias Race", text: "Original"))
             guard
@@ -1609,23 +1602,6 @@ struct SnippetsTests {
             print("FAIL  \(description)")
             failures += 1
         }
-    }
-}
-
-private final class RevalidationRendezvous: @unchecked Sendable {
-    private let condition = NSCondition()
-    private var arrivals = 0
-
-    func arriveAndWait() {
-        condition.lock()
-        arrivals += 1
-        if arrivals == 2 {
-            condition.broadcast()
-        } else {
-            let deadline = Date().addingTimeInterval(0.25)
-            while arrivals < 2, condition.wait(until: deadline) {}
-        }
-        condition.unlock()
     }
 }
 

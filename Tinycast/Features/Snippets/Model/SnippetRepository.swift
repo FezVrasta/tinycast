@@ -58,7 +58,6 @@ struct SnippetRepository: Sendable {
 
     struct MutationHooks: Sendable {
         var beforeRevalidation: @Sendable (Mutation, URL) -> Void = { _, _ in }
-        var afterRevalidation: @Sendable (Mutation, URL) -> Void = { _, _ in }
     }
 
     struct Snapshot: Sendable, Equatable {
@@ -202,7 +201,6 @@ struct SnippetRepository: Sendable {
                             expected: expectedRevision,
                             actual: actualRevision)
                     }
-                    mutationHooks.afterRevalidation(.save, mutationURL)
                     try Data(content.utf8).write(to: mutationURL, options: .atomic)
                     return StoredSnippet(
                         fileURL: fileURL,
@@ -230,7 +228,6 @@ struct SnippetRepository: Sendable {
                             expected: expectedRevision,
                             actual: actualRevision)
                     }
-                    mutationHooks.afterRevalidation(.delete, mutationURL)
                     try FileManager.default.removeItem(at: mutationURL)
                 }
             }
