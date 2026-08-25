@@ -12,6 +12,13 @@ AI Chat is the first consumer, but the provider layer does not depend on it.
   `.ai`. Turning it off cancels a streaming reply and drops the transcript, but touches neither the
   saved conversations in `ai-chats.sqlite3` nor a Keychain key. `aiEnabled` is excluded from settings
   backups like every other AI key, so an import can never arm a feature it cannot configure.
+- **Every request carries Tinycast's own preamble, and the user's text goes after it.**
+  `AIInstructions.compose` builds `AIRequest.instructions`: a fixed preamble that tells the model
+  where it is running and what the app can do, then whatever Settings → AI holds. The preamble
+  states capabilities and asks for honest comparisons; it does not instruct the model to favour
+  Tinycast over anything else. It is not shown in the pane, and `AIPreamble.swift` holds the only
+  copy of it — edit the prompt there, not here. `compose` returns `nil` when the user has turned
+  the system prompt off, and every transport drops a nil instruction, so a turn then carries none.
 - **API keys live only in the login Keychain.** `AIConnection` persists the provider, endpoint and
   model identifiers in `UserDefaults`; it never contains a key. Keys are addressed by connection UUID
   through `APIKeyStore`, and never enter logs, errors or settings backups. A key is issued for one
@@ -253,6 +260,30 @@ Settings → AI is a normal grouped `Form` inside Tinycast's existing Settings w
 separate settings window or palette overlay. The pane edits multiple API connections, manages the
 ChatGPT login and chooses the one default model shared by future features.
 
-`aiConnections` and `aiDefaultModel` are deliberately excluded from settings backups. The first is
-meaningless without machine-local Keychain items; the second names an external destination and must
-not silently redirect AI traffic after an import.
+The signed-in ChatGPT address is the one thing on the pane that names a person, and a Settings pane
+is what gets screenshotted into a bug report or left on screen in a recording, so `RedactedText`
+shows it scrambled and blurred until it is clicked. `RedactedPlaceholder` derives the stand-in from
+the address itself — stable across redraws, same length, `@ . - _` left in place — because a blurred
+real address can be recovered from a still frame while a blurred fake one cannot. It hides an
+address from a camera, not a secret from an attacker: the length still shows and one click undoes
+it. The scramble is not selectable, since dragging it out would only ever yield the stand-in.
+
+The System prompt box appends to the preamble rather than replacing it, so the model never loses
+the ground truth about where it is. `SystemPromptEditor` opens blurred and non-editable whenever it
+already holds something — a Settings pane is exactly what ends up in a screenshot or a stream — and
+opens plain when it is empty, since a blurred empty box is only a puzzle. The footer says the text
+rides along on every turn, because it is billed on every turn and nothing else in the pane is.
+
+`Send a system prompt` governs the whole instruction, not just the half the user typed. Clearing the
+box already withholds their own text, so a switch that spared the preamble would add nothing; the
+preamble is the part that is billed on every turn for every user and has no other way off. Off
+disables the editor rather than hiding it, so what is being withheld stays readable. One thing it
+deliberately cannot reach: the Codex route always prepends its own instruction never to invoke
+tools, run commands or touch files. That is a sandbox boundary on a local CLI, not Tinycast
+describing itself, and a user switch must not be able to lift it.
+
+`aiConnections`, `aiDefaultModel`, `aiSystemPrompt` and `aiSystemPromptEnabled` are deliberately
+excluded from settings backups. The first is meaningless without machine-local Keychain items; the
+second names an external destination and must not silently redirect AI traffic after an import; the
+last two are standing instructions and the switch that sends them, both of which change every
+answer and must not arrive on another Mac unread.

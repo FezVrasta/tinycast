@@ -31,6 +31,7 @@ struct AISettingsView: View {
             Group {
                 defaultModelSection
                 chatSection
+                systemPromptSection
                 chatGPTSection
                 apiConnectionsSection
             }
@@ -124,6 +125,26 @@ struct AISettingsView: View {
         }
     }
 
+    private var systemPromptSection: some View {
+        @Bindable var settings = settings
+        return Section {
+            Toggle(isOn: $settings.systemPromptEnabled) {
+                Text("Send a system prompt")
+                Text("Off sends nothing ahead of your message, not even what Tinycast says about itself.")
+            }
+            SystemPromptEditor(text: $settings.systemPrompt)
+                .disabled(!settings.systemPromptEnabled)
+        } header: {
+            Text("System prompt")
+        } footer: {
+            Text(
+                "Your text is sent ahead of every message in every chat, after what Tinycast already tells the model about itself — so both are billed again on each turn."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
     private var chatGPTSection: some View {
         Section {
             chatGPTConnection
@@ -176,7 +197,14 @@ struct AISettingsView: View {
                     Button("Refresh") { subscription.refresh() }
                     Button("Disconnect", role: .destructive) { subscription.logout() }
                 } label: {
-                    Text(account.email ?? "Connected to ChatGPT")
+                    if let email = account.email {
+                        RedactedText(
+                            value: email,
+                            revealHelp: "Click to reveal the signed-in account",
+                            hideHelp: "Click to hide the signed-in account")
+                    } else {
+                        Text("Connected to ChatGPT")
+                    }
                     Text("ChatGPT \(account.planTitle)")
                 }
             }
