@@ -6,10 +6,36 @@
 # member, which is how CI reported success over a harness that had not compiled since phase 10.
 
 set -uo pipefail
+
+# Absolute: the workers re-enter this script after the cd, where a relative $0 would not resolve.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")/.." || exit 1
 
 BIN="${TMPDIR:-/tmp}/tinycast-harness"
 mkdir -p "$BIN"
+
+# `--exec` is the worker half: xargs re-enters here once per queued harness.
+if [ "${1:-}" = "--exec" ]; then
+    shift
+    name=$1 opt=$2
+    shift 2
+    if ! swiftc -swift-version 6 "$opt" "$@" "Tests/$name.swift" -o "$BIN/$name" > "$BIN/$name.log" 2>&1; then
+        printf '\033[31mFAIL\033[0m  %-22s did not compile\n' "$name"
+        : > "$BIN/$name.failed"
+        exit 0
+    fi
+    if ! "$BIN/$name" > "$BIN/$name.log" 2>&1; then
+        printf '\033[31mFAIL\033[0m  %-22s assertion failed\n' "$name"
+        : > "$BIN/$name.failed"
+        exit 0
+    fi
+    printf '\033[32mok\033[0m    %-22s\n' "$name"
+    exit 0
+fi
+
+QUEUE="$BIN/queue"
+: > "$QUEUE"
+rm -f "$BIN"/*.failed
 
 failed=()
 ran=0
@@ -26,8 +52,16 @@ if [ "$only" = "--index" ]; then
     printf '[' > "$DB"
 fi
 
-# run <name> <source...> — compile the harness and run it, recording either kind of failure.
+# run [slow] [-O] <name> <source...> — queue the harness. `slow` dispatches it in the first wave.
 run() {
+    local opt=-Onone pri=1
+    while :; do
+        case "$1" in
+            slow) pri=0; shift;;
+            -O)   opt=-O; shift;;
+            *)    break;;
+        esac
+    done
     local name=$1
     shift
     if [ -n "$only" ] && [ "$name" != "$only" ]; then return 0; fi
@@ -49,21 +83,12 @@ run() {
         return 0
     fi
 
-    if ! swiftc -swift-version 6 "$@" "Tests/$name.swift" -o "$BIN/$name" 2>&1; then
-        printf '\033[31mFAIL\033[0m  %-22s did not compile\n' "$name"
-        failed+=("$name")
-        return 0
-    fi
-    if ! "$BIN/$name"; then
-        printf '\033[31mFAIL\033[0m  %-22s assertion failed\n' "$name"
-        failed+=("$name")
-        return 0
-    fi
-    printf '\033[32mok\033[0m    %-22s\n' "$name"
+    # xargs splits the queue on whitespace, so no harness source path may contain a space.
+    printf '%s %s %s %s\n' "$pri" "$name" "$opt" "$*" >> "$QUEUE"
 }
 
 L=Tinycast/Features/Launcher/Model
-run fuzz-test              $L/SearchRelevance.swift
+run slow -O fuzz-test      $L/SearchRelevance.swift
 run file-search-test       $L/SearchRelevance.swift \
                            Tinycast/Features/FileSearch/Model/*.swift
 run file-search-session-test Tinycast/Platform/Signposts.swift \
@@ -136,7 +161,7 @@ run quicklink-test         Tinycast/Features/Quicklinks/Model/Quicklink.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkDestination.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkStore.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkArchive.swift
-run snippets-test          Tinycast/Platform/NotificationToken.swift \
+run slow snippets-test     Tinycast/Platform/NotificationToken.swift \
                            Tinycast/Platform/HealthTicker.swift \
                            Tinycast/Platform/AccessibilityText.swift \
                            Tinycast/Features/Snippets/Model/*.swift \
@@ -151,7 +176,7 @@ run notes-editor-test      Tinycast/Platform/Signposts.swift \
                            Tinycast/Features/Notes/Model/NoteDocument.swift \
                            Tinycast/Features/Notes/UI/NoteTextView.swift \
                            Tinycast/Features/Notes/UI/NoteEditorView.swift
-run raycast-test           Tinycast/Features/Backup/Model/RaycastFormat.swift \
+run slow -O raycast-test   Tinycast/Features/Backup/Model/RaycastFormat.swift \
                            Tinycast/Features/Backup/Model/RaycastV1Decoder.swift \
                            Tinycast/Features/Backup/Service/RaycastV2Decoder.swift \
                            Tinycast/Features/Backup/Service/Scrypt.swift \
@@ -168,7 +193,7 @@ run ext-cleanup-test       $E/Service/ExtensionCleanup.swift \
 run ext-store-test         $E/Model/ExtensionRegistry.swift \
                            $E/Model/ExtensionPackageManager.swift \
                            $E/Model/ExtensionStoreResponse.swift
-run ext-test               -parse-as-library \
+run slow ext-test          -parse-as-library \
                            $E/Model/ExtensionBootConfig.swift \
                            $E/Model/ExtensionManifest.swift \
                            $E/Model/RenderNode.swift \
@@ -194,7 +219,7 @@ run ai-chat-test           Tinycast/Features/AI/Model/AIRequest.swift \
                            Tinycast/Features/AI/Service/AIProvider.swift \
                            Tinycast/Features/AI/Service/ChatHistoryStore.swift \
                            Tinycast/Features/AI/UI/AIChatState.swift
-run codex-turn-test        Tinycast/Platform/AppPaths.swift \
+run slow codex-turn-test   Tinycast/Platform/AppPaths.swift \
                            Tinycast/Features/AI/Model/*.swift \
                            Tinycast/Features/AI/Service/AIProvider.swift \
                            Tinycast/Features/AI/Service/ChatGPTSubscriptionManager.swift \
@@ -223,7 +248,20 @@ if [ "$ran" -eq 0 ]; then
     exit 2
 fi
 
+# `sort -s` is stable, so the slow harnesses lead and everything else keeps its declaration order.
+JOBS="${TINYCAST_TEST_JOBS:-$(sysctl -n hw.ncpu)}"
+sort -s -k1,1n "$QUEUE" | cut -d' ' -f2- | xargs -P "$JOBS" -L1 "$SELF" --exec
+
+# A compiler diagnostic is far longer than PIPE_BUF, so the workers log it and it is replayed here.
+while read -r _ name _; do
+    if [ -f "$BIN/$name.failed" ]; then failed+=("$name"); fi
+done < "$QUEUE"
+
 if [ ${#failed[@]} -gt 0 ]; then
+    for name in "${failed[@]}"; do
+        printf '\n\033[31m--- %s ---\033[0m\n' "$name"
+        cat "$BIN/$name.log"
+    done
     printf '\n%d harness(es) failed: %s\n' "${#failed[@]}" "${failed[*]}" >&2
     exit 1
 fi

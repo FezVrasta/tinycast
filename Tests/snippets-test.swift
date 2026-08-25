@@ -726,14 +726,14 @@ struct SnippetsTests {
         let externalURL = repository.snippetsDirectory.appendingPathComponent("external.md")
         try SnippetMarkdownSerializer.serialize(Snippet(name: "External", text: "One"))
             .write(to: externalURL, atomically: true, encoding: .utf8)
-        try await Task.sleep(for: .milliseconds(500))
+        await settle { store.snippets.contains { $0.id == externalURL.path && $0.snippet.text == "One" } }
         check(
             "watcher reloads an externally created file",
             store.snippets.contains { $0.id == externalURL.path && $0.snippet.text == "One" })
 
         try SnippetMarkdownSerializer.serialize(Snippet(name: "External", text: "Two"))
             .write(to: externalURL, atomically: true, encoding: .utf8)
-        try await Task.sleep(for: .milliseconds(500))
+        await settle { store.record(id: externalURL.path)?.snippet.text == "Two" }
         check(
             "watcher observes atomic file replacement",
             store.record(id: externalURL.path)?.snippet.text == "Two")
@@ -744,7 +744,7 @@ struct SnippetsTests {
         try handle.truncate(atOffset: 0)
         try handle.write(contentsOf: Data(inPlaceSource.utf8))
         try handle.close()
-        try await Task.sleep(for: .milliseconds(500))
+        await settle { store.record(id: externalURL.path)?.snippet.text == "Three" }
         check(
             "watcher observes same-inode truncate and write",
             store.record(id: externalURL.path)?.snippet.text == "Three")
@@ -761,8 +761,10 @@ struct SnippetsTests {
             withItemAt: replacementDirectory,
             backupItemName: nil,
             options: [])
-        try await Task.sleep(for: .milliseconds(700))
         let installedReplacementURL = repository.snippetsDirectory.appendingPathComponent("replacement.md")
+        await settle(within: .milliseconds(700)) {
+            store.snippets.count == 1 && store.snippets.first?.id == installedReplacementURL.path
+        }
         check(
             "watcher rearms after directory replacement",
             store.snippets.count == 1 && store.snippets.first?.id == installedReplacementURL.path)
@@ -775,7 +777,9 @@ struct SnippetsTests {
         let recreatedURL = repository.snippetsDirectory.appendingPathComponent("recreated.md")
         try SnippetMarkdownSerializer.serialize(Snippet(name: "Recreated", text: "Newest"))
             .write(to: recreatedURL, atomically: true, encoding: .utf8)
-        try await Task.sleep(for: .milliseconds(700))
+        await settle(within: .milliseconds(700)) {
+            store.snippets.count == 1 && store.record(id: recreatedURL.path)?.snippet.text == "Newest"
+        }
         check(
             "watcher rearms after an explicit rename-away and recreation",
             store.snippets.count == 1
@@ -783,7 +787,10 @@ struct SnippetsTests {
         try fm.removeItem(at: renamedDirectory)
 
         try fm.removeItem(at: repository.snippetsDirectory)
-        try await Task.sleep(for: .milliseconds(700))
+        await settle(within: .milliseconds(700)) {
+            store.state == .ready && store.snippets.isEmpty
+                && fm.fileExists(atPath: repository.snippetsDirectory.path)
+        }
         check(
             "watcher recreates a deleted initialized directory without samples",
             store.state == .ready && store.snippets.isEmpty
@@ -791,6 +798,7 @@ struct SnippetsTests {
         let afterDeleteURL = repository.snippetsDirectory.appendingPathComponent("after-delete.md")
         try SnippetMarkdownSerializer.serialize(Snippet(name: "After Delete", text: "Rearmed"))
             .write(to: afterDeleteURL, atomically: true, encoding: .utf8)
+        // Not a settle: the burst below counts snapshots, so this reload must be fully quiet first.
         try await Task.sleep(for: .milliseconds(500))
         check(
             "watcher continues after deleted-directory recovery",
@@ -804,6 +812,7 @@ struct SnippetsTests {
             )
             .write(to: fileURL, atomically: true, encoding: .utf8)
         }
+        // A poll would stop at the first snapshot and miss a second one arriving.
         try await Task.sleep(for: .milliseconds(500))
         check(
             "watcher debounces a burst into one published reload",
@@ -815,7 +824,7 @@ struct SnippetsTests {
             to: corruptURL,
             atomically: true,
             encoding: .utf8)
-        try await Task.sleep(for: .milliseconds(500))
+        await settle { store.issues.contains { $0.fileURL.lastPathComponent == "corrupt.md" } }
         check(
             "watcher publishes corrupt-file issues without dropping valid files",
             store.issues.contains { $0.fileURL.lastPathComponent == "corrupt.md" }
@@ -1578,6 +1587,17 @@ struct SnippetsTests {
             check(description, error.localizedDescription.contains(fileURL.path))
         } catch {
             check(description, false)
+        }
+    }
+
+    // The same budget a fixed sleep spent, but a prompt watcher costs milliseconds of it.
+    private static func settle(
+        within timeout: Duration = .milliseconds(500),
+        until condition: () -> Bool
+    ) async {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline, !condition() {
+            try? await Task.sleep(for: .milliseconds(10))
         }
     }
 

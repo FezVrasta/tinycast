@@ -26,6 +26,23 @@ what you touched.
 ./Scripts/run-tests.sh calc-test    # just one, while iterating
 ```
 
+The suite runs in parallel, `hw.ncpu` harnesses at a time, which is what takes it from about 140
+seconds to about 15. `TINYCAST_TEST_JOBS=1` forces it back to one at a time. Parallelism is safe
+because each harness already roots its scratch state somewhere of its own — a UUID-suffixed
+`temporaryDirectory`, a `UserDefaults(suiteName:)`, or `NSPasteboard.withUniqueName()` — and a new
+harness must keep doing that rather than reach for a fixed path.
+
+Two consequences worth knowing. Status lines arrive in **completion order**, not the order the `run`
+lines are written; and a failing harness's compiler diagnostics or assertion output are replayed
+together at the bottom, under its name, rather than streamed where they happened. That is deliberate:
+a compiler diagnostic is far longer than `PIPE_BUF`, so eleven workers streaming at once would
+interleave into nonsense.
+
+A `run` line takes two optional markers before the harness name. `-O` compiles that harness optimised,
+which is worth it only where the run dominates the compile — `raycast-test` spends 47 seconds in
+scrypt at `-Onone` and one second at `-O`. `slow` dispatches it in the first wave, so the longest
+harnesses are not still running after everything else has finished.
+
 The script is the **only** place the harness set is written down — CI runs exactly this, so the two
 cannot drift. Adding a harness means adding one `run` line.
 
@@ -178,6 +195,7 @@ Measured at the end of the 2026 refactor, on `main`. Useful as orders of magnitu
 | `SettingsPaneScanner` warm scan | 0.014 ms (16.5 ms cold), 52 panes |
 | Largest view / owner | `RootPaletteView` 662 lines, `AppCore` 284 lines |
 | Comment density | 1,653 of 27,289 source lines (6.1%) |
+| The harness suite | ~15 s wall clock, 11-way parallel (~98 s serial, ~140 s before either) |
 | `palette-selection-test` | 111,684 assertions — a tripwire: a change in this count means the row-order model moved |
 | `SnippetKeywordPolicy` match | 7 µs/keystroke at 50 keywords, 59 µs at 1,000 — the `lowercased()` is 0.09 µs of it |
 | `ClipboardStore.pinnedItems` | 27–127 µs per uncached search, 1,000-row window — no cache earns its invalidation yet |
