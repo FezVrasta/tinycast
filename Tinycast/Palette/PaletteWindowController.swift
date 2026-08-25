@@ -252,6 +252,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
                 core.palette.selection = 0
                 return true
             }
+            if core.palette.mode == .aiHistory {
+                core.palette.prepare(mode: .ai)
+                return true
+            }
+            if core.palette.mode == .ai, core.aiChatCoordinator.removeLastAttachment() {
+                return true
+            }
             core.palette.prepare(mode: .launcher)
             return true
         }
@@ -278,6 +285,8 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             case "w":
                 self.core.paletteCoordinator.hidePalette()
                 return true
+            case "v":
+                return self.core.palette.mode == .ai && self.core.aiChatCoordinator.attachPastedImage()
             default:
                 return false
             }

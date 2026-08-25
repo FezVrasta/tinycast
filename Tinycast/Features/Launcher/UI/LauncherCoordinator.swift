@@ -115,6 +115,8 @@ final class LauncherCoordinator {
 
     private func runCommand(_ entry: AppEntry) {
         switch CommandCatalog.command(for: entry) {
+        case .aiChat:
+            core.aiChatCoordinator.showChat()
         case .calculatorHistory:
             paletteCoordinator.showPalette(mode: .calculatorHistory)
         case .clipboardHistory:

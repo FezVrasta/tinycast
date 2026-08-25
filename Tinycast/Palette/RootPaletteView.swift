@@ -71,6 +71,14 @@ struct RootPaletteView: View {
             return ClipboardScreen(
                 store: store, core: core, vm: vm, openActions: openActions,
                 scrollToFollow: { scroll = ScrollIntent(kind: .follow) })
+        case .ai:
+            return AIScreen(
+                vm: vm, chat: core.aiChat, settings: core.aiSettings,
+                coordinator: core.aiChatCoordinator)
+        case .aiHistory:
+            return ChatHistoryScreen(
+                history: core.chatHistory, chat: core.aiChat, coordinator: core.aiChatCoordinator,
+                vm: vm, openActions: openActions)
         case .calculatorHistory:
             return CalculatorHistoryScreen(
                 history: calcHistory, currencyRates: currencyRates, core: core, vm: vm,
@@ -120,6 +128,24 @@ struct RootPaletteView: View {
             })
     }
 
+    /// Every model configured for chat; selecting one updates the app-wide default route.
+    private var aiModelContent: PopoverMenuContent {
+        let options = core.aiChatCoordinator.modelOptions
+        guard !options.isEmpty else {
+            return PopoverMenuContent(items: [
+                PopoverMenuItem(title: "Configure AI", systemImage: "slider.horizontal.3") {
+                    core.aiChatCoordinator.showSettings()
+                }
+            ])
+        }
+        return PopoverMenuContent(
+            items: options.map { option in
+                PopoverMenuItem(title: option.menuTitle, icon: option.menuIcon) {
+                    core.aiChatCoordinator.selectModel(option)
+                }
+            })
+    }
+
     /// The bottom-left app menu content (About / Settings).
     private var appMenuContent: PopoverMenuContent {
         PopoverMenuContent(items: [
@@ -138,6 +164,7 @@ struct RootPaletteView: View {
         case .actions: return actionsContent
         case .app: return appMenuContent
         case .clipboardFilter: return clipboardFilterContent
+        case .aiModel: return aiModelContent
         case nil: return nil
         }
     }
@@ -206,13 +233,13 @@ struct RootPaletteView: View {
                 .transition(Self.menuTransition(.bottomTrailing))
             }
         }
-        // Hangs off the header's filter button rather than a corner, so it needs the header's metrics.
+        // Header menus hang from their buttons rather than a panel corner.
         .overlay(alignment: .topTrailing) {
-            if openMenu == .clipboardFilter {
-                let content = clipboardFilterContent
+            if openMenu == .clipboardFilter || openMenu == .aiModel {
+                let content = openMenu == .aiModel ? aiModelContent : clipboardFilterContent
                 PopoverMenu(
                     items: content.items, selection: $menuSelection,
-                    width: Theme.Size.clipboardFilterMenuWidth, onActivate: activateMenuItem
+                    width: headerMenuWidth, onActivate: activateMenuItem
                 )
                 .padding(.top, Theme.Size.headerPadding + Theme.Size.headerHeight)
                 // Right edges flush with the button's, which sits inside the same trailing gutter.
@@ -382,6 +409,10 @@ struct RootPaletteView: View {
                 history.delete(at: selection)
                 return .handled
             }
+            if let history = screen as? ChatHistoryScreen {
+                history.delete(at: selection)
+                return .handled
+            }
             return .ignored
         }
         // ⌃X / ⌃⇧X mirror the delete rows — both cases, Shift uppercasing — and close an open menu.
@@ -394,6 +425,8 @@ struct RootPaletteView: View {
             case let clipboard as ClipboardScreen:
                 if all { clipboard.deleteAll() } else { clipboard.delete(at: selection) }
             case let history as CalculatorHistoryScreen:
+                if all { history.deleteAll() } else { history.delete(at: selection) }
+            case let history as ChatHistoryScreen:
                 if all { history.deleteAll() } else { history.delete(at: selection) }
             default:
                 return .ignored
@@ -449,7 +482,7 @@ struct RootPaletteView: View {
             headerGutter(width: Theme.Spacing.md * 2)
             // Sub-screens of the root search, so their header icon is a back chevron.
             if vm.mode != .launcher {
-                Button(action: exitToLauncher) {
+                Button(action: navigateBack) {
                     Image(systemName: "chevron.left")
                         .font(Theme.Typography.headerIcon)
                         .symbolRenderingMode(.hierarchical)
@@ -481,6 +514,14 @@ struct RootPaletteView: View {
                     filter: vm.clipboardFilter, isOpen: openMenu == .clipboardFilter,
                     action: toggleClipboardFilter)
             }
+            if !isCollapsed, vm.mode == .ai {
+                headerGutter(width: Theme.Spacing.md)
+                AIModelButton(
+                    title: core.aiChatCoordinator.selectedModelTitle,
+                    icon: core.aiChatCoordinator.selectedModelIcon,
+                    isOpen: openMenu == .aiModel,
+                    action: toggleAIModel)
+            }
             // Compact pins favorites beside the field; expanded shows them as rows.
             if isCollapsed, settings.showFavoritesInCompactMode,
                 let launcher = screen as? LauncherScreen
@@ -507,7 +548,7 @@ struct RootPaletteView: View {
     /// Controls the selected row wants beside the search field. Only the expanded launcher offers
     /// them — inside a sub-screen the search bar belongs to that screen.
     private var headerAccessory: PaletteHeaderAccessory? {
-        guard vm.mode == .launcher, !isCollapsed else { return nil }
+        guard vm.mode == .launcher || vm.mode == .ai, !isCollapsed else { return nil }
         let screen = screen
         return screen.headerAccessory(at: selection(in: screen), focus: $argumentFocused)
     }
@@ -526,7 +567,7 @@ struct RootPaletteView: View {
     /// In the argument form the field is that argument's input, so it names the argument.
     private var searchPrompt: String {
         // The field is only wide enough for the caret while argument fields are beside it.
-        if headerAccessory != nil { return "" }
+        if headerAccessory != nil, vm.mode != .ai { return "" }
         if vm.mode == .quicklinkArguments { return quicklinkArguments.prompt }
         // Inside a running command the search bar belongs to the extension.
         if vm.mode == .extensionCommand, let placeholder = extensionScreen.searchPlaceholder {
@@ -650,6 +691,26 @@ struct RootPaletteView: View {
         open(.clipboardFilter, highlighting: active)
     }
 
+    /// Opens on the selected model, mirroring the clipboard filter's active-row behavior.
+    private func toggleAIModel() {
+        if openMenu == .aiModel {
+            closeMenus()
+            return
+        }
+        core.aiChatCoordinator.prepareModelSwitcher()
+        let options = core.aiChatCoordinator.modelOptions
+        let selected = core.aiSettings.defaultModel
+        let active =
+            selected.flatMap { selected in
+                options.firstIndex(where: { $0.matches(selected) })
+            } ?? 0
+        open(.aiModel, highlighting: active)
+    }
+
+    private var headerMenuWidth: CGFloat {
+        openMenu == .aiModel ? Theme.Size.menuWidth : Theme.Size.clipboardFilterMenuWidth
+    }
+
     /// Every open path lands here, so the highlight is always stated rather than left behind.
     private func open(_ menu: OpenMenu, highlighting row: Int) {
         menuSelection = row
@@ -729,6 +790,8 @@ struct RootPaletteView: View {
         guard let items = menuContent?.items, items.indices.contains(index) else { return }
         items[index].action()
         closeMenus()
+        // A mouse click on a row takes the caret with it; menus close back into the field.
+        if argumentFocused == nil { searchFocused = true }
     }
 
     /// ⌘. — mirrors the Actions row, and works while that menu is open like the rest.
@@ -742,8 +805,10 @@ struct RootPaletteView: View {
         }
     }
 
-    /// Tab flips launcher↔clipboard; Calculator History exits rather than joining.
+    /// Tab flips launcher↔clipboard; Calculator History exits rather than joining. Chat stays put:
+    /// its field is a draft, and a bare mode swap would carry the draft into the launcher.
     private func toggleMode() {
+        guard vm.mode != .ai, vm.mode != .aiHistory else { return }
         vm.mode = vm.mode == .launcher ? .clipboard : .launcher
     }
 
@@ -753,6 +818,14 @@ struct RootPaletteView: View {
         guard let accessory = headerAccessory else { return toggleMode() }
         argumentFocused = accessory.fieldAfter(argumentFocused)
         searchFocused = argumentFocused == nil
+    }
+
+    private func navigateBack() {
+        if vm.mode == .aiHistory {
+            vm.prepare(mode: .ai)
+        } else {
+            exitToLauncher()
+        }
     }
 
     /// Back out to a fresh root search, the same reset `prepare` does on show.
@@ -784,6 +857,7 @@ private enum OpenMenu {
     case actions
     case app
     case clipboardFilter
+    case aiModel
 }
 
 /// The footer's menu circle; hover lives here, so a sweep never re-renders the body.

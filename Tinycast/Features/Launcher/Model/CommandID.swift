@@ -2,6 +2,7 @@ import Foundation
 
 /// Built-in launcher actions, surfaced alongside the user-authored ones.
 enum CommandID: String, CaseIterable, Sendable {
+    case aiChat = "command:ai-chat"
     case calculatorHistory = "command:calculator-history"
     case clipboardHistory = "command:clipboard-history"
     case searchEmoji = "command:search-emoji"
@@ -28,6 +29,7 @@ enum CommandID: String, CaseIterable, Sendable {
 
     var name: String {
         switch self {
+        case .aiChat: return "AI Chat"
         case .calculatorHistory: return "Calculator History"
         case .clipboardHistory: return "Clipboard History"
         case .searchEmoji: return "Search Emoji & Symbols"
@@ -56,6 +58,7 @@ enum CommandID: String, CaseIterable, Sendable {
 
     var sfSymbol: String {
         switch self {
+        case .aiChat: return "sparkles"
         case .calculatorHistory: return "plus.forwardslash.minus"
         case .clipboardHistory: return "doc.on.clipboard"
         case .searchEmoji: return "face.smiling"
@@ -94,6 +97,7 @@ enum CommandID: String, CaseIterable, Sendable {
         case .joinNextMeeting: return .joinNextMeeting
         case .mySchedule: return .mySchedule
         case .createEvent: return .createEvent
+        case .aiChat: return .aiChat
         default: return nil
         }
     }

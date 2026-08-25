@@ -181,6 +181,23 @@ run ext-test               -parse-as-library \
 run settings-history-test  Tinycast/Features/Settings/SettingsTab.swift \
                            Tinycast/Features/Settings/SettingsHistory.swift
 run updates-test           Tinycast/Features/Updates/Model/*.swift
+run ai-provider-test       Tinycast/Features/Settings/AppSettingsKey.swift \
+                           Tinycast/Features/AI/Model/*.swift \
+                           Tinycast/Features/AI/Settings/AISettingsStore.swift
+run ai-chat-test           Tinycast/Features/AI/Model/AIRequest.swift \
+                           Tinycast/Features/AI/Model/ChatMessage.swift \
+                           Tinycast/Features/AI/Model/ChatSession.swift \
+                           Tinycast/Features/AI/Model/MarkdownBlock.swift \
+                           Tinycast/Features/AI/Service/AIProvider.swift \
+                           Tinycast/Features/AI/Service/ChatHistoryStore.swift \
+                           Tinycast/Features/AI/UI/AIChatState.swift
+run codex-turn-test        Tinycast/Platform/AppPaths.swift \
+                           Tinycast/Features/AI/Model/*.swift \
+                           Tinycast/Features/AI/Service/AIProvider.swift \
+                           Tinycast/Features/AI/Service/ChatGPTSubscriptionManager.swift \
+                           Tinycast/Features/AI/Service/CodexAppServerClient.swift \
+                           Tinycast/Features/AI/Service/CodexExecutableLocator.swift \
+                           Tinycast/Features/AI/Service/CodexTurnRunner.swift
 
 if [ "$emit_db" -eq 1 ]; then
     printf ']\n' >> "$DB"

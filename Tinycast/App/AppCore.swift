@@ -42,6 +42,10 @@ final class AppCore {
     let quicklinkArguments = QuicklinkArgumentSession()
     let notesStore: NotesStore
     let extensions: ExtensionManager
+    let chatHistory: ChatHistoryStore
+    let aiChat: AIChatState
+    let aiSettings = AISettingsStore()
+    let chatGPTSubscription = ChatGPTSubscriptionManager()
 
     /// Set when a quicklink editor should open with Settings; the pane consumes it.
     var pendingQuicklinkEdit: QuicklinkEditRequest?
@@ -118,6 +122,10 @@ final class AppCore {
         paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var updateCoordinator = UpdateCoordinator(
         store: updateChecker, core: self)
+    @ObservationIgnored private(set) lazy var aiChatCoordinator = AIChatCoordinator(
+        chat: aiChat, settings: settings, appIndex: appIndex, palette: palette,
+        paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
+        core: self)
 
     @ObservationIgnored private lazy var windowController = PaletteWindowController(core: self)
     @ObservationIgnored private lazy var messageHUD = MessageHUDController(settings: settings)
@@ -128,8 +136,11 @@ final class AppCore {
     private init() {
         let launcherRanking = LauncherRankingStore()
         let settings = AppSettings()
+        let chatHistory = ChatHistoryStore(directory: AppPaths.applicationSupport())
         self.launcherRanking = launcherRanking
         self.settings = settings
+        self.chatHistory = chatHistory
+        aiChat = AIChatState(history: chatHistory)
         appIndex = AppIndex(ranking: launcherRanking, aliases: aliases)
         let clipboardManager = ClipboardManager(store: clipboardStore, settings: settings)
         self.clipboardManager = clipboardManager
@@ -167,6 +178,7 @@ final class AppCore {
             fileSearchCoordinator.applyEnabled()
             fileSearchCoordinator.applyPolicy()
             notesCoordinator.applyEnabled()
+            aiChatCoordinator.applyEnabled()
             customCommands.onChange = { [weak self] _ in
                 self?.customCommandCoordinator.applyCustomCommandsPresence()
             }
@@ -199,6 +211,7 @@ final class AppCore {
             hotKeys.onCreateNote = { [weak self] in self?.notesCoordinator.createNote() }
             hotKeys.onSearchNotes = { [weak self] in self?.notesCoordinator.searchNotes() }
             hotKeys.onSearchFiles = { [weak self] in self?.fileSearchCoordinator.show() }
+            hotKeys.onShowAIChat = { [weak self] in self?.aiChatCoordinator.showChat() }
             hotKeys.onJoinNextMeeting = { [weak self] in
                 self?.calendarCoordinator.joinNextMeeting()
             }
@@ -292,7 +305,7 @@ final class AppCore {
             return appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
         case .togglePalette, .toggleClipboard, .toggleEmoji, .searchFiles, .systemAction,
             .showNotes, .createNote, .searchNotes, .windowCommand, .joinNextMeeting, .mySchedule,
-            .createEvent:
+            .createEvent, .aiChat:
             return nil
         }
     }
@@ -308,6 +321,13 @@ final class AppCore {
         snippetTextInjector.prepareForTermination()
         snippetListener.stop()
         snippetsStore.stop()
+        aiChat.cancel()
+        chatGPTSubscription.stop()
+    }
+
+    func aiProvider() throws -> any AIProvider {
+        try AIProviderFactory.make(
+            settings: aiSettings, subscription: chatGPTSubscription)
     }
 
     // MARK: - Feature switches
@@ -330,6 +350,7 @@ final class AppCore {
             }, reproject: { $0.quicklinkCoordinator.applyQuicklinksPresence() })
         track({ _ = $0.fileSearchEnabled }, reproject: { $0.fileSearchCoordinator.applyEnabled() })
         track({ _ = $0.notesEnabled }, reproject: { $0.notesCoordinator.applyEnabled() })
+        track({ _ = $0.aiEnabled }, reproject: { $0.aiChatCoordinator.applyEnabled() })
         track(
             {
                 _ = $0.calendarEnabled
