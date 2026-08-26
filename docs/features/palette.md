@@ -55,6 +55,14 @@ only the closure wiring; the behaviour is `PaletteCoordinator`'s.
 Showing the palette calls `prepare(mode:)`, which resets state and bumps `focusToken` (a UUID) so the
 SwiftUI search field re-focuses.
 
+Hiding schedules Pop to Root Search, and `PaletteWindowController.popToRoot` is its only path: the
+palette returns to the launcher *and* chat starts a new conversation, at once or after
+`popToRootTimeout`, unless a re-summon inside that window consumes the pending reset first. An
+unfinished chat is a thing being done, exactly like a typed query, so the screen and the conversation
+are reset together rather than the screen alone. A reply still streaming is the one exception — it was
+asked for, and resetting would throw the answer away. Nothing is lost either way: a conversation is
+written to Chat History as soon as it has a message.
+
 Each `PaletteMode` maps to one type conforming to `PaletteScreen`, and the protocol is what keeps the
 selection invariant honest: a screen exposes `rows` as its single source of visible order, and the
 palette indexes into it. Adding a mode means adding a conformer, not a branch in `RootPaletteView`.
@@ -72,11 +80,24 @@ palette indexes into it. Adding a mode means adding a conformer, not a branch in
 | `.quicklinkArguments` | `QuicklinkArgumentsScreen` | `QuicklinkArgumentsView` (see [quicklinks.md](quicklinks.md#the-argument-prompt)) |
 | `.extensionCommand` | `ExtensionCommandScreen` | `ExtensionCommandView` (see [extensions.md](extensions.md)) |
 
-Every mode but `.launcher` is a sub-screen that backs out to the launcher. **Tab cycles launcher ↔
-clipboard and nothing else** unless the selected row declares arguments, in which case it walks those
-fields first (see below); the rest are reached by a command or a global hotkey, and Uninstall only
-from a launcher app's Actions menu, scoped to that app. **Escape clears a non-empty query before it
-hides the palette or exits an extension screen**, so one press clears and the next leaves.
+Every mode but `.launcher` is a sub-screen that backs out to the launcher. **Tab rings the three
+surfaces a reader opens directly — launcher → AI chat → clipboard → launcher** — unless the selected
+row declares arguments, in which case it walks those fields first (see below); every other mode exits
+to the launcher rather than joining the ring, and is reached by a command or a global hotkey, with
+Uninstall only from a launcher app's Actions menu, scoped to that app. Chat is skipped whole when
+`aiEnabled` is off, which leaves the launcher ↔ clipboard flip the ring replaced. **Escape clears a
+non-empty query before it leaves the screen**, so one press clears and the next leaves: chat backs
+out to the launcher, an extension screen exits itself, and anywhere else the palette hides.
+
+The launcher advertises the first hop in the header — `AI Chat` beside a `⇥` cap, the footer's own
+pairing of a label with its key. It is drawn only when Tab really would open chat, a condition read
+back out of `PaletteTabAction` rather than restated, so a hint can never promise a destination the
+key does not go to: an argument field to walk takes Tab first, and the hint steps aside for it.
+
+`PaletteTabAction` decides where Tab goes *and* whether the typed text travels with it. Launcher and
+clipboard hand the query over, since one search narrows either list; crossing chat's edge opens a
+fresh screen in both directions, because that field holds a half-written message rather than a query
+— seeding a composer from a search reads as noise, and a draft dropped into a filter matches nothing.
 
 The argument screen is the one mode where the search field is not a search field: it _is_ the current
 argument's input, so its placeholder names that argument and ↵ submits rather than activating a row.
