@@ -7,22 +7,25 @@ final class CameraPreviewController: NSObject, NSWindowDelegate {
     private let session = CameraPreviewSession()
     private var panel: CameraPreviewPanel?
     private var continuation: CheckedContinuation<Bool, Never>?
+    /// Held across the camera warm-up too, so a chord repeating into it cannot stack previews.
+    private var presenting = false
 
-    /// True when the user took the join. Guarded on the continuation, so a held chord cannot
-    /// stack previews — the second call answers false rather than opening a second camera.
+    /// True when the user took the join. The camera settles first: a panel opened over a session
+    /// still starting shows a black stage, and the TCC prompt would take key and cancel the join.
     func present(meeting: MeetingEvent, now: Date) async -> Bool {
-        guard continuation == nil else { return false }
-        let taken = await withCheckedContinuation { continuation in
+        guard !presenting else { return false }
+        presenting = true
+        defer { presenting = false }
+        let feed = await session.start()
+        return await withCheckedContinuation { continuation in
             self.continuation = continuation
-            show(meeting: meeting, now: now)
+            show(meeting: meeting, now: now, feed: feed)
         }
-        session.stop()
-        return taken
     }
 
-    private func show(meeting: MeetingEvent, now: Date) {
+    private func show(meeting: MeetingEvent, now: Date, feed: CameraPreviewSession.Feed) {
         let view = CameraPreviewView(
-            meeting: meeting, now: now, session: session,
+            meeting: meeting, now: now, feed: feed,
             onJoin: { [weak self] in self?.finish(true) },
             onCancel: { [weak self] in self?.finish(false) })
         let hosting = NSHostingView(rootView: view)
@@ -37,8 +40,6 @@ final class CameraPreviewController: NSObject, NSWindowDelegate {
             panel.makeKeyAndOrderFront(nil)
             panel.orderFrontRegardless()
         }
-        // The prompt, if there is one to raise, comes from this gesture and nowhere else.
-        Task { await session.start() }
     }
 
     private func finish(_ taken: Bool) {
@@ -49,7 +50,12 @@ final class CameraPreviewController: NSObject, NSWindowDelegate {
         closing?.delegate = nil
         closing?.onKey = nil
         continuation.resume(returning: taken)
-        closing?.fadeOut(duration: Theme.Duration.exit)
+        // The camera goes with the panel, not before it: tearing it down mid-fade blanks the feed.
+        closing?.fadeOut(duration: Theme.Duration.exit) { [weak self] in
+            // Unless a preview raised inside the fade already owns the camera.
+            guard let self, !presenting else { return }
+            session.stop()
+        }
     }
 
     private func place(_ panel: NSPanel) {

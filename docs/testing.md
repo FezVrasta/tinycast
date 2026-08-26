@@ -375,8 +375,11 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Hide Current Event on Automatically clears the entry at the start and hands the space to the next
   event inside its lead time; on 5 minutes it lingers counting up, then clears
 - Clicking the menu bar item opens the menu with `Join <title>` on top — a bare click never joins
-- Camera Preview on: ↵ on the join card opens the panel, ↵ joins, Esc drops the join; the camera
-  light goes out with the panel, and the first run prompts once
+- Camera Preview on: ↵ on the join card opens the panel **already showing live video** — no black
+  frame, no blank mid-preview; ↵ joins, Esc drops the join; the camera light goes out with the
+  panel, and the first run prompts once, before any panel appears
+- A meeting that ends leaves the launcher results and `My Schedule` on the same minute boundary it
+  leaves the menu bar, with the palette open or closed over the end
 - Auto Join on: the meeting opens itself at its start, **once** — dismiss it and it does not return.
   With confirm on and camera preview off, the dialog asks first
 - Arming Auto Join during a meeting already under way joins nothing

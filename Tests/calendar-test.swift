@@ -145,8 +145,16 @@ struct CalendarTests {
             event(id: "allday", start: 30, isAllDay: true),
             event(id: "declined", start: 30, isDeclined: true)
         ]
-        let agenda = UpcomingWindow.agenda(from: events)
+        let agenda = UpcomingWindow.agenda(from: events, now: at(0))
         expect(agenda.map(\.id) == ["early", "late"], "the agenda is timed, accepted and in start order")
+
+        let over = event(id: "over", start: 0, minutes: 30)
+        expect(
+            UpcomingWindow.agenda(from: [over], now: at(30)).isEmpty,
+            "a meeting is off the agenda the moment it ends, the way it leaves the menu bar")
+        expect(
+            UpcomingWindow.agenda(from: [over], now: at(29)).map(\.id) == ["over"],
+            "one still running stays, however long ago it started")
     }
 
     static func cardWindow() {
@@ -179,7 +187,7 @@ struct CalendarTests {
             window.carded(from: [linkless], now: start) == nil,
             "a meeting with no link is never carded")
         expect(
-            UpcomingWindow.agenda(from: [linkless]).map(\.id) == ["linkless"],
+            UpcomingWindow.agenda(from: [linkless], now: start).map(\.id) == ["linkless"],
             "but it stays on the agenda, so it is still listed and searchable")
     }
 

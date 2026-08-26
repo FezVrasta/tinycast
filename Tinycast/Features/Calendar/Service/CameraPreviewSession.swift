@@ -1,53 +1,52 @@
 import AVFoundation
 
 /// The capture session behind the join preview. `AVCaptureSession` is not `Sendable`, so it stays
-/// main-actor isolated; only `startRunning` — which blocks — goes off.
+/// main-actor isolated; only `startRunning` and `stopRunning` — which block — go off.
 @MainActor
-@Observable
 final class CameraPreviewSession {
-    private(set) var access: CameraAccess = Permissions.cameraAccess()
-    /// False when the Mac has no camera at all, which reads differently from a refused one.
-    private(set) var hasCamera = true
+    /// What the preview has to show, settled before the panel opens so it never renders a stage it
+    /// would have to swap out from under the user.
+    enum Feed {
+        case live(AVCaptureSession)
+        case denied
+        case noCamera
+    }
 
-    @ObservationIgnored private(set) var session: AVCaptureSession?
+    private var capture: AVCaptureSession?
 
-    /// Asks the first time and configures once; the grant is process-wide after that.
-    func start() async {
-        access = Permissions.cameraAccess()
+    /// Asks the first time and configures once; the grant is process-wide after that. Blocking on
+    /// `startRunning` is the point: the caller's first frame is video rather than black.
+    func start() async -> Feed {
+        var access = Permissions.cameraAccess()
         if access == .notDetermined {
             _ = await Permissions.requestCameraAccess()
             access = Permissions.cameraAccess()
         }
-        guard access == .granted else { return }
-        guard let session = session ?? configure() else { return }
-        self.session = session
-        guard !session.isRunning else { return }
-        let box = CaptureBox(session: session)
+        guard access == .granted else { return .denied }
+        guard let capture = capture ?? configure() else { return .noCamera }
+        self.capture = capture
+        guard !capture.isRunning else { return .live(capture) }
+        let box = CaptureBox(session: capture)
         await Task.detached { box.session.startRunning() }.value
+        return .live(capture)
     }
 
     func stop() {
-        guard let session, session.isRunning else { return }
+        guard let capture, capture.isRunning else { return }
         // The camera light must go out with the panel, so this is never left to deallocation.
-        let box = CaptureBox(session: session)
+        let box = CaptureBox(session: capture)
         Task.detached { box.session.stopRunning() }
     }
 
     private func configure() -> AVCaptureSession? {
         guard let device = AVCaptureDevice.default(for: .video),
             let input = try? AVCaptureDeviceInput(device: device)
-        else {
-            hasCamera = false
-            return nil
-        }
-        let session = AVCaptureSession()
-        session.sessionPreset = .medium
-        guard session.canAddInput(input) else {
-            hasCamera = false
-            return nil
-        }
-        session.addInput(input)
-        return session
+        else { return nil }
+        let capture = AVCaptureSession()
+        capture.sessionPreset = .medium
+        guard capture.canAddInput(input) else { return nil }
+        capture.addInput(input)
+        return capture
     }
 }
 

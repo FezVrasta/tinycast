@@ -10,7 +10,7 @@ struct ScheduleScreen: PaletteScreen {
 
     var rows: [MeetingEvent] {
         let query = vm.query.trimmingCharacters(in: .whitespaces)
-        let agenda = UpcomingWindow.agenda(from: store.events)
+        let agenda = UpcomingWindow.agenda(from: store.events, now: clock.now)
         guard !query.isEmpty else { return agenda }
         return agenda.filter {
             $0.title.localizedCaseInsensitiveContains(query)

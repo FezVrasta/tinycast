@@ -5,7 +5,7 @@ import SwiftUI
 struct CameraPreviewView: View {
     let meeting: MeetingEvent
     let now: Date
-    let session: CameraPreviewSession
+    let feed: CameraPreviewSession.Feed
     let onJoin: () -> Void
     let onCancel: () -> Void
 
@@ -26,19 +26,26 @@ struct CameraPreviewView: View {
 
     @ViewBuilder
     private var stage: some View {
-        if let capture = session.session {
+        switch feed {
+        case .live(let capture):
             CameraFeed(session: capture)
-        } else {
-            VStack(spacing: Theme.Spacing.md) {
-                SymbolImage(name: "video.slash", size: Theme.Size.dialogIcon)
-                Text(unavailableMessage)
-                    .font(Theme.Typography.rowTrailing)
-                    .multilineTextAlignment(.center)
-            }
-            .foregroundStyle(Theme.Colors.textSecondary)
-            .padding(Theme.Spacing.xxl)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .denied:
+            unavailable("Tinycast has no access to the camera.")
+        case .noCamera:
+            unavailable("No camera on this Mac.")
         }
+    }
+
+    private func unavailable(_ message: String) -> some View {
+        VStack(spacing: Theme.Spacing.md) {
+            SymbolImage(name: "video.slash", size: Theme.Size.dialogIcon)
+            Text(message)
+                .font(Theme.Typography.rowTrailing)
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(Theme.Colors.textSecondary)
+        .padding(Theme.Spacing.xxl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var footer: some View {
@@ -57,14 +64,6 @@ struct CameraPreviewView: View {
         }
         .padding(Theme.Spacing.xl)
     }
-
-    private var unavailableMessage: String {
-        switch session.access {
-        case .denied: return "Tinycast has no access to the camera."
-        case .notDetermined, .granted:
-            return session.hasCamera ? "Starting the camera…" : "No camera on this Mac."
-        }
-    }
 }
 
 /// The one place `AVCaptureVideoPreviewLayer` is hosted; everything around it is Tinycast's own.
@@ -72,16 +71,20 @@ private struct CameraFeed: NSViewRepresentable {
     let session: AVCaptureSession
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        view.wantsLayer = true
         let preview = AVCaptureVideoPreviewLayer(session: session)
         preview.videoGravity = .resizeAspectFill
+        let view = NSView()
+        // Layer-hosting, not layer-backed: set before `wantsLayer`, so AppKit never replaces it.
         view.layer = preview
+        view.wantsLayer = true
         return view
     }
 
+    /// Reassigning the session rebuilds the preview connection, which blanks the layer for a frame.
     func updateNSView(_ view: NSView, context: Context) {
-        (view.layer as? AVCaptureVideoPreviewLayer)?.session = session
+        guard let preview = view.layer as? AVCaptureVideoPreviewLayer, preview.session !== session
+        else { return }
+        preview.session = session
     }
 }
 

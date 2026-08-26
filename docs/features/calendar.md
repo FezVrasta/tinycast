@@ -16,15 +16,21 @@ events as searchable launcher entries.
 - **Auto join fires at most once per meeting per launch**, and only for a meeting starting at or
   after the moment the switch was armed. Both are why `AutoJoinPolicy` takes `armedAt` and the
   already-joined set rather than reading a clock of its own.
-- **The camera stops with the panel.** `CameraPreviewSession.stop()` runs on every exit path, so the
-  camera light never outlives the preview.
+- **The camera settles before the panel opens, and stops after it closes.**
+  `CameraPreviewSession.start()` resolves access and blocks on `startRunning` first, then hands
+  `CameraPreviewController` a settled `Feed` — so the panel's first frame is live video rather than a
+  stage it has to swap out, and the TCC prompt never takes key from a panel already up.
+  `stop()` runs from the fade-out's completion, so the camera light never outlives the preview but
+  is never torn down under a visible one either.
 - **The card's window is `[start - lead, min(start + lead, end)]`.** The grace period exists because
   everyone joins late; the `min` is why it never outlives a meeting shorter than the lead.
 - **Recurrence comes from `predicateForEvents(withStart:end:calendars:)`**, which expands occurrences
   itself. Masters are never fetched and recurrence is never hand-rolled.
 - **`UpcomingWindow.agenda` is the only place that says which events count** — timed, not declined,
-  in start order. The card, the chord, the schedule and the launcher slice all go through it, so they
-  cannot drift apart.
+  not over, in start order. The card, the chord, the menu bar, the schedule and the launcher slice all
+  go through it, so they cannot drift apart. Because an event ending changes nothing in EventKit,
+  the filter alone is not enough for the launcher slice: `CalendarCoordinator` republishes it on the
+  minute boundary and on every summon.
 - **`calendarEnabled` doubles as consent**, so it is in `SettingsBackupCoverage.deliberatelyExcluded`
   and only `CalendarCoordinator.setCalendarEnabled` may write it. Tinycast's own dialog comes first,
   the macOS prompt second, and only from the gesture that asked.
@@ -132,8 +138,8 @@ calendars.
 shares one identifier across every instance. `calendarItemID` is kept separately: it is the only
 handle `ical://ekevent/…` accepts, and a recurring occurrence opens its series.
 
-A cancelled event never reaches a surface. A declined one is dropped by `agenda`, and an all-day one
-with it.
+A cancelled event never reaches a surface. A declined one is dropped by `agenda`, and an all-day or
+already-finished one with it.
 
 ## The menu bar
 

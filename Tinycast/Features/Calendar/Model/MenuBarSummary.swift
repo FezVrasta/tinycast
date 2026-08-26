@@ -13,7 +13,7 @@ struct MenuBarSummary: Sendable {
 
     /// The earliest event still inside its window, so one hiding hands the space to the next.
     func event(from events: [MeetingEvent], now: Date) -> MeetingEvent? {
-        UpcomingWindow.agenda(from: events).first {
+        UpcomingWindow.agenda(from: events, now: now).first {
             (!linkedOnly || $0.link != nil) && now >= $0.start - lead && now < hidesAt($0)
         }
     }

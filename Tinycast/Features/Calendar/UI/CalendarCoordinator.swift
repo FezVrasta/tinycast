@@ -45,8 +45,9 @@ final class CalendarCoordinator {
         return window.carded(from: store.events, now: clock.now)
     }
 
-    /// Today and tomorrow, timed and accepted, in start order.
-    var agenda: [MeetingEvent] { UpcomingWindow.agenda(from: store.events) }
+    /// Today and tomorrow, timed, accepted and not over yet, in start order. Live rather than
+    /// clock-driven: this publishes a snapshot, and a chord reads it with nothing ticking.
+    var agenda: [MeetingEvent] { UpcomingWindow.agenda(from: store.events, now: Date()) }
 
     /// The event the menu bar carries, or nil for the plain icon.
     var menuBarEvent: MeetingEvent? {
@@ -127,8 +128,10 @@ final class CalendarCoordinator {
     }
 
     /// One minute's worth of work: keep the snapshot honest, then see if anything should open.
+    /// An event ending changes nothing in EventKit, so the republish is what drops it.
     private func minuteDidPass() {
         store.reloadIfStale(now: clock.now)
+        publishEntries()
         autoJoinIfDue()
     }
 
@@ -174,6 +177,8 @@ final class CalendarCoordinator {
         paletteVisible = true
         applyClock()
         guard settings.calendarEnabled else { return }
+        // Meetings end while the palette is closed, and with no clock nothing republished them.
+        publishEntries()
         // Off the summon path: the card is observation-driven, so it can land a frame later.
         Task { store.reload() }
     }
