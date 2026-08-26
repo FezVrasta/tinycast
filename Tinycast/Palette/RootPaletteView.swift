@@ -139,11 +139,14 @@ struct RootPaletteView: View {
             })
     }
 
-    /// The bottom-left app menu content (About / Settings).
+    /// The bottom-left app menu content (About / Support / Settings).
     private var appMenuContent: PopoverMenuContent {
         PopoverMenuContent(items: [
             PopoverMenuItem(title: "About Tinycast", systemImage: "info.circle") {
                 core.settingsCoordinator.showAbout()
+            },
+            PopoverMenuItem(title: "Support Tinycast", systemImage: "heart") {
+                core.supportCoordinator.showSupport()
             },
             PopoverMenuItem(title: "Settings", systemImage: "gearshape", shortcut: "⌘,") {
                 core.settingsCoordinator.showSettings()

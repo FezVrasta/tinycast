@@ -39,7 +39,8 @@ enum SettingsBackupCoverage {
         "autoJoinConfirms": .autoJoinConfirms,
         "menuBarEvents": .menuBarEvents,
         "menuBarLinkedEventsOnly": .menuBarLinkedEventsOnly,
-        "hideCurrentEvent": .hideCurrentEvent
+        "hideCurrentEvent": .hideCurrentEvent,
+        "supportReminders": .supportReminders
     ]
 
     /// The `SettingsData` fields no `AppSettings` key stands behind, and what they read instead.

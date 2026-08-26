@@ -32,6 +32,7 @@ final class AppCore {
     let calendarStore = CalendarStore()
     let meetingClock = MeetingClock()
     let updateChecker = UpdateCheckStore()
+    let supportReminders: SupportReminderStore
     let emojiIndex = EmojiIndex()
     let frequentEmoji = FrequentEmojiStore()
     let runningApps = RunningAppsMonitor()
@@ -122,6 +123,8 @@ final class AppCore {
         paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var updateCoordinator = UpdateCoordinator(
         store: updateChecker, core: self)
+    @ObservationIgnored private(set) lazy var supportCoordinator = SupportCoordinator(
+        store: supportReminders, core: self)
     @ObservationIgnored private(set) lazy var aiChatCoordinator = AIChatCoordinator(
         chat: aiChat, settings: settings, appIndex: appIndex, palette: palette,
         paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
@@ -140,6 +143,7 @@ final class AppCore {
         self.launcherRanking = launcherRanking
         self.settings = settings
         self.chatHistory = chatHistory
+        supportReminders = SupportReminderStore(settings: settings)
         aiChat = AIChatState(history: chatHistory)
         appIndex = AppIndex(ranking: launcherRanking, aliases: aliases)
         let clipboardManager = ClipboardManager(store: clipboardStore, settings: settings)
@@ -199,6 +203,8 @@ final class AppCore {
                 self?.updateCoordinator.presentIfAvailable(release) ?? true
             }
             updateChecker.start()
+            supportReminders.onDue = { [weak self] in self?.supportCoordinator.presentIfDue() }
+            supportReminders.start()
 
             hyperKeyTap.healthTicker = healthTicker
             hotKeys.doubleTapMonitor.healthTicker = healthTicker
@@ -275,6 +281,7 @@ final class AppCore {
         if settingsCoordinator.focusExisting() { return }
         if onboardingCoordinator.focusExisting() { return }
         if updateCoordinator.focusExisting() { return }
+        if supportCoordinator.focusExisting() { return }
         paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true)
     }
 
@@ -415,6 +422,23 @@ final class AppCore {
         let visible = settings.windowManagementEnabled && settings.windowManagementShowInLauncher
         appIndex.setWindowCommandsVisible(visible)
     }
+
+    // MARK: - Interruption
+
+    /// What the app is in the middle of; the update prompt and the support reminder both ask first.
+    var currentActivity: UpdateActivity {
+        UpdateActivity(
+            isExpandingSnippet: snippetTextInjector.isDelivering,
+            isRunningExtension: extensions.running != nil,
+            isUninstalling: uninstall.isTrashing,
+            isRecordingHotKey: hotKeys.recordingAction != nil,
+            isPromptingForArguments: quicklinkArguments.isActive,
+            isShowingDialog: isShowingDialog,
+            isPaletteVisible: paletteCoordinator.isVisible)
+    }
+
+    /// Whether a window may take focus without interrupting something the user started.
+    var canInterruptUser: Bool { UpdateReadiness.evaluate(currentActivity) == nil }
 
     // MARK: - Dialogs, routed here so `dialogs` stays the single owner
 

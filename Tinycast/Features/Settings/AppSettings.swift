@@ -357,6 +357,11 @@ final class AppSettings {
         }
     }
 
+    /// Whether the support window may reopen itself; off means never ask again.
+    var supportRemindersEnabled: Bool {
+        didSet { defaults.set(supportRemindersEnabled, forKey: Key.supportReminders.rawValue) }
+    }
+
     init() {
         // `integer(forKey:)` returns 0 when unset, which no case matches.
         clipboardRetention =
@@ -472,5 +477,8 @@ final class AppSettings {
         quicklinkConfirmsBeforeDelete =
             defaults.object(forKey: Key.quicklinkConfirmsBeforeDelete.rawValue) == nil
             || defaults.bool(forKey: Key.quicklinkConfirmsBeforeDelete.rawValue)
+        supportRemindersEnabled =
+            defaults.object(forKey: Key.supportReminders.rawValue) == nil
+            || defaults.bool(forKey: Key.supportReminders.rawValue)
     }
 }

@@ -59,6 +59,8 @@ struct SettingsBackup: Codable {
         var menuBarEvents: Int?
         var menuBarLinkedEventsOnly: Bool?
         var hideCurrentEvent: Int?
+        // Safe to carry: it silences a prompt rather than granting anything.
+        var supportReminders: Bool?
     }
 
     /// Combos keep the legacy shape, so older files import. docs/features/hotkeys.md#persistence
@@ -139,7 +141,8 @@ extension SettingsBackup {
             autoJoinConfirms: s.autoJoinConfirms,
             menuBarEvents: s.menuBarEvents.rawValue,
             menuBarLinkedEventsOnly: s.menuBarLinkedEventsOnly,
-            hideCurrentEvent: s.hideCurrentEvent.rawValue)
+            hideCurrentEvent: s.hideCurrentEvent.rawValue,
+            supportReminders: s.supportRemindersEnabled)
 
         let hk = core.hotKeys
         var hotkeys = HotkeyBackup()
@@ -375,6 +378,10 @@ extension SettingsBackup {
         }
         if let raw = s.hideCurrentEvent, let hide = HideCurrentEvent(rawValue: raw) {
             settings.hideCurrentEvent = hide
+            count += 1
+        }
+        if let flag = s.supportReminders {
+            settings.supportRemindersEnabled = flag
             count += 1
         }
         return count

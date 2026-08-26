@@ -173,6 +173,9 @@ final class LauncherCoordinator {
         case .about:
             paletteCoordinator.hidePalette(restoreFocus: false)
             settingsCoordinator.showAbout()
+        case .support:
+            paletteCoordinator.hidePalette(restoreFocus: false)
+            core.supportCoordinator.showSupport()
         case .quit:
             NSApp.terminate(nil)
         case nil:

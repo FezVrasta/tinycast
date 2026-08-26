@@ -88,7 +88,7 @@ final class UpdateCoordinator {
         case .installing, .readyToRelaunch:
             return true
         case .checking, .upToDate, .localBuild, .available, .blocked, .failed:
-            guard UpdateReadiness.evaluate(activity) == nil else { return false }
+            guard UpdateReadiness.evaluate(core.currentActivity) == nil else { return false }
             stage = .available(release)
             present()
             return true
@@ -100,7 +100,7 @@ final class UpdateCoordinator {
     func install() {
         guard let release = pendingRelease else { return }
         // Re-asked at the moment of the click, never read from a flag that could have gone stale.
-        if let blocker = UpdateReadiness.evaluate(activity) {
+        if let blocker = UpdateReadiness.evaluate(core.currentActivity) {
             stage = .blocked(blocker, release)
             return
         }
@@ -172,17 +172,6 @@ final class UpdateCoordinator {
         UpdateInstaller(
             bundleURL: Bundle.main.bundleURL,
             stagingDirectory: AppPaths.caches().appendingPathComponent("Updates", isDirectory: true))
-    }
-
-    private var activity: UpdateActivity {
-        UpdateActivity(
-            isExpandingSnippet: core.snippetTextInjector.isDelivering,
-            isRunningExtension: core.extensions.running != nil,
-            isUninstalling: core.uninstall.isTrashing,
-            isRecordingHotKey: core.hotKeys.recordingAction != nil,
-            isPromptingForArguments: core.quicklinkArguments.isActive,
-            isShowingDialog: core.isShowingDialog,
-            isPaletteVisible: core.paletteCoordinator.isVisible)
     }
 
     private func present() {

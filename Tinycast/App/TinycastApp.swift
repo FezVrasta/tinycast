@@ -25,6 +25,7 @@ struct TinycastApp: App {
             }
             Divider()
             Button("Check for Updates...") { AppCore.shared.updateCoordinator.checkForUpdates() }
+            Button("Support \(appName)...") { AppCore.shared.supportCoordinator.showSupport() }
             Button("Settings...") { AppCore.shared.settingsCoordinator.showSettings() }
                 .keyboardShortcut(",")
             Divider()
