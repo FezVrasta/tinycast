@@ -85,8 +85,7 @@ struct RootPaletteView: View {
                 openActions: openActions)
         case .extensionCommand:
             return ExtensionCommandScreen(
-                screen: extensionScreen, extensions: extensions, core: core, vm: vm,
-                openActions: openActions)
+                screen: extensionScreen, extensions: extensions, vm: vm, openActions: openActions)
         }
     }
 
@@ -111,12 +110,6 @@ struct RootPaletteView: View {
     private var menuOpen: Bool { openMenu != nil }
 
     // MARK: - Popover menu content
-
-    /// The Actions menu for the current selection, or nil when it has no actions.
-    private var actionsContent: PopoverMenuContent? {
-        let screen = screen
-        return screen.actions(at: selection(in: screen))
-    }
 
     /// The clipboard type filter's rows; activating one is the only way the filter changes.
     private var clipboardFilterContent: PopoverMenuContent {
@@ -158,13 +151,26 @@ struct RootPaletteView: View {
         ])
     }
 
-    /// Whichever menu is open — the one source `moveMenu` and `activateMenuItem` address rows through.
-    private var menuContent: PopoverMenuContent? {
+    /// Whichever menu is open — the one source `moveMenu`, `activateMenuItem` and the overlays
+    /// address rows through, so no two of them can disagree about what a row index means.
+    private var menuContent: PaletteMenuContent? {
         switch openMenu {
-        case .actions: return actionsContent
-        case .app: return appMenuContent
-        case .clipboardFilter: return clipboardFilterContent
-        case .aiModel: return aiModelContent
+        case .actions:
+            let screen = screen
+            return screen.menuContent(
+                at: selection(in: screen), menuSelection: $menuSelection,
+                onActivate: activateMenuItem)
+        case .app:
+            return PaletteMenuContent(
+                popover: appMenuContent, selection: $menuSelection, onActivate: activateMenuItem)
+        case .clipboardFilter:
+            return PaletteMenuContent(
+                popover: clipboardFilterContent, selection: $menuSelection,
+                width: headerMenuWidth, onActivate: activateMenuItem)
+        case .aiModel:
+            return PaletteMenuContent(
+                popover: aiModelContent, selection: $menuSelection,
+                width: headerMenuWidth, onActivate: activateMenuItem)
         case nil: return nil
         }
     }
@@ -205,46 +211,27 @@ struct RootPaletteView: View {
                 .allowsHitTesting(menuOpen)
         }
         .overlay(alignment: .bottomLeading) {
-            if openMenu == .app {
-                let content = appMenuContent
-                PopoverMenu(
-                    header: content.header, items: content.items, selection: $menuSelection,
-                    onActivate: activateMenuItem
-                )
-                .padding(Self.menuInset)
-                .transition(Self.menuTransition(.bottomLeading))
+            if openMenu == .app, let content = menuContent {
+                content.view()
+                    .padding(Self.menuInset)
+                    .transition(Self.menuTransition(.bottomLeading))
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            if openMenu == .actions, let content = actionsContent {
-                Group {
-                    // An extension declares its own panel, which runs long enough to need scrolling.
-                    if vm.mode == .extensionCommand {
-                        ExtensionActionsPanel(
-                            header: content.header, items: content.items, selection: $menuSelection,
-                            onActivate: activateMenuItem)
-                    } else {
-                        PopoverMenu(
-                            header: content.header, items: content.items, selection: $menuSelection,
-                            onActivate: activateMenuItem)
-                    }
-                }
-                .padding(Self.menuInset)
-                .transition(Self.menuTransition(.bottomTrailing))
+            if openMenu == .actions, let content = menuContent {
+                content.view()
+                    .padding(Self.menuInset)
+                    .transition(Self.menuTransition(.bottomTrailing))
             }
         }
         // Header menus hang from their buttons rather than a panel corner.
         .overlay(alignment: .topTrailing) {
-            if openMenu == .clipboardFilter || openMenu == .aiModel {
-                let content = openMenu == .aiModel ? aiModelContent : clipboardFilterContent
-                PopoverMenu(
-                    items: content.items, selection: $menuSelection,
-                    width: headerMenuWidth, onActivate: activateMenuItem
-                )
-                .padding(.top, Theme.Size.headerPadding + Theme.Size.headerHeight)
-                // Right edges flush with the button's, which sits inside the same trailing gutter.
-                .padding(.trailing, Theme.Spacing.md * 2)
-                .transition(Self.menuTransition(.topTrailing))
+            if openMenu == .clipboardFilter || openMenu == .aiModel, let content = menuContent {
+                content.view()
+                    .padding(.top, Theme.Size.headerPadding + Theme.Size.headerHeight)
+                    // Right edges flush with the button's, which sits inside the same trailing gutter.
+                    .padding(.trailing, Theme.Spacing.md * 2)
+                    .transition(Self.menuTransition(.topTrailing))
             }
         }
         // The window's frame is the size source, so the glass and clip stay matched.
@@ -770,14 +757,14 @@ struct RootPaletteView: View {
 
     /// Move the open menu's highlight, clamped at the ends (no wrap — consistent with `move`).
     private func moveMenu(_ delta: Int) {
-        guard let count = menuContent?.items.count, count > 0 else { return }
-        menuSelection = min(max(menuSelection + delta, 0), count - 1)
+        guard let content = menuContent, content.rowCount > 0 else { return }
+        menuSelection = min(max(menuSelection + delta, 0), content.rowCount - 1)
     }
 
     /// The one activation path for a menu row: run its action, then close.
     private func activateMenuItem(_ index: Int) {
-        guard let items = menuContent?.items, items.indices.contains(index) else { return }
-        items[index].action()
+        guard let content = menuContent, (0..<content.rowCount).contains(index) else { return }
+        content.activate(index)
         closeMenus()
         // A mouse click on a row takes the caret with it; menus close back into the field.
         if argumentFocused == nil { searchFocused = true }
