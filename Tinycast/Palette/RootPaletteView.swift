@@ -543,15 +543,17 @@ struct RootPaletteView: View {
     }
 
     /// Nothing else advertises Tab, so the launcher says where it goes — the footer's own pairing
-    /// of a label with its cap, never a click target: the header belongs to the field.
+    /// of a label with its cap, and the click does exactly what the key it names does.
     private var aiChatTabHint: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Text("AI Chat")
-                .font(Theme.Typography.bar)
-                .foregroundStyle(Theme.Colors.textSecondary)
-            KeyCapChip(text: "⇥", style: .outline)
+        BarButton(chrome: .rounded, action: cycleMode) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Text("AI Chat")
+                    .font(Theme.Typography.bar)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                KeyCapChip(text: "⇥", style: .outline)
+            }
         }
-        .allowsHitTesting(false)
+        .help("Open AI Chat  ⇥")
     }
 
     /// Resolved through `PaletteTabAction` rather than restated, so the hint cannot promise a

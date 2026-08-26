@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// A bar control's hover chrome. The footer's buttons are capsules; one that opens a menu takes
-/// that menu's own corner instead, so the control and what it opens read as one piece.
+/// A bar control's hover chrome. The footer's buttons are capsules; a header control takes the
+/// menu row's own corner instead, so every control along that row reads as one family.
 enum BarButtonChrome {
     case capsule
-    case menu
+    case rounded
 
     var shape: AnyShape {
         switch self {
         case .capsule:
             return AnyShape(Capsule())
-        case .menu:
+        case .rounded:
             return AnyShape(
                 RoundedRectangle(cornerRadius: Theme.Radius.menuRow, style: .continuous))
         }
@@ -66,7 +66,7 @@ struct HeaderMenuButton: View {
     }
 
     var body: some View {
-        BarButton(chrome: .menu, action: action) {
+        BarButton(chrome: .rounded, action: action) {
             HStack(spacing: Theme.Spacing.sm) {
                 switch icon {
                 case .symbol(let name):
