@@ -186,7 +186,7 @@ extension SettingsBackup {
         backup.quicklinks = core.quicklinks.quicklinks
         backup.favoriteApps = core.favorites.keys
         backup.hiddenLauncherItems = Array(core.visibility.hiddenItemKeys)
-        backup.hiddenLauncherKinds = Array(core.visibility.hiddenKinds)
+        backup.hiddenLauncherKinds = Array(core.visibility.disabledKinds)
         backup.launcherAliases = core.aliases.aliases
         return backup
     }
@@ -209,8 +209,8 @@ extension SettingsBackup {
         }
         if hiddenLauncherItems != nil || hiddenLauncherKinds != nil {
             let items = hiddenLauncherItems ?? Array(core.visibility.hiddenItemKeys)
-            let kinds = hiddenLauncherKinds ?? Array(core.visibility.hiddenKinds)
-            core.visibility.replace(hiddenItems: items, hiddenKinds: kinds)
+            let kinds = hiddenLauncherKinds ?? Array(core.visibility.disabledKinds)
+            core.visibility.replace(hiddenItems: items, disabledKinds: kinds)
             summary.hiddenItems = items.count
         }
         if let launcherAliases {

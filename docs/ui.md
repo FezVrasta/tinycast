@@ -466,6 +466,10 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   is unaffected.
 - **`.settingsEnabled(_:)`, never a bare `.disabled(_:)`.** It dims as well as disables, so a
   switched-off row reads as unavailable rather than merely unresponsive.
+- **A `TextEditor` ignores `.disabled(_:)` on macOS** — its own and an ancestor's alike. The backing
+  `NSTextView` keeps its caret, its keyboard and its selection, so a "disabled" prompt box still takes
+  typing and still gives up its text to ⌘A ⌘C. Swap the editor for a `Text` when it must be read-only,
+  the way `SystemPromptEditor` does; dimming an editor that still accepts input is the bug, not the fix.
 - **A group is a `Section`**, with `header:` for its name and `footer:` for the caption that used to
   ride under the last row.
 - **The pane's own title is not in the pane.** `SettingsToolbarController` puts it in the titlebar,

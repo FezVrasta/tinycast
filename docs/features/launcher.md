@@ -9,6 +9,12 @@ earliest scope wins).
   `VisibilityStore` category and per Settings pane — never re-derive a category by sniffing an entry ID.
   A new category means a new case, a slice in `AppIndex.publishEntries()`, and the matching filter in
   `LauncherList.rows`, in that order.
+- **A category's switch is a master switch, not a list filter.** `VisibilityStore.isKindEnabled` gates
+  `orderedResults` *and* `HotKeyManager.perform`, so `Enable Applications` off stops the per-app chords
+  as well as the rows — the guard sits in the one dispatch funnel, the way each feature switch already
+  guards its own. The per-item checkbox beside it is the narrow tool: it hides one row and leaves that
+  row's shortcut firing. A new category must be wired into `VisibilityStore.allowsHotKey`, or its
+  chords keep running while its pane reads off.
 - **`Model/SearchRelevance.swift` is Foundation-only and pure**, so `fuzz-test` compiles the shipped
   scorer. It owns both `FuzzyMatch` and the field bands.
 - **Searchable fields stay separate** — display name, Spotlight alternate names, bundle id and executable

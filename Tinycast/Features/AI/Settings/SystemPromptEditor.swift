@@ -7,12 +7,17 @@ import SwiftUI
 struct SystemPromptEditor: View {
     @Binding var text: String
 
+    @Environment(\.isEnabled) private var isEnabled
     @State private var isRevealed: Bool
 
     init(text: Binding<String>) {
         _text = text
         _isRevealed = State(initialValue: text.wrappedValue.isBlank)
     }
+
+    /// A macOS `TextEditor` keeps its caret, its keyboard and its selection through `.disabled` —
+    /// an ancestor's as much as its own — so the editor itself has to go rather than dim.
+    private var isEditable: Bool { isEnabled && isRevealed }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -31,11 +36,7 @@ struct SystemPromptEditor: View {
                 .disabled(text.isBlank)
                 .accessibilityLabel(isRevealed ? "Hide the system prompt" : "Show the system prompt")
             }
-            TextEditor(text: $text)
-                .font(.body)
-                .scrollContentBackground(.hidden)
-                .blur(radius: isRevealed ? 0 : Theme.Blur.redaction)
-                .disabled(!isRevealed)
+            prompt
                 .padding(Theme.Spacing.sm)
                 .frame(height: Theme.Size.editorTextHeight)
                 .background(
@@ -48,6 +49,27 @@ struct SystemPromptEditor: View {
                 )
         }
     }
+
+    @ViewBuilder
+    private var prompt: some View {
+        if isEditable {
+            TextEditor(text: $text)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+        } else {
+            ScrollView {
+                Text(text)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Self.textInset)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .blur(radius: isRevealed ? 0 : Theme.Blur.redaction)
+        }
+    }
+
+    /// The text container's line-fragment padding, which is where `TextEditor` starts its own text.
+    private static let textInset: CGFloat = 5
 }
 
 extension String {

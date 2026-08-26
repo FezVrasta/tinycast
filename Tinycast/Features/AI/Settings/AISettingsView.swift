@@ -133,7 +133,7 @@ struct AISettingsView: View {
                 Text("Off sends nothing ahead of your message, not even what Tinycast says about itself.")
             }
             SystemPromptEditor(text: $settings.systemPrompt)
-                .disabled(!settings.systemPromptEnabled)
+                .settingsEnabled(settings.systemPromptEnabled)
         } header: {
             Text("System prompt")
         } footer: {

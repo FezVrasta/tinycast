@@ -22,6 +22,8 @@ final class HotKeyManager {
     var onRunExtensionCommand: ((String) -> Void)?
     /// Names what only the stores know; the fixed catalogs resolve here. Set in `AppCore.start()`.
     var displayName: ((HotKeyAction) -> String?)?
+    /// Whether the action's launcher category is switched on. Set in `AppCore.start()`.
+    var allowsAction: ((HotKeyAction) -> Bool)?
 
     /// The recorder currently capturing, which also pauses both engines.
     var recordingAction: HotKeyAction? {
@@ -248,6 +250,8 @@ final class HotKeyManager {
     }
 
     private func perform(_ action: HotKeyAction) {
+        // The category switch, the way each feature switch already guards its own funnel.
+        guard allowsAction?(action) ?? true else { return }
         switch action {
         case .togglePalette: onTogglePalette?()
         case .toggleClipboard: onToggleClipboard?()

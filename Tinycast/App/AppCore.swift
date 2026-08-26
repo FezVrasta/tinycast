@@ -242,6 +242,9 @@ final class AppCore {
                 self?.extensionCoordinator.removeExtensionReferences(entryIDs: entryIDs)
             }
             hotKeys.displayName = { [weak self] action in self?.hotKeyDisplayName(for: action) }
+            hotKeys.allowsAction = { [weak self] action in
+                self?.visibility.allowsHotKey(action) ?? false
+            }
             KeyShortcut.displayedHyperChord = { [settings] in
                 guard settings.hyperKey != .none else { return nil }
                 return KeyShortcut.hyperChord(includesShift: settings.hyperKeyIncludesShift)
