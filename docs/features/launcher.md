@@ -256,6 +256,17 @@ Only the display name is indexed. Activation resolves the stable UUID through th
 to `ShellCommandRunner`; see [custom-commands.md](custom-commands.md) for persistence, hotkeys and
 execution semantics.
 
+## Quick Action commands
+
+`CommandID.fixGrammar`, `.rewrite`, `.translate` and `.summarize` publish the four Quick Actions
+while `quickActionsEnabled` is on, each carrying the action's own title and glyph so the launcher row
+and the settings row can never drift. `CommandID.init(_ action: QuickAction)` is exhaustive, so a
+fifth action cannot reach the launcher without one.
+
+Activation hands the action to `QuickActionCoordinator.run(_:)` **without** hiding the palette first:
+the coordinator reads the displaced app and then hides, because after the hide the frontmost app is
+Tinycast. See [quick-actions.md](quick-actions.md).
+
 ## Notes commands
 
 `CommandID.showNotes`, `.createNote`, and `.searchNotes` publish the three Notes entry points while the

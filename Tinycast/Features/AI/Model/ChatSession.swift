@@ -34,21 +34,24 @@ struct ChatSession: Equatable, Sendable {
             updatedAt: updatedAt, messageCount: messages.count)
     }
 
-    var requestMessages: [AIMessage] {
+    /// `textBudget` is the route's, not the chat's: on-device windows hold far less than a cloud.
+    func requestMessages(textBudget: Int = Self.defaultTextBudget) -> [AIMessage] {
         Self.boundedContext(
             messages.compactMap { message in
                 guard message.role == .user || message.state == .complete else { return nil }
                 return AIMessage(
                     role: message.role == .user ? .user : .assistant,
                     text: message.text, images: message.images)
-            })
+            }, textBudget: textBudget)
     }
+
+    static let defaultTextBudget = 100_000
 
     /// Provider requests cap near 25 MB; resending every turn whole walks into an opaque 413. Older
     /// turns come back as text inside `textBudget`, and the prompt keeps its own pictures up to
     /// `AIAttachmentBudget` — so a request stops growing with the chat. Its own text is never cut.
     static func boundedContext(
-        _ messages: [AIMessage], textBudget: Int = 100_000
+        _ messages: [AIMessage], textBudget: Int = Self.defaultTextBudget
     ) -> [AIMessage] {
         guard let newest = messages.lastIndex(where: { $0.role == .user }) else { return messages }
         var remaining = textBudget

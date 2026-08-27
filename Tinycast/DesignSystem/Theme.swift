@@ -155,6 +155,16 @@ enum Theme {
         static let dialogIcon: CGFloat = 32
         /// 16:9 at the dialog's own width, so the two surfaces read as siblings.
         static let cameraPreview = CGSize(width: 420, height: 236)
+        /// Wider than a dialog: a Quick Action's result is prose to read, not a sentence to answer.
+        static let quickActionPanel: CGFloat = 520
+        /// Matched to the title's cap height; a row-sized glyph beside it reads as an error.
+        static let quickActionHeaderIcon: CGFloat = 14
+        /// The dissolve ramp below each bar's clear zone, measured against text behind the title.
+        static let quickActionScrollFade: CGFloat = 40
+        /// Past this the result scrolls, so a long summary cannot grow the panel off the screen.
+        static let quickActionPanelBody: CGFloat = 320
+        /// Keeps a two-word grammar fix from collapsing the panel to a slot.
+        static let quickActionPanelMinBody: CGFloat = 44
         /// Transient volume HUD shown after any volume or mute command.
         static let hudWidth: CGFloat = 200
         static let hudHeight: CGFloat = 100
@@ -190,6 +200,8 @@ enum Theme {
         static let rowTitle = Font.body
         static let rowTrailing = Font.callout
         static let sectionHeader = Font.subheadline.weight(.medium)
+        /// A borderless panel's own title, which names the surface rather than a section inside it.
+        static let panelTitle = Font.headline
         /// The big value line on the calculator answer card (both source and target sides).
         static let calcResult = Font.title
         static let keyCap = Font.caption
@@ -259,6 +271,8 @@ enum Theme {
         static let destructive = Color.red
         /// Success tint: the leading glyph of a `.success` dialog.
         static let success = Color.green
+        /// Progress tint: the message pill's spinner while the work behind it is still running.
+        static let progress = Color.blue
     }
 }
 

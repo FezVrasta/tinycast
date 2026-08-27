@@ -112,11 +112,9 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Both reset paths come through here, so the screen and the conversation cannot disagree about
-    /// whether the palette was left behind — a chat is a thing being done, like a typed query.
+    /// The screen only: a conversation is not a typed query, and `Opens To` decides its lifetime.
     private func popToRoot() {
         core.palette.prepare(mode: .launcher)
-        core.aiChatCoordinator.popToRoot()
     }
 
     /// True while a hidden palette still holds pre-close state; consuming cancels the reset.

@@ -16,6 +16,7 @@ struct SnippetsTests {
         try testRepositoryStorage()
         try await testRepositoryConcurrency()
         try await testDeliveryQueueAndPasteboard()
+        await testCopySelectionFallback()
         try await testStoreWatcher()
         testTemplateExpansion()
         testDynamicPlaceholders()
@@ -556,8 +557,45 @@ struct SnippetsTests {
         }
     }
 
+    /// The dangerous case is a copy that never lands, returning what the reader last copied.
+    private static func testCopySelectionFallback() async {
+        let injector = TextInjector(clipboardManager: ClipboardManager(), settings: AppSettings())
+        let backing = NSPasteboard(name: .init("tinycast-copy-tests-\(UUID().uuidString)"))
+        defer { backing.releaseGlobally() }
+        let pasteboard = CountingPasteboard(backing: backing)
+
+        func seed(_ text: String) {
+            let item = NSPasteboardItem()
+            item.setString(text, forType: .string)
+            backing.clearContents()
+            _ = backing.writeObjects([item])
+        }
+
+        seed("Something the reader copied earlier")
+        let unchanged = await injector.copySelection(from: nil, pasteboard: pasteboard)
+        check("a copy that never lands returns nothing, not the stale clipboard", unchanged == nil)
+        check(
+            "the reader's clipboard survives a failed copy",
+            backing.string(forType: .string) == "Something the reader copied earlier")
+
+        seed("Original")
+        let writer = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(60))
+            let item = NSPasteboardItem()
+            item.setString("the selection", forType: .string)
+            backing.clearContents()
+            _ = backing.writeObjects([item])
+        }
+        let copied = await injector.copySelection(from: nil, pasteboard: pasteboard)
+        _ = await writer.result
+        check("a copy that lands is read back: \(copied ?? "nil")", copied == "the selection")
+        check(
+            "the reader's clipboard is restored afterwards",
+            backing.string(forType: .string) == "Original")
+    }
+
     private static func testDeliveryQueueAndPasteboard() async throws {
-        let queue = SnippetDeliveryQueue()
+        let queue = DeliveryQueue()
         var order: [String] = []
         queue.enqueue(isAutomatic: false) {
             order.append("first-start")
@@ -584,7 +622,7 @@ struct SnippetsTests {
         check("automatic cancellation cannot run a queued stale delivery", !automaticRan)
 
         var completionCount = 0
-        let completion = SnippetDeliveryCompletion { completionCount += 1 }
+        let completion = DeliveryCompletion { completionCount += 1 }
         completion.confirm()
         completion.confirm()
         check(
@@ -593,19 +631,19 @@ struct SnippetsTests {
 
         check(
             "unavailable AX text attributes use the event delivery fallback",
-            SnippetAccessibilityReplacement.unavailable.fallsBackToEvents)
+            AccessibilityReplacement.unavailable.fallsBackToEvents)
         check(
             "a rejected AX keyword replacement fails closed instead of deleting by events",
-            !SnippetAccessibilityReplacement.rejected.fallsBackToEvents)
+            !AccessibilityReplacement.rejected.fallsBackToEvents)
         check(
             "unreadable AX state accepts a posted paste after the conservative delay",
-            SnippetPasteConfirmationPolicy.acceptsUnconfirmedDelivery(
+            PasteConfirmationPolicy.acceptsUnconfirmedDelivery(
                 attempt: 15,
                 hadPreviousState: true,
                 readStateAfterPaste: false))
         check(
             "readable unchanged AX state is not treated as a confirmed paste",
-            !SnippetPasteConfirmationPolicy.acceptsUnconfirmedDelivery(
+            !PasteConfirmationPolicy.acceptsUnconfirmedDelivery(
                 attempt: 79,
                 hadPreviousState: true,
                 readStateAfterPaste: true))
@@ -1606,7 +1644,7 @@ struct SnippetsTests {
 }
 
 @MainActor
-private final class CountingPasteboard: SnippetPasteboardAccess {
+private final class CountingPasteboard: PasteboardAccess {
     let backing: NSPasteboard
     private(set) var clearCount = 0
     private(set) var writeCount = 0
@@ -1668,6 +1706,7 @@ enum Permissions {
 enum Paster {
     static let tinycastEventTag: Int64 = 0x54494E59
     @MainActor static func postCommandV(toPid pid: pid_t? = nil) {}
+    @MainActor static func postCommandC(toPid pid: pid_t? = nil) {}
 }
 
 /// Deterministic `{uuid}` source. `@unchecked Sendable` with a lock because `makeUUID` is a `@Sendable` closure.

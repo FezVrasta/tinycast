@@ -117,6 +117,14 @@ final class LauncherCoordinator {
         switch CommandCatalog.command(for: entry) {
         case .aiChat:
             core.aiChatCoordinator.showChat()
+        case .fixGrammar:
+            core.quickActionCoordinator.run(.fixGrammar)
+        case .rewrite:
+            core.quickActionCoordinator.run(.rewrite)
+        case .translate:
+            core.quickActionCoordinator.run(.translate)
+        case .summarize:
+            core.quickActionCoordinator.run(.summarize)
         case .calculatorHistory:
             paletteCoordinator.showPalette(mode: .calculatorHistory)
         case .clipboardHistory:

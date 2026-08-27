@@ -15,6 +15,7 @@ final class HotKeyManager {
     var onShowSchedule: (() -> Void)?
     var onCreateEvent: (() -> Void)?
     var onShowAIChat: (() -> Void)?
+    var onQuickAction: ((QuickAction) -> Void)?
     var onRunCustomCommand: ((UUID) -> Void)?
     var onRunSystemAction: ((SystemAction.ID) -> Void)?
     var onRunWindowCommand: ((WindowCommand.ID) -> Void)?
@@ -145,7 +146,7 @@ final class HotKeyManager {
             UserDefaults.standard.set(Array(set), forKey: boundExtensionCommandKey)
         case .togglePalette, .toggleClipboard, .toggleEmoji, .showNotes, .createNote, .searchNotes,
             .searchFiles, .joinNextMeeting, .mySchedule, .createEvent, .aiChat, .systemAction,
-            .windowCommand:
+            .windowCommand, .quickAction:
             break
         }
         candidateActionsCache = nil
@@ -216,6 +217,8 @@ final class HotKeyManager {
             return CommandID.createEvent.name
         case .aiChat:
             return CommandID.aiChat.name
+        case .quickAction(let action):
+            return action.title
         case .app(let bundleID), .settingsPane(let bundleID):
             return displayName?(action) ?? bundleID
         case .customCommand:
@@ -264,6 +267,7 @@ final class HotKeyManager {
         case .mySchedule: onShowSchedule?()
         case .createEvent: onCreateEvent?()
         case .aiChat: onShowAIChat?()
+        case .quickAction(let action): onQuickAction?(action)
         case .app(let bundleID): AppLauncher.toggle(bundleID: bundleID)
         case .settingsPane(let bundleID): AppLauncher.openSettingsPane(bundleID: bundleID)
         case .customCommand(let id): onRunCustomCommand?(id)

@@ -37,12 +37,45 @@ final class AIChatCoordinator {
             return
         }
         // Deferred off the launch path like the clipboard's own read; history fills in behind it.
-        Task { core.chatHistory.load() }
+        Task {
+            core.chatHistory.load()
+            // Inside the enabled branch only: off means the file is untouched, however old it gets.
+            applyRetention()
+        }
+    }
+
+    func applyRetention() {
+        guard settings.aiEnabled,
+            let cutoff = core.aiSettings.retention.cutoff(from: Date())
+        else { return }
+        core.chatHistory.prune(before: cutoff)
     }
 
     func showChat() {
         guard settings.aiEnabled else { return }
+        applyOpenPolicy()
         paletteCoordinator.showPalette(mode: .ai)
+    }
+
+    /// The one place deciding whether summoning resumes; Pop to Root only forgets the screen.
+    private func applyOpenPolicy() {
+        // A reply still arriving was asked for; resetting would discard the answer.
+        guard !chat.isStreaming else { return }
+        let recent = core.chatHistory.conversations.first
+        let isResident = !chat.session.messages.isEmpty
+        // From history when nothing is resident, so the verdict still holds after a relaunch.
+        let lastActiveAt = isResident ? chat.session.updatedAt : recent?.updatedAt
+        let decision = AIConversationOpenPolicy.decide(
+            opensTo: core.aiSettings.opensTo, newAfter: core.aiSettings.newChatAfter,
+            lastActiveAt: lastActiveAt, now: Date())
+        switch decision {
+        case .resume:
+            guard !isResident, let recent else { return }
+            chat.open(id: recent.id)
+        case .startNew:
+            guard isResident else { return }
+            chat.startNewChat()
+        }
     }
 
     @discardableResult
@@ -54,7 +87,8 @@ final class AIChatCoordinator {
                 input, using: try core.aiProvider(), webSearch: webSearch,
                 instructions: AIInstructions.compose(
                     userPrompt: core.aiSettings.systemPrompt,
-                    isEnabled: core.aiSettings.systemPromptEnabled))
+                    isEnabled: core.aiSettings.systemPromptEnabled),
+                contextBudget: contextBudget)
         } catch {
             chat.report(error.localizedDescription)
             return false
@@ -64,14 +98,6 @@ final class AIChatCoordinator {
     func startNewChat() {
         chat.startNewChat()
         palette.prepare(mode: .ai)
-    }
-
-    /// Pop to Root reaches the conversation too, so a palette that forgets its screen does not
-    /// reopen still holding a thread from before; the transcript is already saved by then.
-    func popToRoot() {
-        // A reply still arriving was asked for, and cancelling it here would throw away the answer.
-        guard settings.aiEnabled, !chat.isStreaming else { return }
-        chat.startNewChat()
     }
 
     func showHistory() {
@@ -109,12 +135,19 @@ final class AIChatCoordinator {
     /// What the selected model can take; the footer offers only what applies.
     var capabilities: AIModelCapabilities {
         switch core.aiSettings.defaultModel {
+        case .appleIntelligence?: return .appleIntelligence
         case .chatGPT?: return .chatGPT
         case .api(let connection, let model)?:
             return core.aiSettings.connection(id: connection)?.capabilities(for: model)
                 ?? AIModelCapabilities(images: false, webSearch: false)
         case nil: return AIModelCapabilities(images: false, webSearch: false)
         }
+    }
+
+    /// How much history the selected route can hold; the on-device window is far smaller.
+    private var contextBudget: Int {
+        core.aiSettings.defaultModel?.isOnDevice == true
+            ? AppleIntelligence.contextBudget : ChatSession.defaultTextBudget
     }
 
     /// ⌘V with a picture on the pasteboard — a screenshot, or an image file from Finder — stages
@@ -215,24 +248,10 @@ final class AIChatCoordinator {
     }
 
     var modelOptions: [AIModelOption] {
-        let subscription = core.chatGPTSubscription.models.map { model in
-            AIModelOption(
-                selection: .chatGPT(
-                    model: model.id, effort: model.resolvedEffort(nil)),
-                title: model.name,
-                sourceTitle: "ChatGPT",
-                brand: .openAI)
-        }
-        let api = core.aiSettings.connections.flatMap { connection in
-            connection.models.map { model in
-                AIModelOption(
-                    selection: .api(connection: connection.id, model: model),
-                    title: model,
-                    sourceTitle: connection.title,
-                    brand: AIBrand.resolve(provider: connection.provider, model: model))
-            }
-        }
-        return subscription + api
+        AIModelOption.catalog(
+            appleIntelligence: core.aiSettings.isAppleIntelligenceAvailable(),
+            chatGPT: core.chatGPTSubscription.models,
+            connections: core.aiSettings.connections)
     }
 
     /// Shortened here, not by layout: a flexible label would take the row from the search field.
@@ -248,16 +267,16 @@ final class AIChatCoordinator {
 
     /// From the selection, not the loaded list: the list arrives after the picker first paints.
     var selectedModelIcon: PopoverMenuIcon {
-        let brand: AIBrand?
         switch core.aiSettings.defaultModel {
-        case .chatGPT?: brand = .openAI
+        case .appleIntelligence?: return AIModelOption.appleIntelligenceIcon
+        case .chatGPT?: return .asset(AIBrand.openAI.assetName)
         case .api(let connection, let model)?:
-            brand = core.aiSettings.connection(id: connection).flatMap {
-                AIBrand.resolve(provider: $0.provider, model: model)
-            }
-        case nil: brand = nil
+            return AIModelOption.icon(
+                core.aiSettings.connection(id: connection).flatMap {
+                    AIBrand.resolve(provider: $0.provider, model: model)
+                })
+        case nil: return AIModelOption.icon(nil)
         }
-        return brand.map { .asset($0.assetName) } ?? .symbol("sparkles")
     }
 
     /// Opening the chat on a ChatGPT model fetches its list, so the title is the display name
@@ -268,7 +287,8 @@ final class AIChatCoordinator {
         if stored == nil {
             prepareModelSwitcher()
             resolveDefaultModel()
-            awaitModelList()
+            // On-device settles it here; only a route yet to report in is worth waiting for.
+            if core.aiSettings.defaultModel == nil { awaitModelList() }
             return
         }
         guard case .chatGPT? = stored else { return }
@@ -278,6 +298,7 @@ final class AIChatCoordinator {
     /// Resolving a first default used to live only in the settings pane, so a signed-in
     /// subscription still asked the reader to go there and pick what the app already knew about.
     func resolveDefaultModel() {
+        core.aiSettings.resolveDefaultModel()
         guard core.aiSettings.defaultModel == nil, let first = modelOptions.first else { return }
         core.aiSettings.select(first.selection)
     }
@@ -330,12 +351,49 @@ struct AIModelOption: Identifiable {
     let selection: AIModelSelection
     let title: String
     let sourceTitle: String
-    /// The vendor's mark for the picker row; `nil` keeps the generic sparkle.
-    let brand: AIBrand?
+    let menuIcon: PopoverMenuIcon
+
+    static let appleIntelligenceIcon = PopoverMenuIcon.symbol("apple.intelligence")
+
+    /// An unrecognised model keeps the generic sparkle rather than borrowing someone's mark.
+    static func icon(_ brand: AIBrand?) -> PopoverMenuIcon {
+        brand.map { .asset($0.assetName) } ?? .symbol("sparkles")
+    }
+
+    /// Every route the Mac can reach, on-device first: it is the one an unconfigured Mac has.
+    static func catalog(
+        appleIntelligence: Bool,
+        chatGPT: [ChatGPTSubscription.Model],
+        connections: [AIConnection]
+    ) -> [AIModelOption] {
+        let onDevice =
+            appleIntelligence
+            ? [
+                AIModelOption(
+                    selection: .appleIntelligence, title: AppleIntelligence.title,
+                    sourceTitle: "On device", menuIcon: appleIntelligenceIcon)
+            ] : []
+        let subscription = chatGPT.map { model in
+            AIModelOption(
+                selection: .chatGPT(model: model.id, effort: model.resolvedEffort(nil)),
+                title: model.name,
+                sourceTitle: "ChatGPT",
+                menuIcon: .asset(AIBrand.openAI.assetName))
+        }
+        let api = connections.flatMap { connection in
+            connection.models.map { model in
+                AIModelOption(
+                    selection: .api(connection: connection.id, model: model),
+                    title: model,
+                    sourceTitle: connection.title,
+                    menuIcon: icon(AIBrand.resolve(provider: connection.provider, model: model)))
+            }
+        }
+        return onDevice + subscription + api
+    }
 
     var id: AIModelSelection { selection }
     var menuTitle: String { "\(title) · \(sourceTitle)" }
-    var menuIcon: PopoverMenuIcon { brand.map { .asset($0.assetName) } ?? .symbol("sparkles") }
 
     func matches(_ other: AIModelSelection) -> Bool {
         selection.source == other.source && selection.model == other.model

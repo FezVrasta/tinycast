@@ -15,7 +15,7 @@ final class AppCore {
     let snippetsStore: SnippetsStore
     let snippetListener = SnippetKeywordListener(
         syntheticEventTag: Paster.tinycastEventTag)
-    let snippetTextInjector: SnippetTextInjector
+    let textInjector: TextInjector
     let hotKeys = HotKeyManager()
     let hyperKeyTap = HyperKeyTap()
     let windowMover = WindowMover()
@@ -45,19 +45,21 @@ final class AppCore {
     let extensions: ExtensionManager
     let chatHistory: ChatHistoryStore
     let aiChat: AIChatState
-    let aiSettings = AISettingsStore()
+    let aiSettings = AISettingsStore(
+        isAppleIntelligenceAvailable: { AppleIntelligenceProvider.status().isAvailable })
+    let quickActionSettings = QuickActionSettingsStore()
     let chatGPTSubscription = ChatGPTSubscriptionManager()
 
     /// Set when a quicklink editor should open with Settings; the pane consumes it.
     var pendingQuicklinkEdit: QuicklinkEditRequest?
 
     @ObservationIgnored private(set) lazy var snippetExpansion = SnippetExpansionCoordinator(
-        store: snippetsStore, listener: snippetListener, injector: snippetTextInjector,
+        store: snippetsStore, listener: snippetListener, injector: textInjector,
         clipboardStore: clipboardStore, appIndex: appIndex, settings: settings,
         showMessage: { [unowned self] in self.showMessage($0) }, core: self)
     @ObservationIgnored private(set) lazy var quicklinkCoordinator = QuicklinkCoordinator(
         store: quicklinks, argumentSession: quicklinkArguments, settings: settings,
-        appIndex: appIndex, injector: snippetTextInjector, hotKeys: hotKeys, favorites: favorites,
+        appIndex: appIndex, injector: textInjector, hotKeys: hotKeys, favorites: favorites,
         visibility: visibility, ranking: launcherRanking, aliases: aliases,
         windowController: windowController,
         paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
@@ -125,6 +127,9 @@ final class AppCore {
         store: updateChecker, core: self)
     @ObservationIgnored private(set) lazy var supportCoordinator = SupportCoordinator(
         store: supportReminders, core: self)
+    @ObservationIgnored private(set) lazy var quickActionCoordinator = QuickActionCoordinator(
+        settings: settings, store: quickActionSettings, injector: textInjector,
+        appIndex: appIndex, paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var aiChatCoordinator = AIChatCoordinator(
         chat: aiChat, settings: settings, appIndex: appIndex, palette: palette,
         paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
@@ -150,7 +155,7 @@ final class AppCore {
         self.clipboardManager = clipboardManager
         extensions = ExtensionManager(clipboardStore: clipboardStore)
         snippetsStore = SnippetsStore()
-        snippetTextInjector = SnippetTextInjector(
+        textInjector = TextInjector(
             clipboardManager: clipboardManager,
             settings: settings)
         let noteSelectionKey = "notesActiveFileName"
@@ -183,6 +188,7 @@ final class AppCore {
             fileSearchCoordinator.applyPolicy()
             notesCoordinator.applyEnabled()
             aiChatCoordinator.applyEnabled()
+            quickActionCoordinator.applyEnabled()
             customCommands.onChange = { [weak self] _ in
                 self?.customCommandCoordinator.applyCustomCommandsPresence()
             }
@@ -218,6 +224,7 @@ final class AppCore {
             hotKeys.onSearchNotes = { [weak self] in self?.notesCoordinator.searchNotes() }
             hotKeys.onSearchFiles = { [weak self] in self?.fileSearchCoordinator.show() }
             hotKeys.onShowAIChat = { [weak self] in self?.aiChatCoordinator.showChat() }
+            hotKeys.onQuickAction = { [weak self] in self?.quickActionCoordinator.run($0) }
             hotKeys.onJoinNextMeeting = { [weak self] in
                 self?.calendarCoordinator.joinNextMeeting()
             }
@@ -315,7 +322,7 @@ final class AppCore {
             return appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
         case .togglePalette, .toggleClipboard, .toggleEmoji, .searchFiles, .systemAction,
             .showNotes, .createNote, .searchNotes, .windowCommand, .joinNextMeeting, .mySchedule,
-            .createEvent, .aiChat:
+            .createEvent, .aiChat, .quickAction:
             return nil
         }
     }
@@ -328,7 +335,7 @@ final class AppCore {
         // Caps Lock first: its remap is the one teardown that outlives the process.
         hyperKeyTap.prepareForTermination()
         inputSourceSwitcher.endSession()
-        snippetTextInjector.prepareForTermination()
+        textInjector.prepareForTermination()
         snippetListener.stop()
         snippetsStore.stop()
         aiChat.cancel()
@@ -338,6 +345,18 @@ final class AppCore {
     func aiProvider() throws -> any AIProvider {
         try AIProviderFactory.make(
             settings: aiSettings, subscription: chatGPTSubscription)
+    }
+
+    /// Permissive guardrails: the text transformed is the reader's own, which `.default` refuses.
+    func quickActionProvider() throws -> any AIProvider {
+        quickActionSettings.repairModel(
+            against: aiSettings.connections, fallback: aiSettings.defaultModel)
+        guard let selection = quickActionSettings.model ?? aiSettings.defaultModel else {
+            throw AIProviderError.unavailable("Choose a model in Settings \u{2192} Quick Actions.")
+        }
+        return try AIProviderFactory.make(
+            selection: selection, settings: aiSettings, subscription: chatGPTSubscription,
+            guardrails: .permissiveContentTransformations)
     }
 
     // MARK: - Feature switches
@@ -361,6 +380,9 @@ final class AppCore {
         track({ _ = $0.fileSearchEnabled }, reproject: { $0.fileSearchCoordinator.applyEnabled() })
         track({ _ = $0.notesEnabled }, reproject: { $0.notesCoordinator.applyEnabled() })
         track({ _ = $0.aiEnabled }, reproject: { $0.aiChatCoordinator.applyEnabled() })
+        track(
+            { _ = $0.quickActionsEnabled },
+            reproject: { $0.quickActionCoordinator.applyEnabled() })
         track(
             {
                 _ = $0.calendarEnabled
@@ -431,7 +453,7 @@ final class AppCore {
     /// What the app is in the middle of; the update prompt and the support reminder both ask first.
     var currentActivity: UpdateActivity {
         UpdateActivity(
-            isExpandingSnippet: snippetTextInjector.isDelivering,
+            isExpandingSnippet: textInjector.isDelivering,
             isRunningExtension: extensions.running != nil,
             isUninstalling: uninstall.isTrashing,
             isRecordingHotKey: hotKeys.recordingAction != nil,
@@ -476,6 +498,15 @@ final class AppCore {
     /// The transient success/info pill, so `messageHUD` stays single-owned alongside `dialogs`.
     func showMessage(_ message: String, tone: DialogTone = .success) {
         messageHUD.show(message: message, tone: tone)
+    }
+
+    /// The same pill with a spinner, for work the reader started and cannot otherwise see running.
+    func showProgress(_ message: String) {
+        messageHUD.showProgress(message: message)
+    }
+
+    func hideProgress() {
+        messageHUD.dismiss()
     }
 
     /// The volume slider, so `dialogs` stays the single owner of every prompt in the app.

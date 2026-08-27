@@ -3,6 +3,10 @@ import Foundation
 /// Built-in launcher actions, surfaced alongside the user-authored ones.
 enum CommandID: String, CaseIterable, Sendable {
     case aiChat = "command:ai-chat"
+    case fixGrammar = "command:fix-grammar"
+    case rewrite = "command:rewrite"
+    case translate = "command:translate"
+    case summarize = "command:summarize"
     case calculatorHistory = "command:calculator-history"
     case clipboardHistory = "command:clipboard-history"
     case searchEmoji = "command:search-emoji"
@@ -31,6 +35,10 @@ enum CommandID: String, CaseIterable, Sendable {
     var name: String {
         switch self {
         case .aiChat: return "AI Chat"
+        case .fixGrammar: return QuickAction.fixGrammar.title
+        case .rewrite: return QuickAction.rewrite.title
+        case .translate: return QuickAction.translate.title
+        case .summarize: return QuickAction.summarize.title
         case .calculatorHistory: return "Calculator History"
         case .clipboardHistory: return "Clipboard History"
         case .searchEmoji: return "Search Emoji & Symbols"
@@ -61,6 +69,10 @@ enum CommandID: String, CaseIterable, Sendable {
     var sfSymbol: String {
         switch self {
         case .aiChat: return "sparkles"
+        case .fixGrammar: return QuickAction.fixGrammar.symbol
+        case .rewrite: return QuickAction.rewrite.symbol
+        case .translate: return QuickAction.translate.symbol
+        case .summarize: return QuickAction.summarize.symbol
         case .calculatorHistory: return "plus.forwardslash.minus"
         case .clipboardHistory: return "doc.on.clipboard"
         case .searchEmoji: return "face.smiling"
@@ -88,6 +100,16 @@ enum CommandID: String, CaseIterable, Sendable {
         }
     }
 
+    /// Exhaustive over `QuickAction`, so a fifth cannot reach the launcher without a row here.
+    init(_ action: QuickAction) {
+        switch action {
+        case .fixGrammar: self = .fixGrammar
+        case .rewrite: self = .rewrite
+        case .translate: self = .translate
+        case .summarize: self = .summarize
+        }
+    }
+
     /// The built-ins with a global shortcut of their own; the rest open from the launcher.
     var hotKeyAction: HotKeyAction? {
         switch self {
@@ -101,6 +123,10 @@ enum CommandID: String, CaseIterable, Sendable {
         case .mySchedule: return .mySchedule
         case .createEvent: return .createEvent
         case .aiChat: return .aiChat
+        case .fixGrammar: return .quickAction(.fixGrammar)
+        case .rewrite: return .quickAction(.rewrite)
+        case .translate: return .quickAction(.translate)
+        case .summarize: return .quickAction(.summarize)
         default: return nil
         }
     }

@@ -55,5 +55,12 @@ enum AppSettingsKey: String, CaseIterable {
     case aiWebSearch = "aiWebSearch"
     case aiSystemPrompt = "aiSystemPrompt"
     case aiSystemPromptEnabled = "aiSystemPromptEnabled"
+    case aiRetention = "aiRetentionDays"
+    case aiOpensTo = "aiOpensTo"
+    case aiNewChatAfter = "aiNewChatAfterMinutes"
+    case quickActionsEnabled = "quickActionsEnabled"
+    case quickActionModel = "quickActionModel"
+    case quickActionPreviews = "quickActionPreviews"
+    case quickActionLanguage = "quickActionLanguage"
     case supportReminders = "supportReminders"
 }

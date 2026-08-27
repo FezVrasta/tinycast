@@ -73,19 +73,24 @@ struct AIModelCapabilities: Equatable, Sendable {
     let webSearch: Bool
 
     static let chatGPT = AIModelCapabilities(images: true, webSearch: true)
+    /// The on-device model is text-only and reaches nothing, so it offers neither.
+    static let appleIntelligence = AIModelCapabilities(images: false, webSearch: false)
 }
 
 enum AIModelSource: Codable, Equatable, Hashable, Sendable {
+    case appleIntelligence
     case chatGPT
     case api(UUID)
 }
 
 enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
+    case appleIntelligence
     case chatGPT(model: String, effort: String?)
     case api(connection: UUID, model: String)
 
     var source: AIModelSource {
         switch self {
+        case .appleIntelligence: return .appleIntelligence
         case .chatGPT: return .chatGPT
         case .api(let connection, _): return .api(connection)
         }
@@ -93,9 +98,13 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
 
     var model: String {
         switch self {
+        case .appleIntelligence: return AppleIntelligence.modelID
         case .chatGPT(let model, _), .api(_, let model): return model
         }
     }
+
+    /// The one route with nothing to bill and nothing to configure, so it needs no capability gate.
+    var isOnDevice: Bool { self == .appleIntelligence }
 }
 
 struct AIHTTPConfiguration: Equatable, Sendable {

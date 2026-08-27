@@ -13,6 +13,8 @@ enum HotKeyAction: Hashable, Sendable {
     case mySchedule
     case createEvent
     case aiChat
+    /// Parameterised, so a fifth action is a `QuickAction` case and nothing here.
+    case quickAction(QuickAction)
     case app(bundleID: String)
     case settingsPane(bundleID: String)
     case customCommand(id: UUID)
@@ -37,6 +39,7 @@ enum HotKeyAction: Hashable, Sendable {
         case .mySchedule: "hotkey.mySchedule"
         case .createEvent: "hotkey.createEvent"
         case .aiChat: "hotkey.aiChat"
+        case .quickAction(let action): "hotkey.quickAction." + action.rawValue
         case .app(let bundleID): "hotkey.app." + bundleID
         case .settingsPane(let bundleID): "hotkey.pane." + bundleID
         case .customCommand(let id): "hotkey.customCommand." + id.uuidString.lowercased()
@@ -48,8 +51,9 @@ enum HotKeyAction: Hashable, Sendable {
     }
 
     /// The fixed actions every install can bind; the per-item catalogs extend them at launch.
-    static let builtInActions: [HotKeyAction] = [
-        .togglePalette, .toggleClipboard, .toggleEmoji, .showNotes, .createNote, .searchNotes,
-        .searchFiles, .joinNextMeeting, .mySchedule, .createEvent, .aiChat
-    ]
+    static let builtInActions: [HotKeyAction] =
+        [
+            .togglePalette, .toggleClipboard, .toggleEmoji, .showNotes, .createNote, .searchNotes,
+            .searchFiles, .joinNextMeeting, .mySchedule, .createEvent, .aiChat
+        ] + QuickAction.allCases.map(HotKeyAction.quickAction)
 }
