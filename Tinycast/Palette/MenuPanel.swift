@@ -63,6 +63,8 @@ final class MenuPanelController {
             hosting = view
         }
         self.parent = parent
+        // Open disarmed: a menu opened by click lands under the pointer, which chose no row of it.
+        core.palette.disarmHoverHighlight(pointerAt: NSEvent.mouseLocation)
         layout(corner: corner, parent: parent)
         guard panel.parent == nil else { return }
         parent.addChildWindow(panel, ordered: .above)
