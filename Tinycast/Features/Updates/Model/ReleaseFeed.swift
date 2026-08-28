@@ -25,7 +25,8 @@ enum ReleaseFeed {
         from data: Data, channel: ReleaseChannel, architecture: ReleaseArchitecture
     ) -> AvailableRelease? {
         guard let entries = try? JSONDecoder().decode([Entry].self, from: data) else { return nil }
-        return entries
+        return
+            entries
             .compactMap { release(from: $0, channel: channel, architecture: architecture) }
             .max { $0.version < $1.version }
     }

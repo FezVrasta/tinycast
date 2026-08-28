@@ -17,9 +17,9 @@ earliest scope wins).
   chords keep running while its pane reads off.
 - **`Model/SearchRelevance.swift` is Foundation-only and pure**, so `fuzz-test` compiles the shipped
   scorer. It owns both `FuzzyMatch` and the field bands.
-- **Searchable fields stay separate** — display name, Spotlight alternate names, bundle id and executable
-  name are never flattened into one string, because the field is what picks the band. A new searchable
-  field means a new `Band` case and a `consider` call, in priority order.
+- **Searchable fields stay separate** — display name, Spotlight alternate names, owner name, bundle id
+  and executable name are never flattened into one string, because the field is what picks the band. A
+  new searchable field means a new `Band` case and a `consider` call, in priority order.
 - **`Model/SearchScopes.swift` and `Model/LauncherRankingStore.swift` are pure too** — the ranking store
   takes its clock via `now` and its path via `fileURL`, for `scopes-test` and `ranking-test`.
 
@@ -59,15 +59,16 @@ format scalars first, since app metadata can contain bidi/zero-width markers bef
 
 ## Searchable fields
 
-An app is matched on five fields kept deliberately separate — flattening them into one string would
+An entry is matched on six fields kept deliberately separate — flattening them into one string would
 lose the thing that decides the ranking. `SearchRelevance.score` evaluates each independently and the
 strongest one becomes the entry's base relevance:
 
 | Band | Field                                   | Match strength                                    |
 | ---- | --------------------------------------- | ------------------------------------------------- |
-| 6    | user alias (any entry kind)             | anchored literal — exact / prefix                 |
-| 5    | display name (plus a snippet's keyword) | literal — exact / prefix / word-start / substring |
-| 4    | Spotlight alternate names, plus a user alias's word-start / substring hits | literal |
+| 7    | user alias (any entry kind)             | anchored literal — exact / prefix                 |
+| 6    | display name (plus a snippet's keyword) | literal — exact / prefix / word-start / substring |
+| 5    | Spotlight alternate names, plus a user alias's word-start / substring hits | literal |
+| 4    | owner name (the extension a command came from) | literal only                               |
 | 3    | display name                            | subsequence                                       |
 | 2    | Spotlight alternate names               | subsequence                                       |
 | 1    | bundle identifier                       | literal only                                      |
@@ -96,6 +97,21 @@ query (`cop` ⊂ `com.apple.Photos`), which would change _which_ apps appear rat
 order. For the same reason a bundle id is matched with its leading component stripped
 (`apple.Photos`, not `com.apple.Photos`): `com` alone prefixes almost every installed app. The full id
 still matches exactly, so a pasted identifier resolves.
+
+### Owner names
+
+An extension's title is a keyword for every command it ships: `lucide` finds Lucide's *Search Icons*
+without the user aliasing each command by hand. `AppEntry.ownerName` carries it — the same string the
+row already prints as its kind label — and `SearchRelevance` gives it the weakest literal band, for two
+reasons. It does not name the entry, so any hit on a command's own title, on another entry's title, or
+on a Spotlight alias outranks it; and every command of one extension carries the identical string, so a
+subsequence band there would surface a whole extension at once on letter soup. Literal-only keeps that
+bounded while a real prefix hit still beats an incidental subsequence elsewhere — the same trade the
+identifier fields make, for the same reason.
+
+Because the band is uniform across an extension, its commands score identically and cluster together,
+tie-broken alphabetically and then by the learned boost. Ranking a third-party string this low is
+deliberate: an extension titled `Safari` can never take that query from the real Safari.
 
 ### Category search
 

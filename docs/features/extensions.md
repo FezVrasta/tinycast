@@ -229,6 +229,11 @@ engine in memory until you leave it, which is the one standing cost this app has
 `Show in launcher` is separate, and independent: it decides whether the commands reach launcher search
 at all, without unloading anything.
 
+A published row carries the extension's own title in `AppEntry.ownerName`, which both labels the row
+and makes the extension a keyword for every command it ships — `lucide` finds *Search Icons*. It is
+matched in the launcher's weakest literal band, so a third-party title can never take a query from a
+real app; see [launcher.md](launcher.md#owner-names).
+
 ## Installing extensions
 
 Extensions live in `~/Library/Application Support/<bundle id>/extensions/<name>/`, keyed by bundle id

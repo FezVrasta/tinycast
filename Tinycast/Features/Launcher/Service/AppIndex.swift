@@ -84,19 +84,19 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     var executableName: String?
     /// Set by the feature that produced the entry when its glyph isn't derivable from `kind`.
     var iconOverride: EntryIcon?
-    /// A per-entry label where the kind's own reads too flat — an extension's title, say.
-    var labelOverride: String?
+    /// What this entry comes from — an extension's title. Labels the row, and matches weakly.
+    var ownerName: String?
 
     /// Stable identity for learned ranking, favorites, and other per-entry preferences.
     var preferenceKey: String { bundleID ?? id }
 
     var searchFields: SearchFields {
         SearchFields(
-            names: [name] + matchAliases, alternateNames: alternateNames,
+            names: [name] + matchAliases, alternateNames: alternateNames, ownerName: ownerName,
             bundleID: bundleID, executableName: executableName)
     }
 
-    var kindLabel: String { labelOverride ?? kind.descriptor.label }
+    var kindLabel: String { ownerName ?? kind.descriptor.label }
 
     /// The hotkey action for this entry, or nil when the entry has no addressable action.
     var hotKeyAction: HotKeyAction? {

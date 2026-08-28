@@ -133,7 +133,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
             bundleID: nil,
             kind: .extensionCommand,
             iconOverride: icon(for: command, in: owner, appearance: appearance),
-            labelOverride: owner.title)
+            ownerName: owner.title)
     }
 
     /// Persist and re-publish, so rows change under the user rather than on the next scan.

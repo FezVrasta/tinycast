@@ -136,6 +136,8 @@ struct SearchFields: Sendable {
     var userAlias: String?
     /// Spotlight's `kMDItemAlternateNames`: `iBooks`, `Codex`, `浏览器`.
     var alternateNames: [String] = []
+    /// What provides the entry rather than what it is — the extension a command came from.
+    var ownerName: String?
     var bundleID: String?
     var executableName: String?
 }
@@ -147,9 +149,11 @@ enum SearchRelevance {
         case bundleID = 1
         case alternateNameSubsequence = 2
         case nameSubsequence = 3
-        case alternateNameLiteral = 4
-        case nameLiteral = 5
-        case userAlias = 6
+        /// Shared by every entry it owns, so a fuzzy hit floods: literal only, under every real name.
+        case ownerName = 4
+        case alternateNameLiteral = 5
+        case nameLiteral = 6
+        case userAlias = 7
 
         var offset: Int { rawValue * SearchRelevance.bandStride }
     }
@@ -170,7 +174,7 @@ enum SearchRelevance {
 
         func consider(_ candidate: String, literal: Band, subsequence: Band?) {
             guard let match = FuzzyMatch.match(query, candidate: candidate) else { return }
-            // No subsequence band on identifiers: it would change which apps appear at all.
+            // A nil subsequence band opts a field out: a loose hit changes which entries appear.
             guard let band = match.tier.isLiteral ? literal : subsequence else { return }
             best = max(best ?? Int.min, band.offset + match.score)
         }
@@ -187,6 +191,9 @@ enum SearchRelevance {
         }
         for alternate in fields.alternateNames {
             consider(alternate, literal: .alternateNameLiteral, subsequence: .alternateNameSubsequence)
+        }
+        if let ownerName = fields.ownerName {
+            consider(ownerName, literal: .ownerName, subsequence: nil)
         }
         if let bundleID = fields.bundleID {
             consider(identifyingPart(of: bundleID), literal: .bundleID, subsequence: nil)
