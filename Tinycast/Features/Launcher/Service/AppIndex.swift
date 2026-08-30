@@ -258,7 +258,7 @@ final class AppIndex {
 
     /// Replaces the command slice without rescanning, so Settings edits land at once.
     func setCustomCommands(_ commands: [CustomCommand]) {
-        let entries = commands.map { command in
+        let entries = commands.filter(\.isEnabled).map { command in
             AppEntry(
                 id: command.entryID, name: command.name,
                 url: URL(string: "tinycast://custom-command/" + command.id.uuidString)!,
@@ -274,7 +274,7 @@ final class AppIndex {
     func setQuicklinks(_ quicklinks: [Quicklink]) {
         let entries =
             quicklinks
-            .filter(\.showsInRootSearch)
+            .filter { $0.isEnabled && $0.showsInRootSearch }
             .sorted(by: Quicklink.precedes)
             .map { quicklink in
                 AppEntry(

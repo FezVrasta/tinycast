@@ -30,6 +30,8 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     var name: String
     var command: String
+    /// Off keeps the command and everything attached to it, but nothing may offer or run it.
+    var isEnabled: Bool
     /// Sources the shell config so aliases resolve; opt-in, a heavy one costing more.
     var loadsShellEnvironment: Bool
     var requiresConfirmation: Bool
@@ -44,7 +46,7 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
     var iconSymbol: String?
 
     init(
-        id: UUID = UUID(), name: String, command: String,
+        id: UUID = UUID(), name: String, command: String, isEnabled: Bool = true,
         loadsShellEnvironment: Bool = false, requiresConfirmation: Bool = false,
         showsConfirmation: Bool = false, arguments: [CustomCommandArgument] = [],
         showsOutput: Bool = false, workingDirectory: String? = nil, iconSymbol: String? = nil
@@ -52,6 +54,7 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
         self.id = id
         self.name = name
         self.command = command
+        self.isEnabled = isEnabled
         self.loadsShellEnvironment = loadsShellEnvironment
         self.requiresConfirmation = requiresConfirmation
         self.showsConfirmation = showsConfirmation
@@ -73,8 +76,8 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
 
     // Hand-written, so an added field keeps stored commands and older backups readable.
     private enum CodingKeys: String, CodingKey {
-        case id, name, command, loadsShellEnvironment, requiresConfirmation, showsConfirmation
-        case arguments, showsOutput, workingDirectory, iconSymbol
+        case id, name, command, isEnabled, loadsShellEnvironment, requiresConfirmation
+        case showsConfirmation, arguments, showsOutput, workingDirectory, iconSymbol
     }
 
     init(from decoder: Decoder) throws {
@@ -82,6 +85,7 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         command = try container.decode(String.self, forKey: .command)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         loadsShellEnvironment =
             try container.decodeIfPresent(Bool.self, forKey: .loadsShellEnvironment) ?? false
         requiresConfirmation =
@@ -159,6 +163,15 @@ final class CustomCommandStore {
         let value = try validated(draft)
         var updated = commands
         updated[index] = value
+        commit(updated)
+    }
+
+    func setEnabled(_ enabled: Bool, id: UUID) {
+        guard let index = commands.firstIndex(where: { $0.id == id }),
+            commands[index].isEnabled != enabled
+        else { return }
+        var updated = commands
+        updated[index].isEnabled = enabled
         commit(updated)
     }
 

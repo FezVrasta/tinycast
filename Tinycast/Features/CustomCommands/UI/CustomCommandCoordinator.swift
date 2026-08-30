@@ -74,6 +74,11 @@ final class CustomCommandCoordinator {
         try store.update(draft)
     }
 
+    /// Keeps the command and its shortcut, but takes it out of every surface that could run it.
+    func setCustomCommandEnabled(_ enabled: Bool, id: UUID) {
+        store.setEnabled(enabled, id: id)
+    }
+
     func deleteCustomCommand(id: UUID) {
         guard let command = store.command(id: id) else { return }
         removeCustomCommandReferences(ids: [id], entryIDs: [command.entryID])
@@ -97,7 +102,7 @@ final class CustomCommandCoordinator {
     func runCustomCommand(id: UUID) {
         // Also the feature switch: with it off a registered hotkey must run nothing.
         guard settings.customCommandsEnabled else { return }
-        guard let command = store.command(id: id) else { return }
+        guard let command = store.command(id: id), command.isEnabled else { return }
         guard command.arguments.isEmpty else {
             argumentSession.begin(command: command)
             // Never a restored mode: this screen is always a fresh prompt, never a resumed one.

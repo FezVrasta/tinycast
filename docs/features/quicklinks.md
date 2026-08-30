@@ -20,6 +20,11 @@ every shortcut without re-registering.
   `Service/QuicklinkArgumentSession` the prompt state.
 - **`Quicklink.precedes` is the one display order**, sorted through by both the store and the `AppIndex`
   slice.
+- **A disabled quicklink is inert, not gone.** `isEnabled == false` takes it out of root search and out
+  of Search Quicklinks, and `openQuicklink` refuses it, so no surface can offer or open it. Everything
+  attached — name, link, alias, shortcut, favorite slot, ranking — stays exactly as it was. The
+  **Settings → Quicklinks** row is the one place that turns it back on, through the checkbox launcher
+  items and custom commands carry: last in the row, dimming the alias field and shortcut recorder.
 - **There is one template engine.** Quicklinks expand through `SnippetTemplateEngine` rather than a
   second parser, which is what makes `| raw` mean something — it opts a value out of the automatic
   percent-encoding a URL destination asks for. `{selectedText}` is accepted as an alias for
@@ -128,6 +133,10 @@ field. Per-quicklink "Show in root search" filters the slice;
 the pane's "Show in launcher" takes the section and the four Quicklink commands out of the
 launcher together, leaving shortcuts and the pane itself working.
 
+Three levers, narrowing in that order: the pane's switches take the whole feature out, the row's
+**Enabled** checkbox makes one quicklink inert, and **Show in root search** keeps a quicklink openable
+from Search Quicklinks and its shortcut while dropping it from the root list.
+
 `Quicklink.precedes` is the one display order — pinned first in the order they were pinned, then the
 rest by name — and both the store and the launcher slice sort through it, so the two can never
 disagree. **Pinned means the top of the Quicklinks section**, not above Applications: a second
@@ -154,14 +163,18 @@ and use the system handler, once, without changing what is saved.
 
 Quicklinks are **authored data**, which decides the one way `QuicklinkStore` differs from
 `ClipboardStore` — they are neighbours in Application Support, and otherwise mirror each other (WAL,
-`PRAGMA table_info` column sniffing plus `ALTER TABLE` for migrations, prepared statements, an
-`isolated deinit`):
+prepared statements, an `isolated deinit`):
 
 - **A database that won't open is never deleted.** `ClipboardStore` discards and recreates a corrupt
   file because a history is captured rather than authored; doing that here would destroy the user's
   library. The store publishes `isAvailable == false`, every mutation refuses with
   `QuicklinkError.storageUnavailable`, and the pane says so. `Tests/quicklink-test.swift` asserts the
   file survives byte-for-byte.
+
+`CREATE TABLE IF NOT EXISTS` leaves an existing table alone, so a new column arrives as an unchecked
+`ALTER TABLE … ADD COLUMN … DEFAULT` right after the schema, which fails harmlessly once the column is
+there. That appends it physically, so the prepared statements **name their columns in the struct's
+order** rather than the table's, and the row reader stays a straight top-to-bottom read.
 
 Editing preserves the UUID, and with it the quicklink's shortcut, favorite slot, visibility and
 learned ranking. Deleting goes through `AppCore`, which unwinds all four before removing the row.

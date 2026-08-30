@@ -20,6 +20,10 @@ without re-registering. "Show in launcher" only hides the section; shortcuts kee
   lives in `CustomCommandCoordinator` and not in the runner.
 - A command that runs arbitrary shell is a security surface: the confirmation step cannot be bypassed, and
   an import of executable commands warns before it applies.
+- **A disabled command is inert, not gone.** `isEnabled == false` takes it out of the launcher slice
+  and `runCustomCommand` refuses it, so neither a row nor its still-registered shortcut can run it.
+  Name, command text, arguments, favorite slot and shortcut stay exactly as they were, and the
+  **Settings → Commands** row is the one place that turns it back on.
 - **An argument value is never spliced into the command text.** It is handed to zsh as a positional
   parameter, so a value carrying `;`, backticks or `$(…)` is data the script reads, never syntax the
   shell runs. `custom-command-test` asserts this directly.
@@ -31,7 +35,9 @@ bundle-scoped `UserDefaults`. Each command has a stable UUID. Its launcher entry
 `custom-command:<uuid>`, and its hotkey uses
 `hotkey.customCommand.<uuid>` plus the `boundCustomCommandIDs` index.
 
-Editing preserves the UUID and therefore its favorite, visibility, and hotkey references. Deleting
+Editing preserves the UUID and therefore its favorite, visibility, and hotkey references. The row's
+**Enabled** checkbox is the only writer of `isEnabled`, so the editor sheet carries the flag through a
+save rather than offering a second control for it. Deleting
 goes through `AppCore`, which unregisters the hotkey and clears those references before removing the
 command. Native settings backups include both commands and bindings; import warns before accepting
 executable content.

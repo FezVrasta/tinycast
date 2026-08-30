@@ -72,9 +72,9 @@ final class QuicklinkCoordinator {
 
     /// The one funnel for every open, so neither the switch nor the prompt can be bypassed.
     func openQuicklink(id: UUID, forcingDefaultApp: Bool = false) {
-        guard settings.quicklinksEnabled, let quicklink = store.quicklink(id: id) else {
-            return
-        }
+        guard settings.quicklinksEnabled, let quicklink = store.quicklink(id: id),
+            quicklink.isEnabled
+        else { return }
         // With the palette closed a shortcut still reads the selection from the frontmost app.
         let target =
             windowController.isVisible
@@ -221,6 +221,11 @@ final class QuicklinkCoordinator {
 
     func setQuicklinkShowsInRootSearch(_ shows: Bool, id: UUID) {
         do { try store.setShowsInRootSearch(shows, id: id) } catch { report(error) }
+    }
+
+    /// Keeps the row and its shortcut, but takes it out of every surface that could open it.
+    func setQuicklinkEnabled(_ enabled: Bool, id: UUID) {
+        do { try store.setEnabled(enabled, id: id) } catch { report(error) }
     }
 
     func duplicateQuicklink(id: UUID) {

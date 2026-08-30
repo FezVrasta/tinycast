@@ -77,6 +77,11 @@ struct QuicklinksSettingsView: View {
                 ForEach(results) { quicklink in
                     QuicklinkSettingsRow(
                         quicklink: quicklink,
+                        isEnabled: Binding(
+                            get: { quicklink.isEnabled },
+                            set: {
+                                core.quicklinkCoordinator.setQuicklinkEnabled($0, id: quicklink.id)
+                            }),
                         onEdit: { core.quicklinkCoordinator.editQuicklink(quicklink) },
                         onDelete: { pendingDeletion = quicklink })
                 }
@@ -148,6 +153,7 @@ struct QuicklinksSettingsView: View {
 
 private struct QuicklinkSettingsRow: View {
     let quicklink: Quicklink
+    @Binding var isEnabled: Bool
     let onEdit: () -> Void
     let onDelete: () -> Void
 
@@ -168,9 +174,11 @@ private struct QuicklinkSettingsRow: View {
 
             // An alias only reaches the ranker through the root-search slice, so it dims with it.
             AliasField(key: quicklink.entryID, name: quicklink.name)
-                .settingsEnabled(quicklink.showsInRootSearch)
+                .settingsEnabled(quicklink.isEnabled && quicklink.showsInRootSearch)
 
+            // A disabled quicklink's shortcut fires into the funnel's refusal, so it dims too.
             ShortcutRecorder(action: .quicklink(id: quicklink.id))
+                .settingsEnabled(quicklink.isEnabled)
 
             Button(action: onEdit) {
                 Image(systemName: "pencil")
@@ -186,6 +194,12 @@ private struct QuicklinkSettingsRow: View {
             .buttonStyle(.plain)
             .help("Delete Quicklink")
             .accessibilityLabel("Delete \(quicklink.name)")
+
+            Toggle("", isOn: $isEnabled)
+                .labelsHidden()
+                .toggleStyle(.checkbox)
+                .help("Enabled")
+                .accessibilityLabel("Enable \(quicklink.name)")
         }
     }
 

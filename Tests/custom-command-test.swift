@@ -59,6 +59,14 @@ struct CustomCommandTests {
             "update clears a flag left out of the draft",
             store.command(id: added.id)?.requiresConfirmation == false)
 
+        check("a new command is enabled", store.command(id: added.id)?.isEnabled == true)
+        store.setEnabled(false, id: added.id)
+        check("disabling is stored", store.command(id: added.id)?.isEnabled == false)
+        check(
+            "disabling keeps every other field intact",
+            store.command(id: added.id)?.command == "/usr/bin/true")
+        store.setEnabled(true, id: added.id)
+
         let expected = store.commands
         check(
             "commands survive a reload with their flags",
@@ -104,6 +112,9 @@ struct CustomCommandTests {
         check(
             "a record written before arguments existed still loads",
             CustomCommandStore(defaults: defaults).commands.first?.name == "Legacy")
+        check(
+            "a record written before the enabled flag loads as enabled",
+            CustomCommandStore(defaults: defaults).commands.first?.isEnabled == true)
 
         // MARK: Runner
 

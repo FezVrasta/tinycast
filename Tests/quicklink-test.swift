@@ -163,12 +163,20 @@ struct QuicklinkTests {
                 store.quicklink(id: github.id)?.showsInRootSearch == false,
                 "hiding from root search is stored")
 
+            expect(github.isEnabled, "a new quicklink is enabled")
+            try? store.setEnabled(false, id: github.id)
+            expect(store.quicklink(id: github.id)?.isEnabled == false, "disabling is stored")
+            expect(
+                store.quicklink(id: github.id)?.link == "https://github.com/issues",
+                "disabling keeps every other field intact")
+
             guard let copy = try? store.duplicate(id: github.id) else {
                 return fail("duplicating a quicklink succeeds")
             }
             expect(copy.id != github.id, "a duplicate is a new identity")
             expect(copy.name == "GitHub Issues Copy", "a duplicate gets a distinct name")
             expect(copy.link == "https://github.com/issues", "a duplicate keeps the destination")
+            expect(!copy.isEnabled, "a duplicate inherits the enabled flag")
 
             try? store.remove(id: copy.id)
             expect(store.quicklinks.map(\.id) == [github.id], "removing drops only that row")
@@ -246,6 +254,7 @@ struct QuicklinkTests {
             draft.openWithBundleID = "com.apple.finder"
             stored = try? store.add(draft).id
             try? store.togglePinned(id: stored!)
+            try? store.setEnabled(false, id: stored!)
         }
 
         let reopened = QuicklinkStore(directory: dir)
@@ -259,9 +268,10 @@ struct QuicklinkTests {
         expect(restored.iconSymbol == "folder", "the icon survives")
         expect(restored.openWithBundleID == "com.apple.finder", "the open-with app survives")
         expect(restored.isPinned, "the pin stamp survives")
+        expect(!restored.isEnabled, "the enabled flag survives")
     }
 
-    /// The column order the store binds must match the order it reads.
+    /// The bound column order must match the read order, and an older table must gain `is_enabled`.
     static func readsADatabaseWrittenElsewhere() {
         let dir = scratchDirectory()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -289,6 +299,12 @@ struct QuicklinkTests {
         expect(row.openWithBundleID == nil, "a null open-with reads as none")
         expect(!row.showsInRootSearch, "the root-search flag lines up")
         expect(!row.isPinned, "a null pin stamp reads as unpinned")
+        expect(row.isEnabled, "a table written before is_enabled loads its rows as enabled")
+
+        // A second open must find the column already there rather than adding it twice.
+        let reopened = QuicklinkStore(directory: dir)
+        reopened.load()
+        expect(reopened.quicklinks.count == 1, "the migrated table reopens cleanly")
     }
 
     /// Quicklinks are authored data, so an unreadable database is reported, never recreated.
@@ -317,7 +333,8 @@ struct QuicklinkTests {
         let stamp = Date(timeIntervalSince1970: 500)
         let pinned = Quicklink(
             name: "Pinned", link: "~/Downloads", openWithBundleID: "com.apple.finder",
-            iconSymbol: "folder", showsInRootSearch: false, pinnedAt: stamp, createdAt: stamp)
+            iconSymbol: "folder", isEnabled: false, showsInRootSearch: false, pinnedAt: stamp,
+            createdAt: stamp)
         let plain = Quicklink(name: "GitHub", link: "https://github.com", createdAt: stamp)
         let source = [plain, pinned]
 
@@ -358,6 +375,7 @@ struct QuicklinkTests {
         guard let decoded = try? QuicklinkArchive.decode(handWritten), let first = decoded.first
         else { return fail("a hand-written archive decodes") }
         expect(first.name == "Staging", "the name is read")
+        expect(first.isEnabled, "an omitted enabled flag defaults to on")
         expect(first.showsInRootSearch, "an omitted root-search flag defaults to shown")
         expect(first.pinnedAt == nil, "an omitted pin stamp reads as unpinned")
 
