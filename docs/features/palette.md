@@ -324,6 +324,15 @@ frozen instead:
   force-casts its field editor to a private subclass, so vending a custom one crashes — only the
   existing one can be tuned.
 
+## ↵ never commits the search field
+
+Plain ↵ is claimed by `RootPaletteView`'s own `onKeyPress` whenever the search field holds focus, and
+`activateSelection` runs from there — the field carries no `onSubmit`. Letting the field submit ends
+editing, and AppKit tears the field editor down and selects the whole string when focus returns, so a
+screen opened with a carried query (the Search Files fallback) came up with that query selected. An
+IME's composition and any other focused field — the inline argument fields, an extension form — are
+left alone: the handler returns `.ignored` for them, and their own `onSubmit` still commits.
+
 ## Chords `onKeyPress` never sees
 
 Most ⌘/⌃ chords reach SwiftUI's `onKeyPress` fine. Three kinds do not, and all of them are handled in

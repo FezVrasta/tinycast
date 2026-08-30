@@ -323,7 +323,7 @@ struct RootPaletteView: View {
             if menuOpen { return .handled }
             return moveHorizontally(1) ? .handled : .ignored
         }
-        // Plain ↵ activates an open menu's row; a modified ↵ always runs the selection's.
+        // Plain ↵ runs an open menu's row, else the selection; a modified ↵ always the selection's.
         .onKeyPress(keys: [.return], phases: .down) { press in
             let command = press.modifiers.contains(.command)
             let option = press.modifiers.contains(.option)
@@ -331,7 +331,12 @@ struct RootPaletteView: View {
                 activateMenuItem(menuSelection)
                 return .handled
             }
-            guard command || option else { return .ignored }
+            guard command || option else {
+                // Claimed before the field editor commits: ending editing reselects a carried query.
+                guard searchFocused, !vm.isComposing else { return .ignored }
+                activateSelection()
+                return .handled
+            }
             let screen = screen
             let selection = selection(in: screen)
             if command { return screen.secondary(at: selection) ? .handled : .ignored }
@@ -602,7 +607,6 @@ struct RootPaletteView: View {
             .font(Theme.Typography.searchField)
             .tint(Theme.Colors.textPrimary)
             .focused($searchFocused)
-            .onSubmit(activateSelection)
             // Fills the row's height, so there's no gap above it for topDragStrip to meet.
             .frame(maxHeight: .infinity)
             .background(alignment: .leading) {
