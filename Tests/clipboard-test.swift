@@ -18,6 +18,8 @@ struct ClipboardTests {
         typeFilterSplitsTheHistory()
         typeFilterJoinsTheSearchMemo()
         persistence()
+        exportSeesPastTheMemoryWindow()
+        importedImagesArriveOnce()
 
         print("\(passes)/\(passes + failures) passed")
         if failures > 0 { exit(1) }
@@ -277,6 +279,52 @@ struct ClipboardTests {
 
             reopened.clearAll()
             expect(reopened.items.isEmpty, "Clear History takes pins too")
+        }
+    }
+
+    /// A backup reads the whole table, not `items` — which stops at the memory window.
+    static func exportSeesPastTheMemoryWindow() {
+        withStore { store, _ in
+            let total = 1_200
+            store.importEntries(
+                (0..<total).map {
+                    ClipboardItem(
+                        id: UUID(), kind: .text, text: "entry \($0)", imagePath: nil,
+                        createdAt: Date().addingTimeInterval(TimeInterval($0 - total)),
+                        sourceBundleID: nil)
+                })
+            expect(store.items.count < total, "the resident window holds back some of the history")
+
+            var streamed = 0
+            var seen = Set<String>()
+            ClipboardStore.forEachStoredItem(inDatabaseAt: store.dbURL) { item in
+                streamed += 1
+                if let text = item.text { seen.insert(text) }
+            }
+            expect(streamed == total, "the export streams every row, not just the window")
+            expect(seen.count == total, "every row arrives exactly once")
+        }
+    }
+
+    /// Importing one backup twice must not leave a second copy of every image.
+    static func importedImagesArriveOnce() {
+        withStore { store, dir in
+            let staging = dir.appendingPathComponent("staged", isDirectory: true)
+            try? FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+            let blob = staging.appendingPathComponent("blob.png")
+            let staged = ClipboardItem(imagePath: blob.path, sourceBundleID: nil)
+
+            for pass in 1...2 {
+                try? Data("png".utf8).write(to: blob)
+                let inserted = ClipboardStore.importStoredItems(
+                    inDatabaseAt: store.dbURL, adoptingImagesInto: store.imagesDir, [staged])
+                expect(inserted == (pass == 1 ? 1 : 0), "pass \(pass) inserts \(2 - pass) row(s)")
+            }
+            store.load()
+            expect(store.items.count == 1, "the second import adds no row")
+            let images =
+                (try? FileManager.default.contentsOfDirectory(atPath: store.imagesDir.path)) ?? []
+            expect(images == ["blob.png"], "and no second copy of the blob")
         }
     }
 

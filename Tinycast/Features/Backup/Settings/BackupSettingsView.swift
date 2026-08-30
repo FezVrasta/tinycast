@@ -10,6 +10,15 @@ struct BackupSettingsView: View {
     @State private var status: Status?
     @State private var selection: RaycastImportOptions = .all
     @State private var isRaycastExport = false
+    @State private var exportSelection = BackupCategory.all
+    @State private var importSelection: Set<BackupCategory> = []
+    @State private var exporting = false
+    @State private var importingBackup = false
+    @State private var backupStatus: Status?
+    @State private var backupFile: URL?
+    @State private var openedManifest: BackupManifest?
+    /// Held between opening the file and applying it, so the extracted tree survives the picker.
+    @State private var openedStaging: BackupStaging?
 
     private enum Status {
         case success(String)
@@ -31,19 +40,45 @@ struct BackupSettingsView: View {
         Form {
             Section {
                 LabeledContent {
-                    Button("Export…") { Task { await BackupActions.exportSettings(core: core) } }
+                    if exporting {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("Export…") { runExport() }.disabled(exportSelection.isEmpty)
+                    }
                 } label: {
-                    Text("Export Settings")
-                    Text("Save your shortcuts, custom commands, favorites, and preferences to JSON.")
+                    Text("Export Backup")
+                    Text("Choose what to include, then save it as a single .tinycast file.")
                 }
+                BackupCategorySelection(selection: $exportSelection)
+                if let backupStatus { statusRow(backupStatus) }
+            } header: {
+                Text("Export")
+            }
+
+            Section {
                 LabeledContent {
-                    Button("Import…") { Task { await BackupActions.importSettings(core: core) } }
+                    Button("Choose…") { chooseBackupFile() }
                 } label: {
-                    Text("Import Settings")
-                    Text("Restore from a Tinycast backup. Only values in the file are changed.")
+                    Text("Backup File")
+                    Text(backupFileSubtitle)
+                }
+                if let manifest = openedManifest {
+                    BackupCategorySelection(
+                        selection: $importSelection, available: available(in: manifest))
+                    LabeledContent {
+                        if importingBackup {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Button("Import") { runBackupImport() }
+                                .disabled(importSelection.isEmpty)
+                        }
+                    } label: {
+                        Text("Import")
+                        Text("Only the categories you tick are restored.")
+                    }
                 }
             } header: {
-                Text("Tinycast")
+                Text("Import")
             }
 
             Section {
@@ -80,6 +115,7 @@ struct BackupSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onDisappear { if !importingBackup { discardStagedBackup() } }
     }
 
     @ViewBuilder
@@ -113,6 +149,80 @@ struct BackupSettingsView: View {
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
         }
+    }
+
+    private var backupFileSubtitle: String {
+        guard let name = backupFile?.lastPathComponent else {
+            return "Choose a .tinycast file exported from Tinycast."
+        }
+        return openedManifest == nil ? "\(name) — couldn't be read" : name
+    }
+
+    private func available(in manifest: BackupManifest) -> [BackupCategory: Int] {
+        Dictionary(
+            uniqueKeysWithValues: BackupCategory.ordered(manifest.categories).map {
+                ($0, manifest.count($0))
+            })
+    }
+
+    private func runExport() {
+        guard !exporting else { return }
+        exporting = true
+        backupStatus = nil
+        let categories = exportSelection
+        Task {
+            defer { exporting = false }
+            do {
+                let result = try await BackupActions.exportBackup(
+                    core: core, categories: categories)
+                backupStatus = .success(BackupActions.exportText(result))
+            } catch is CancellationError {
+                // The user closed the save panel; nothing to report.
+            } catch {
+                backupStatus = .failure(error.localizedDescription)
+            }
+        }
+    }
+
+    private func chooseBackupFile() {
+        guard let url = BackupActions.chooseBackupFile() else { return }
+        discardStagedBackup()
+        backupFile = url
+        backupStatus = nil
+        Task {
+            do {
+                let (staging, manifest) = try await BackupActions.openBackup(at: url)
+                openedStaging = staging
+                openedManifest = manifest
+                importSelection = manifest.categories
+            } catch {
+                backupStatus = .failure(error.localizedDescription)
+            }
+        }
+    }
+
+    private func runBackupImport() {
+        guard let staging = openedStaging, !importingBackup, !importSelection.isEmpty else {
+            return
+        }
+        importingBackup = true
+        let categories = importSelection
+        Task {
+            defer { importingBackup = false }
+            let summary = await BackupActions.applyBackup(
+                categories, from: staging, to: core)
+            // Staged files are adopted by the stores during apply, so the tree goes either way.
+            discardStagedBackup()
+            backupFile = nil
+            if let summary { backupStatus = .success(BackupActions.summaryText(summary)) }
+        }
+    }
+
+    /// The extracted tree can run to gigabytes, so leaving the pane must not strand it.
+    private func discardStagedBackup() {
+        openedStaging?.discard()
+        openedStaging = nil
+        openedManifest = nil
     }
 
     private func chooseRaycastFile() {
