@@ -33,27 +33,25 @@ final class PaletteCoordinator {
             ? windowController.previousApp : NSWorkspace.shared.frontmostApplication
     }
 
+    /// Up and pointed at `mode`, which is the state a mode command's second invocation closes.
+    func isShowing(_ mode: PaletteMode) -> Bool {
+        windowController.isVisible && palette.mode == mode
+    }
+
     func togglePalette() {
-        if windowController.isVisible, palette.mode == .launcher {
+        if isShowing(.launcher) {
             hidePalette()
         } else {
             showPalette(mode: .launcher, restoreAnyMode: true)
         }
     }
 
-    func toggleClipboard() {
-        if windowController.isVisible, palette.mode == .clipboard {
+    /// A carried query always opens: it is new input, not the second press that would close.
+    func togglePalette(mode: PaletteMode, seeding query: String? = nil) {
+        if isShowing(mode), query == nil {
             hidePalette()
         } else {
-            showPalette(mode: .clipboard)
-        }
-    }
-
-    func toggleEmoji() {
-        if windowController.isVisible, palette.mode == .emoji {
-            hidePalette()
-        } else {
-            showPalette(mode: .emoji)
+            showPalette(mode: mode, seeding: query)
         }
     }
 
