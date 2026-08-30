@@ -361,8 +361,10 @@ struct RootPaletteView: View {
                 screen: menuOpen ? nil : screen as? ExtensionCommandScreen, selection: sel)
         )
         // ⌘K toggles the actions panel for the current selection.
-        .onKeyPress(keys: ["k"], phases: .down) { press in
-            guard press.modifiers.contains(.command) else { return .ignored }
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.command),
+                ASCIIKeyboardLayout.matches(press.key, character: "k")
+            else { return .ignored }
             // The Actions menu has no anchor in the compact bar, so swallow ⌘K there.
             guard !isCollapsed else { return .handled }
             let screen = screen
@@ -396,8 +398,10 @@ struct RootPaletteView: View {
             return .ignored
         }
         // ⌃X / ⌃⇧X mirror the delete rows — both cases, Shift uppercasing — and close an open menu.
-        .onKeyPress(keys: ["x", "X"], phases: .down) { press in
-            guard press.modifiers.contains(.control) else { return .ignored }
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.control),
+                ASCIIKeyboardLayout.matches(press.key, character: "x")
+            else { return .ignored }
             let screen = screen
             let selection = selection(in: screen)
             let all = press.modifiers.contains(.shift)
@@ -415,15 +419,18 @@ struct RootPaletteView: View {
             return .handled
         }
         // Never gated on the rows: an over-narrow filter empties them, and this is the way out.
-        .onKeyPress(keys: ["p"], phases: .down) { press in
-            guard press.modifiers.contains(.command) else { return .ignored }
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.command),
+                ASCIIKeyboardLayout.matches(press.key, character: "p")
+            else { return .ignored }
             guard !isCollapsed, vm.mode == .clipboard else { return .ignored }
             toggleClipboardFilter()
             return .handled
         }
         // ⇧⌘F mirrors the Add/Remove Favorites row, closing an open menu the way that row does.
-        .onKeyPress(keys: ["f", "F"], phases: .down) { press in
+        .onKeyPress(phases: .down) { press in
             guard press.modifiers.contains(.command), press.modifiers.contains(.shift),
+                ASCIIKeyboardLayout.matches(press.key, character: "f"),
                 !isCollapsed, let launcher = screen as? LauncherScreen
             else { return .ignored }
             guard launcher.toggleFavorite(at: selection(in: launcher)) else { return .ignored }
@@ -431,15 +438,17 @@ struct RootPaletteView: View {
             return .handled
         }
         // Both cases, Shift uppercasing the key; the compact bar shows no target.
-        .onKeyPress(keys: ["q", "Q"], phases: .down) { press in
+        .onKeyPress(phases: .down) { press in
             guard press.modifiers.contains(.control), press.modifiers.contains(.shift),
+                ASCIIKeyboardLayout.matches(press.key, character: "q"),
                 !isCollapsed, let launcher = screen as? LauncherScreen
             else { return .ignored }
             return launcher.quit(at: selection(in: launcher)) ? .handled : .ignored
         }
         // ⌘R mirrors the Restart Application row, on the same guard and the same compact-bar skip.
-        .onKeyPress(keys: ["r"], phases: .down) { press in
-            guard press.modifiers.contains(.command), !isCollapsed,
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.contains(.command),
+                ASCIIKeyboardLayout.matches(press.key, character: "r"), !isCollapsed,
                 let launcher = screen as? LauncherScreen
             else { return .ignored }
             return launcher.restart(at: selection(in: launcher)) ? .handled : .ignored

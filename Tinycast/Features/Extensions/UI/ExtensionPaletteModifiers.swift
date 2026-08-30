@@ -9,7 +9,9 @@ struct ExtensionShortcutKeys: ViewModifier {
         content.onKeyPress(phases: .down) { press in
             guard let screen, !press.modifiers.isEmpty else { return .ignored }
             return screen.dispatchShortcut(
-                key: press.key, modifiers: press.modifiers, at: selection) ? .handled : .ignored
+                key: ASCIIKeyboardLayout.keyEquivalent(fallingBackTo: press.key),
+                modifiers: press.modifiers,
+                at: selection) ? .handled : .ignored
         }
     }
 }

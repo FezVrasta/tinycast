@@ -358,6 +358,16 @@ movement and the scroll-into-view intent all follow for free. The caret keeps �
 because `moveHorizontally` leaves →/← `.ignored` there, and the field editor then moves by a character
 exactly as the chord natively would. A chord carrying any modifier beyond ⌃ — ⌃⇧Q, say — is left alone.
 
+Character shortcut handlers accept every key so SwiftUI still calls them when the active input
+source produces a non-ASCII character. Inside the callback, `ASCIIKeyboardLayout` resolves
+`NSApp.currentEvent.keyCode` through the current ASCII-capable layout before comparing the shortcut.
+Panel-owned chords use the same translation directly. A ⌘ chord translates through the layout's own
+Command table, so "Dvorak – QWERTY ⌘" keeps giving QWERTY positions while Command is held; a ⌃ chord
+translates without it, since only Command is remapped. A non-ASCII input source or IME therefore
+cannot turn ⌘K into a different logical key, while Dvorak and other ASCII layouts keep their own
+letter positions. No replacement event is synthesized, and unmodified typing stays on the active
+input source and follows the normal composition path.
+
 ## Focus restoration (load-bearing)
 
 `PaletteWindowController` records `previousApp` (the frontmost app) on show. Paste then targets that
