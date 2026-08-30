@@ -17,12 +17,13 @@ final class SettingsCoordinator {
     }
 
     /// A fresh window mounts on `tab`; an open one navigates to it, recording the jump in history.
-    func showSettings(tab: SettingsTab = .general) {
+    /// A nil `tab` only reveals the window, so re-opening a minimised one keeps the pane it was on.
+    func showSettings(tab: SettingsTab? = nil) {
         if window.focus() {
-            navigation?.select(tab)
+            if let tab { navigation?.select(tab) }
             return
         }
-        let navigation = SettingsNavigationState(tab: tab)
+        let navigation = SettingsNavigationState(tab: tab ?? .general)
         self.navigation = navigation
         window.show(chrome: SettingsToolbarController(navigation: navigation)) {
             SettingsSplitViewController(
