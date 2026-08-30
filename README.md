@@ -26,15 +26,14 @@ browser: JavaScriptCore ships with macOS, so that costs no extra binary size.
 
 ## Support
 
-Tinycast is free, and it stays that way. If it earns a place in your daily flow, a one-off tip helps keep it actively maintained. GitHub Sponsors isn't available in my country, so
-please support here:
+Tinycast is free, and it stays that way. If it earns a place in your daily flow, a one-off tip helps
+keep it actively maintained. GitHub Sponsors isn't available in my country, so please support here:
 
 <p align="center">
   <a href="https://buy.polar.sh/polar_cl_NDVFC20DKQpLcNawsh97QzbARBXD3WNn8v35R0mbJmT">
-    <img alt="Support Tinycast" width="188" height="44" src="docs/support-button.svg"></a>
+    <img alt="Support Tinycast" width="188" height="44" src="docs/support-button.svg"></a><br>
+  <sub>Payments are handled securely by <a href="https://polar.sh">Polar.sh</a>.</sub>
 </p>
-
-<p align="center"><sub>Payments are handled securely by <a href="https://polar.sh">Polar.sh</a>.</sub></p>
 
 ## Features
 
