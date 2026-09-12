@@ -170,6 +170,10 @@ left; without that layout priority the aspect ratio shrinks to the leftover heig
 it. `FileSearchSurface` picks what draws the file: `FileSearchMediaPlayer` for movies and audio, since
 QuickLook draws a movie's first frame but never plays one inside a non-activating panel, and
 `QuickLookSurface` for everything else, which renders a document better than a monospaced `Text` would.
+**Only the ⌘Y overlay autoplays.** `autoplays` is the surface's one parameter and the pane leaves it
+off: arrow-keying a list must not start a movie, while opening Quick Look on one is the ask itself.
+The player view is `KeyboardFocusRefusing` either way, so clicking its transport leaves the caret in
+the search field; see [palette.md](palette.md#the-keyboard-belongs-to-the-search-field).
 The player is File Search's own, deliberately: the clipboard's preview is a separate surface with its own
 sizing, and copying forty lines of `AVPlayerView` teardown is the cheaper trade.
 

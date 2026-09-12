@@ -247,9 +247,11 @@ width; a dragged one keeps its stored top-left unless the wider bar no longer le
 **Drag to reposition** (`AppSettings.paletteDraggable`, off by default) is the only thing that moves a
 panel already on screen. `WindowDragHandle` claims mouse-down on the top strip and on the header's
 margins and inter-item gaps (`RootPaletteView.headerGutter`) — everywhere in the header no control
-occupies. The search field is a handle too, but only past its visible text:
-`TextTrailingDragHandle` measures the query in `Theme.Typography.searchFieldNSFont` and claims the
-hit-test only beyond it, so clicking or dragging the text still edits and selects, matching Spotlight.
+occupies. The search field is a handle too, but **only while it is empty**: `EmptyFieldDragHandle`
+declines the hit-test outright the moment there is text to select, or marked text being composed.
+Measuring the query and claiming the run past it was the older rule, and it cost the thing a search
+field is for — a selection almost always starts or ends past the last glyph, so every such press moved
+the window instead. A field with a caret in it is being edited; nothing in it is a handle.
 
 AppKit moves the frame without going through the controller, so `windowDidMove` writes the new top-left
 back into the anchor — otherwise the next compact↔expanded resize would snap the panel back to the
@@ -260,9 +262,11 @@ the anchor and its own `setFrame` round-trips the same values.
 drag to the window server and returns immediately, so it can say when a drag *starts* but never when it
 ends — the mouse-up arrives long after it has returned. `DragView.mouseDown` instead runs
 `trackEvents(matching:timeout:mode:)` over `.leftMouseDragged` / `.leftMouseUp`, moving the window by
-the `NSEvent.mouseLocation` delta, which puts the whole gesture inside one call. It brackets that with
-`PaletteCoordinator.beginPaletteDrag()` / `endPaletteDrag()`, and the controller holds a `DragSession`
-for exactly that span. **Only a move inside a session is a user drag**; without that flag every
+the `NSEvent.mouseLocation` delta, which puts the whole gesture inside one call. **A press only becomes
+a drag once it passes `DragView.dragSlop`**, and one that never does is reported as a click instead:
+without that, a handle over the empty search field swallowed the click that was meant to put the caret
+back in it. It brackets a real drag with `PaletteCoordinator.beginPaletteDrag()` / `endPaletteDrag()`,
+and the controller holds a `DragSession` for exactly that span. **Only a move inside a session is a user drag**; without that flag every
 programmatic resize would be recorded as one.
 
 ### The drop guides
@@ -507,6 +511,19 @@ translates without it, since only Command is remapped. A non-ASCII input source 
 cannot turn ⌘K into a different logical key, while Dvorak and other ASCII layouts keep their own
 letter positions. No replacement event is synthesized, and unmodified typing stays on the active
 input source and follows the normal composition path.
+
+## The keyboard belongs to the search field
+
+`PalettePanel.makeFirstResponder` declines any responder whose subtree is marked
+`KeyboardFocusRefusing`. That mark exists for one shape of problem: a preview that embeds AppKit
+controls of its own. Clicking play on an `AVPlayerView` makes `AVDesktopButton` — a private control
+inside its transport — the window's first responder, and the search field silently stops receiving
+keystrokes with nothing on screen to say so. Refusing costs the transport nothing, since a button
+performs its action from the click, not from focus; both preview players are marked, and the field
+keeps the caret through a click on play.
+
+The mark sits on the player view and the check walks up from the responder, because the control that
+claims focus is private and several levels down — there is nothing to override on it.
 
 ## Focus restoration (load-bearing)
 

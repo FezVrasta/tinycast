@@ -114,7 +114,8 @@ private struct MediaPreviewPlayer: View {
     var body: some View {
         PlayerSurface(player: player)
             .background { if isAudio { AudioPoster(url: url) } }
-            .frame(height: metrics.size.clipboardMediaHeight)
+            // A cap, not a height: a fixed one outgrows the pane and pushes the panel taller.
+            .frame(maxHeight: metrics.size.clipboardMediaHeight)
             .clipShape(RoundedRectangle(cornerRadius: metrics.radius.card, style: .continuous))
             .task(id: PlaybackKey(url: url, isVisible: palette.isVisible)) {
                 stop()
@@ -137,7 +138,7 @@ private struct PlayerSurface: NSViewRepresentable {
     let player: AVPlayer?
 
     func makeNSView(context: Context) -> AVPlayerView {
-        let view = AVPlayerView()
+        let view = PreviewPlayerView()
         view.controlsStyle = .inline
         view.showsFullScreenToggleButton = false
         view.videoGravity = .resizeAspect
@@ -155,6 +156,9 @@ private struct PlayerSurface: NSViewRepresentable {
         view.player = nil
     }
 }
+
+/// Clicking play must not move the keyboard off the search field, and a transport button would.
+private final class PreviewPlayerView: AVPlayerView, KeyboardFocusRefusing {}
 
 /// An audio asset draws nothing of its own, so its artwork sits behind the transport.
 private struct AudioPoster: View {

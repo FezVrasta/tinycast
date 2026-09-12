@@ -855,7 +855,7 @@ struct RootPaletteView: View {
         return vm.mode.placeholder
     }
 
-    /// The one search field — past its text it's a drag handle, matching Spotlight.
+    /// The one search field — empty it's a drag handle, and any text hands every press to editing.
     private var searchField: some View {
         @Bindable var vm = vm
         return TextField("", text: $vm.query)
@@ -881,9 +881,12 @@ struct RootPaletteView: View {
             // Never branches on query — that tore down the field editor mid-keystroke once.
             .overlay {
                 if settings.paletteDraggable {
-                    TextTrailingDragHandle(
-                        text: vm.query, font: metrics.typography.searchFieldNSFont,
-                        onBegan: beginDrag, onEnded: endDrag)
+                    EmptyFieldDragHandle(
+                        // Marked text leaves `query` empty, and composing it is still editing.
+                        isEmpty: vm.query.isEmpty && !vm.isComposing,
+                        onBegan: beginDrag, onEnded: endDrag,
+                        // A press that never moved was aimed at the field the handle covers.
+                        onClick: { searchFocused = true })
                 }
             }
             // The panel resolves the pointer against this rather than hit-testing for the field.

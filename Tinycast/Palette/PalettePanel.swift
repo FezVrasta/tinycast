@@ -53,6 +53,8 @@ final class PalettePanel: NSPanel {
     private var compositionObserver: NotificationToken?
 
     override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        // A transport's button is a first responder like any other; the search field outranks it.
+        if let view = responder as? NSView, view.refusesKeyboardFocus { return false }
         guard super.makeFirstResponder(responder) else { return false }
         trackComposition()
         if let context = fieldEditorContext { onFieldEditorFocused?(context) }

@@ -238,7 +238,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Dragging
 
-    /// A drag handle took the mouse down. Nothing shows yet — the guides wait for a real move.
+    /// A press on a drag handle passed the slop that makes it a drag; the guides follow the move.
     func beginDrag() {
         guard let screen = panel?.screen ?? targetScreen() else { return }
         drag = DragSession(home: defaultAnchor(on: screen), screenFrame: screen.frame)
