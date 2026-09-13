@@ -95,9 +95,13 @@ Accessibility grant. Each entitlement in `Tinycast/Tinycast.entitlements` earns 
 *before* it prompts, and without it logs "requires entitlement … but it is missing" and denies on the
 spot — no dialog, no error, status still `.notDetermined`. A grant saved before the hardened runtime
 arrived keeps working, since `tccd` does not re-check it, which is why this surfaces only on fresh
-installs. Adding a protected resource therefore means three edits together: its usage string in
-`Info.plist`, its entitlement, and its pair in `RESOURCE_ENTITLEMENTS` in `Scripts/verify-signature.sh`,
-which lists only the resources Tinycast actually asks for.
+installs. Adding a protected resource therefore means adding its usage string *and* its entitlement.
+
+`RESOURCE_ENTITLEMENTS` in `Scripts/verify-signature.sh` maps every protected resource's usage string
+to its entitlement, including resources Tinycast does not use. That grants nothing — only
+`Tinycast.entitlements` does, and a row whose usage string `Info.plist` doesn't declare is skipped. It
+is there so a future feature that adds the usage string but forgets the entitlement fails the release
+instead of shipping a prompt that can never appear.
 
 Nothing else is needed: the only `dlopen` is Apple's own IOBluetooth, so library validation is left
 on, and `node`, `ray` and shell commands are separate processes it never reaches. Bluetooth has no
