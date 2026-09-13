@@ -82,20 +82,32 @@ Accessibility once on their next update, then it's stable again.
 must stay without it — hardened runtime turns on library validation, and Xcode's
 `Tinycast Dev.debug.dylib` is refused at launch because a self-signed identity carries no Team ID for
 the loader to match. The flag is not part of the designated requirement, so turning it on costs no
-Accessibility grant. Two exceptions in `Tinycast/Tinycast.entitlements` earn their place:
+Accessibility grant. Each entitlement in `Tinycast/Tinycast.entitlements` earns its place:
 
 | Entitlement | Without it |
 | --- | --- |
 | `com.apple.security.cs.allow-jit` | JavaScriptCore cannot JIT, and every extension command runs on the interpreter |
 | `com.apple.security.automation.apple-events` | Every Apple event is refused with `-1743` and no prompt — Get Info, the Finder selection an extension reads, and the System Events–driven system actions all die silently |
+| `com.apple.security.device.camera` | The camera prompt never appears and access resolves as denied |
+| `com.apple.security.personal-information.calendars` | `requestFullAccessToEvents()` returns `false` in milliseconds with no dialog, and Tinycast never appears under System Settings › Calendars |
+
+**A usage string is not enough under the hardened runtime.** `tccd` checks the matching entitlement
+*before* it prompts, and without it logs "requires entitlement … but it is missing" and denies on the
+spot — no dialog, no error, status still `.notDetermined`. A grant saved before the hardened runtime
+arrived keeps working, since `tccd` does not re-check it, which is why this surfaces only on fresh
+installs. Adding a protected resource therefore means three edits together: its usage string in
+`Info.plist`, its entitlement, and its pair in `RESOURCE_ENTITLEMENTS` in `Scripts/verify-signature.sh`,
+which lists only the resources Tinycast actually asks for.
 
 Nothing else is needed: the only `dlopen` is Apple's own IOBluetooth, so library validation is left
-on, and `node`, `ray` and shell commands are separate processes it never reaches.
+on, and `node`, `ray` and shell commands are separate processes it never reaches. Bluetooth has no
+hardened-runtime entitlement.
 
 `./Scripts/verify-signature.sh <path-to-.app>` asserts all of this — the runtime flag on the app *and*
-on `Contents/Helpers/ClipboardTextHelper`, an intact nested seal, and no `get-task-allow`. Both
-release jobs run it before packaging, because a nested binary missing the runtime flag is the most
-common notarization rejection there is.
+on `Contents/Helpers/ClipboardTextHelper`, an intact nested seal, no `get-task-allow`, and an
+entitlement for every usage string `Info.plist` declares. Both release jobs run it before packaging:
+a nested binary missing the runtime flag is the most common notarization rejection, and a usage string
+missing its entitlement ships a permission that can never be granted.
 
 ## The Developer ID migration
 
