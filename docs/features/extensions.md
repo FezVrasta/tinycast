@@ -344,7 +344,11 @@ on confirms first — it is consent to run third-party code, and a running comma
 engine in memory until you leave it, which is the one standing cost this app has.
 
 `Show in launcher` is separate, and independent: it decides whether the commands reach launcher search
-at all, without unloading anything.
+at all, without unloading anything. Below it, each extension has a `Show in launcher` switch of its
+own, and each command a checkbox beside its shortcut — an extension ships many commands, and a user
+often wants a few. Both write `VisibilityStore`, so a hidden command keeps its shortcut and ⇧⌘H in
+the launcher unticks the same checkbox. The
+extension's switch reads on while any command is shown, and flipping it shows or hides every one.
 
 A published row carries the extension's own title in `AppEntry.ownerName`, which both labels the row
 and makes the extension a keyword for every command it ships — `lucide` finds *Search Icons*. It is

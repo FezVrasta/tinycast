@@ -71,7 +71,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
                 // The label is per-entry, the owning extension's title; this is the fallback.
                 return KindDescriptor(
                     label: "Extension", sectionTitle: "Extensions",
-                    openVerb: "Run Command", canHideFromSearch: false,
+                    openVerb: "Run Command", canHideFromSearch: true,
                     canRevealInFinder: false, isSymbolIcon: true)
             case .meeting:
                 return KindDescriptor(
