@@ -180,7 +180,8 @@ enum ExtensionActionsMenu {
                     isDark: NSApp.effectiveAppearance.isDark,
                     isDestructive: action.isDestructive),
                 shortcut: action.shortcutCaps?.joined(),
-                isDestructive: action.isDestructive)
+                isDestructive: action.isDestructive,
+                startsSection: action.startsSection)
         }
     }
 }
