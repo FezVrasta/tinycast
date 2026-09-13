@@ -1,6 +1,6 @@
 ---
 title: Window management
-description: 34 commands for halves, quarters, thirds, sizing, nudges, displays and instant Space switching.
+description: 35 commands for halves, quarters, thirds, sizing, nudges, displays and instant Space switching.
 ---
 
 Move and resize the window you were last using, without installing anything else.
@@ -25,7 +25,7 @@ windows across your displays.
 **Thirds** · First Third · Center Third · Last Third · First Two Thirds · Last Two Thirds
 
 **Sizing** · Maximize · Almost Maximize · Reasonable Size · Maximize Height · Maximize Width ·
-Center · Center Half · Make Larger · Make Smaller · Restore Window
+Center · Center Half · Center Two Thirds · Make Larger · Make Smaller · Restore Window
 
 **Moving** · Move Left · Move Right · Move Up · Move Down · Move to Next Display · Move to Previous Display
 
@@ -58,7 +58,8 @@ screen, whichever is bigger. Past either limit, they do nothing.
 **Reasonable Size** is 60% of the screen, centered, and never more than 1025 × 900 points. On a big
 5K display you get a sensible window, not a huge one. Pressing it again changes nothing.
 
-**Center Half** is half the screen's width at full height, centered.
+**Center Half** is half the screen's width at full height, centered. **Center Two Thirds** is the
+same, at two thirds of the width.
 
 A window that is too big or off-screen is always pulled back onto the display. The usable area
 already leaves out the menu bar, the Dock and the notch.
