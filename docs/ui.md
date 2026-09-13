@@ -486,8 +486,8 @@ style; `.thinScrollbar()` on the scroll view draws a hairline thumb (`Color.prim
 0.42 hover → 0.5 drag) that fattens on hover, with a faint rail revealed only while hovering/dragging.
 
 Routing: the palette lists (App Launcher, Clipboard history, Emoji, File Search, Calculator history) use
-`.thinScrollbar()` + `.hideNativeScrollers()`; the Clipboard preview (right pane) and every Settings
-pane take the native scroller as-is. Don't reintroduce native scrollers on the palette lists.
+`.thinScrollbar()` + `.hideNativeScrollers()`; the Clipboard preview (right pane), every Settings
+pane and the update window take the native scroller as-is. Don't reintroduce native scrollers on the palette lists.
 
 **Native scrollers are overlay app-wide, set once.** `AppDelegate.applicationWillFinishLaunching`
 writes `AppleShowScrollBars = WhenScrolling` into Tinycast's own defaults domain, which outranks the
