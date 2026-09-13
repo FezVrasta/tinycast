@@ -342,6 +342,7 @@ struct RootPaletteView: View {
                 guard previous == nil, let handler, !vm.query.isEmpty else { return }
                 extensions.dispatch(handler: handler, arguments: [vm.query])
             }
+            .modifier(ExtensionSelectionForwarder(screen: extensionScreen, selection: vm.selection))
             // A narrower list means the old index points at a different row, or at none.
             .onChange(of: vm.clipboardFilter) {
                 vm.selection = 0

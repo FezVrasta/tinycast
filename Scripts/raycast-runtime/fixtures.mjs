@@ -184,11 +184,17 @@ export default function Command() {
       return error.code ?? error.name;
     }
   };
+  const cpu = os.cpus()[0];
   const parts = [
     path.join("/a/b", "../c", "d.txt"),
     path.extname("x/y/file.tar.gz"),
     path.basename("/a/b/c.md", ".md"),
     os.platform(),
+    Object.keys(cpu.times).sort().join(","),
+    String(Object.values(cpu.times).every(Number.isFinite)),
+    String(os.freemem() > 0),
+    String(os.uptime() > 0),
+    String(os.loadavg().length === 3 && os.loadavg().every(Number.isFinite)),
     new URL("/next?q=1", "https://example.com/base/page").href,
     new URLSearchParams({ a: "1", b: "two words" }).toString(),
     crypto.createHash("sha256").update("abc").digest("hex").slice(0, 8),
@@ -639,6 +645,11 @@ export async function runFixtures() {
       ".gz",
       "c",
       "darwin",
+      "idle,irq,nice,sys,user",
+      "true",
+      "true",
+      "true",
+      "true",
       "https://example.com/next?q=1",
       "a=1&b=two+words",
       "ba7816bf",

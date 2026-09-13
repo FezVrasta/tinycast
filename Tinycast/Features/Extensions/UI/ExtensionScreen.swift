@@ -3,6 +3,11 @@ import SwiftUI
 
 /// The one source of row order, so the palette's flat `selection` maps 1:1 onto visible rows.
 struct ExtensionScreen: Equatable {
+    struct SelectionChange: Equatable {
+        let handler: String
+        let itemID: String?
+    }
+
     enum Kind: Equatable {
         case list
         case grid(ExtensionGridLayout)
@@ -46,6 +51,7 @@ struct ExtensionScreen: Equatable {
     let filtersLocally: Bool
     let searchTextHandler: String?
     let selectionHandler: String?
+    let selectedItemID: String?
     let searchBarAccessory: RenderNode?
     /// The `List`-level `isShowingDetail`; when set, rows get a detail pane beside them.
     let showsDetail: Bool
@@ -73,8 +79,8 @@ struct ExtensionScreen: Equatable {
     static let empty = ExtensionScreen(
         kind: .unsupported(""), root: nil, rows: [], items: [], fields: [], isLoading: false,
         navigationTitle: nil, searchPlaceholder: nil, filtersLocally: false, searchTextHandler: nil,
-        selectionHandler: nil, searchBarAccessory: nil, showsDetail: false, screenActions: nil,
-        emptyView: nil)
+        selectionHandler: nil, selectedItemID: nil, searchBarAccessory: nil, showsDetail: false,
+        screenActions: nil, emptyView: nil)
 
     /// Filters rows by `query` only when the extension hasn't taken the search text over.
     init(tree: RenderTree, query: String) {
@@ -88,6 +94,7 @@ struct ExtensionScreen: Equatable {
         searchPlaceholder = root.string("searchBarPlaceholder")
         searchTextHandler = root.handler("onSearchTextChange")
         selectionHandler = root.handler("onSelectionChange")
+        selectedItemID = root.string("selectedItemId")
         searchBarAccessory = root.node("searchBarAccessory")
         showsDetail = root.bool("isShowingDetail") ?? false
         screenActions = root.node("actions")
@@ -164,8 +171,9 @@ struct ExtensionScreen: Equatable {
     private init(
         kind: Kind, root: RenderNode?, rows: [Row], items: [Item], fields: [RenderNode],
         isLoading: Bool, navigationTitle: String?, searchPlaceholder: String?, filtersLocally: Bool,
-        searchTextHandler: String?, selectionHandler: String?, searchBarAccessory: RenderNode?,
-        showsDetail: Bool, screenActions: RenderNode?, emptyView: RenderNode?
+        searchTextHandler: String?, selectionHandler: String?, selectedItemID: String?,
+        searchBarAccessory: RenderNode?, showsDetail: Bool, screenActions: RenderNode?,
+        emptyView: RenderNode?
     ) {
         self.kind = kind
         self.root = root
@@ -178,10 +186,23 @@ struct ExtensionScreen: Equatable {
         self.filtersLocally = filtersLocally
         self.searchTextHandler = searchTextHandler
         self.selectionHandler = selectionHandler
+        self.selectedItemID = selectedItemID
         self.searchBarAccessory = searchBarAccessory
         self.showsDetail = showsDetail
         self.screenActions = screenActions
         self.emptyView = emptyView
+    }
+
+    var selectedItemIndex: Int? {
+        guard let selectedItemID else { return nil }
+        return items.firstIndex { $0.node.string("id") == selectedItemID }
+    }
+
+    /// Resolves the List/Grid callback after local filtering changes the visible row order.
+    func selectionChange(at index: Int) -> SelectionChange? {
+        guard let selectionHandler else { return nil }
+        let itemID = items.indices.contains(index) ? items[index].node.string("id") : nil
+        return SelectionChange(handler: selectionHandler, itemID: itemID)
     }
 
     /// Title, subtitle and keywords, ranked by the launcher's matcher.

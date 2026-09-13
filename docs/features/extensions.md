@@ -111,7 +111,7 @@ Two host-call flavours:
 | --- | --- |
 | `Service/ExtensionRuntime.swift` | the `JSContext`, host-function installation, timers, exception reporting |
 | `Service/ExtensionHostBridge.swift` | main-actor host APIs (clipboard, storage, cache, window, toasts, system, oauth) |
-| `Service/ExtensionNodeShims.swift` | the synchronous `fs` / `child_process` / `crypto` / `zlib` services |
+| `Service/ExtensionNodeShims.swift` | the synchronous `fs` / `os` / `child_process` / `crypto` / `zlib` services |
 | `Service/ExtensionFetcher.swift` | `fetch` over `URLSession`, plus the async `exec` and the shared PATH resolver |
 | `Service/ExtensionOAuthKeychain.swift` | secure OAuth token storage backed by macOS Keychain |
 | `Service/ExtensionOAuthSession.swift` | PKCE state tracking, browser launch, and callback redirect resolution |
@@ -165,6 +165,10 @@ screens hold (see [palette.md](palette.md)).
   whole signal. `ExtensionScreen.Item`
   carries both the flat `selection` index and the scroll id, and is the `ForEach` identity of the row
   and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
+  A matching `selectedItemId` seeds the palette highlight when the screen first appears.
+  `onSelectionChange` is reported with that visible item's string id. The observer keys on the id,
+  not just the numeric index, because local filtering can replace row zero without changing the
+  palette selection; an empty result reports `null`, matching the API contract.
 - **Search-bar dropdown** — `List.Dropdown` and `Grid.Dropdown` draw as
   `ExtensionSearchAccessoryButton` at the header's trailing edge and drop `ExtensionPickerList` as one
   of the palette's `OpenMenu` cases, so the arrows, ↵, Escape and the click-away come from the one menu
@@ -577,10 +581,11 @@ Two things decide whether it gets there. Axios enables that adapter only when
 `Object.prototype.toString.call(process)` reads `[object process]`, so `process` carries the tag; and
 follow-redirects inherits with `Writable.call(this)`, so `stream` hands out callable constructors.
 
-**Bundled Swift helpers** — an extension that imports `swift:../swift/<package>` ships the compiled
-Mach-O in `assets/`, and the wrapper Raycast generates chmods it to `755` before spawning it. Store
-zips ship that binary `644`, so the chmod is what makes it runnable at all; the buffered `spawn`
-covers the rest of the wrapper. Color Picker is the reference case.
+**Bundled helpers** — compiled Mach-O files and shebang scripts live in `assets/`. GitHub's raw-file
+downloads and some store zips lose their executable mode, so installation preserves Git tree mode
+`100755`; discovery also repairs known executable payloads already installed as `644`. That covers
+both generated wrappers and extensions that call a helper directly with `execFile`. The buffered
+`spawn` covers the rest of a Swift wrapper. Color Picker is the reference case.
 
 **Command modes** — `view` renders into the palette; `no-view` runs headless with the palette closed.
 Both receive `props.arguments` and `props.launchType`. A `no-view` command declaring `interval`
