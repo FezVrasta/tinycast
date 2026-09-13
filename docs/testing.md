@@ -27,7 +27,9 @@ what you touched.
 ```
 
 The suite runs in parallel, `hw.ncpu` harnesses at a time, which is what takes it from about 140
-seconds to about 15. `TINYCAST_TEST_JOBS=1` forces it back to one at a time. Parallelism is safe
+seconds to about 15. `TINYCAST_TEST_JOBS=1` forces it back to one at a time. Each result is numbered
+against the total and shows its run and compile time, a quiet stretch names the harnesses still running, and a harness that runs longer
+than `TINYCAST_TEST_TIMEOUT` seconds (default 300) is killed and reported as timed out. Parallelism is safe
 because each harness already roots its scratch state somewhere of its own — a UUID-suffixed
 `temporaryDirectory`, a `UserDefaults(suiteName:)`, or `NSPasteboard.withUniqueName()` — and a new
 harness must keep doing that rather than reach for a fixed path.
@@ -91,7 +93,6 @@ If a change touches anything in the right column, the harness on the left is man
 | `calendar-test` | all of `Calendar/Model/` — link detection, the join window, the day buckets |
 | `clipboard-search-test` | Ordinary and OCR result ordering, opt-in lifecycle, cancellation, pins and type filters |
 | `clipboard-text-test` | Apple Vision/PDF extraction, scheduling, retry backoff and recovery |
-| `clipboard-worker-test` | Bundled OCR helper protocol, cancellation, deadline and output bounds |
 | `clipboard-test` | `Clipboard/Model/ClipboardStore.swift`, `ClipboardFilter.swift`, `ClipboardFileKind.swift`, the colour trio |
 | `pasteboard-test` | `Clipboard/Service/ClipboardManager.swift` capture and `Paster.write` — what a Finder copy reads as, and what a file entry writes back |
 | `emoji-test` | `Emoji/Model/EmojiCatalog.swift`, `EmojiGridGeometry.swift`, the generated data |

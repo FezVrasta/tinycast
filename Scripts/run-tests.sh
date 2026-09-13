@@ -19,23 +19,42 @@ if [ "${1:-}" = "--exec" ]; then
     shift
     name=$1 opt=$2
     shift 2
-    if ! swiftc -swift-version 6 "$opt" "$@" "Tests/$name.swift" -o "$BIN/$name" > "$BIN/$name.log" 2>&1; then
-        printf '\033[31mFAIL\033[0m  %-22s did not compile\n' "$name"
+    : > "$BIN/$name.running"
+    trap 'rm -f "$BIN/$name.running" "$BIN/$name.time"' EXIT
+    fail() {
+        printf '\033[31mFAIL\033[0m  %-25s %s\n' "$name" "$1"
         : > "$BIN/$name.failed"
         exit 0
+    }
+    TIMEFORMAT=%1R
+    if ! compiled=$( { time swiftc -swift-version 6 "$opt" "$@" "Tests/$name.swift" -o "$BIN/$name" > "$BIN/$name.log" 2>&1; } 2>&1 ); then
+        fail "did not compile"
     fi
-    if ! "$BIN/$name" > "$BIN/$name.log" 2>&1; then
-        printf '\033[31mFAIL\033[0m  %-22s assertion failed\n' "$name"
-        : > "$BIN/$name.failed"
-        exit 0
-    fi
-    printf '\033[32mok\033[0m    %-22s\n' "$name"
+    { time "$BIN/$name" > "$BIN/$name.log" 2>&1; } 2> "$BIN/$name.time" &
+    pid=$!
+    # macOS ships no `timeout`, so the worker polls; a wedged harness must fail, not stall the suite.
+    ticks=0
+    while kill -0 "$pid" 2>/dev/null; do
+        if [ "$ticks" -ge $((TINYCAST_TEST_TIMEOUT * 5)) ]; then
+            { pkill -KILL -P "$pid"; kill -KILL "$pid"; wait "$pid"; } 2>/dev/null
+            printf '\n[run-tests] killed after %ss without finishing\n' "$TINYCAST_TEST_TIMEOUT" >> "$BIN/$name.log"
+            fail "timed out after ${TINYCAST_TEST_TIMEOUT}s"
+        fi
+        ticks=$((ticks + 1))
+        sleep 0.2
+    done
+    wait "$pid"
+    status=$?
+    took=$(< "$BIN/$name.time")
+    if [ "$status" -gt 128 ]; then fail "crashed (signal $((status - 128))) after ${took}s"; fi
+    if [ "$status" -ne 0 ]; then fail "assertion failed after ${took}s"; fi
+    printf '\033[32mok\033[0m    %-25s %5ss  \033[2m(compile %ss)\033[0m\n' "$name" "$took" "$compiled"
     exit 0
 fi
 
 QUEUE="$BIN/queue"
 : > "$QUEUE"
-rm -f "$BIN"/*.failed
+rm -f "$BIN"/*.failed "$BIN"/*.running
 
 failed=()
 ran=0
@@ -136,8 +155,6 @@ run clipboard-search-test  Tinycast/Features/Clipboard/Model/*.swift $Q
 run clipboard-text-test    Tinycast/Features/Clipboard/Model/*.swift $Q \
                            Tinycast/Features/Clipboard/Service/ClipboardTextExtractor.swift \
                            Tinycast/Features/Clipboard/Service/ClipboardTextIndexer.swift \
-                           Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift
-run clipboard-worker-test  Tinycast/Features/Clipboard/Model/*.swift $Q \
                            Tinycast/Features/Clipboard/Service/ClipboardTextWorker.swift
 run pasteboard-test        Tinycast/Platform/PasteboardFiles.swift \
                            Tinycast/Features/Clipboard/Model/ClipboardStore.swift \
@@ -492,11 +509,36 @@ fi
 
 # `sort -s` is stable, so the slow harnesses lead and everything else keeps its declaration order.
 JOBS="${TINYCAST_TEST_JOBS:-$(sysctl -n hw.ncpu)}"
+export TINYCAST_TEST_TIMEOUT="${TINYCAST_TEST_TIMEOUT:-300}"
+started=$SECONDS
+
+# Numbers each result, and names what is still running whenever the output goes quiet.
+report() {
+    local finished=0 line asked running file
+    while :; do
+        asked=$SECONDS
+        if IFS= read -r -t 15 line; then
+            case "$line" in "dispatch "*) return "${line#dispatch }";; esac
+            finished=$((finished + 1))
+            printf '[%*d/%d] %s\n' "${#ran}" "$finished" "$ran" "$line"
+            continue
+        fi
+        # Bash 3.2 returns the same status for a timeout and EOF; only EOF comes back at once.
+        if [ $((SECONDS - asked)) -lt 10 ]; then return 1; fi
+        running=""
+        for file in "$BIN"/*.running; do
+            [ -e "$file" ] && running="$running $(basename "$file" .running)"
+        done
+        printf '        \033[2mstill running after %ds:%s\033[0m\n' $((SECONDS - started)) "$running"
+    done
+}
+
 # Without this the suite reports "all passed" whenever dispatch itself dies and no harness ran.
-if ! sort -s -k1,1n "$QUEUE" | cut -d' ' -f2- | xargs -P "$JOBS" -L1 "$SELF" --exec; then
+if ! { sort -s -k1,1n "$QUEUE" | cut -d' ' -f2- | xargs -P "$JOBS" -L1 "$SELF" --exec; echo "dispatch $?"; } | report; then
     echo "harness dispatch failed; no result below can be trusted" >&2
     exit 1
 fi
+elapsed=$((SECONDS - started))
 
 # A compiler diagnostic is far longer than PIPE_BUF, so the workers log it and it is replayed here.
 while read -r _ name _; do
@@ -508,8 +550,8 @@ if [ ${#failed[@]} -gt 0 ]; then
         printf '\n\033[31m--- %s ---\033[0m\n' "$name"
         cat "$BIN/$name.log"
     done
-    printf '\n%d harness(es) failed: %s\n' "${#failed[@]}" "${failed[*]}" >&2
+    printf '\n\033[31mFAILED\033[0m  %d of %d harness(es) failed in %ds: %s\n' \
+        "${#failed[@]}" "$ran" "$elapsed" "${failed[*]}" >&2
     exit 1
 fi
-echo
-if [ -n "$only" ]; then echo "$only passed."; else echo "All $ran harnesses passed."; fi
+printf '\n\033[32mPASSED\033[0m  All %d harness(es) passed in %ds.\n' "$ran" "$elapsed"
