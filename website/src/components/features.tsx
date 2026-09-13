@@ -36,7 +36,7 @@ export function Features() {
       id="features"
       eyebrow="What it does"
       title="Everything you reach for, one keystroke away."
-      intro="One palette, and everything in it is off until you ask for it. Every card links to its documentation."
+      intro="One palette, and almost everything in it stays off until you ask for it. Every card links to its documentation."
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((feature, i) => (

@@ -372,7 +372,7 @@
      own. Centring with flex throws that baseline away and needs a
      vertical-align nudge that is wrong at every other font size.
 
-     The font is the UI sans stack on purpose. ⌘ ⇧ ⌥ ⌃ ⌫ ⎋ ⇥ exist in the
+     The font is the UI sans stack on purpose. ⌘ ⇧ ⌥ ⌃ and the arrows exist in the
      system UI font on every platform and in no monospace face, so asking for
      mono here is what left some keys blank or drawn tiny. */
   .tc-key {

@@ -10,23 +10,24 @@ export const migration = {
   steps: [
     {
       title: "Export what you have",
-      body: "Raycast → Settings → Advanced → Export, and note the passphrase.",
+      body: "In Raycast, export your settings and data, and note the passphrase.",
     },
     {
       title: "Open Settings → Backup",
-      body: "Choose the file. Tinycast reads both export formats and says which one it found.",
+      body: "Choose the file, then type the passphrase. A wrong one is reported as exactly that.",
     },
     {
       title: "Pick what to bring",
       body: "Keep it all or just the parts you want — then you're set up.",
     },
   ],
-  // Must match RaycastImportOptions in Features/Backup/Model/RaycastFormat.swift.
+  // Must match RaycastImportOptions in Features/Backup/Model/RaycastImport.swift.
   transfers: [
     "Shortcuts",
     "Favorites",
     "Clipboard history",
     "Snippets",
+    "Quicklinks",
     "Aliases",
     "Emoji skin tone",
     "Compact mode",
