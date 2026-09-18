@@ -168,6 +168,28 @@ struct CalendarTests {
             hosted("https://meet.google.com/abc-defg-hij", "user@domain.com")?.url.absoluteString
                 == "https://meet.google.com/abc-defg-hij",
             "the link as written is what Copy Meeting Link keeps")
+        expect(
+            hosted("https://meet.google.com/abc", participant("mailto:user@domain.com"))?.webURL
+                .absoluteString == "https://meet.google.com/abc?authuser=user@domain.com",
+            "the current user's mailto address reaches the Meet link as its account")
+        expect(
+            hosted(
+                "https://meet.google.com/abc",
+                participant("mailto:user@domain.com", isCurrentUser: false))?.webURL
+                .absoluteString == "https://meet.google.com/abc",
+            "another participant's address is never used as ours")
+        expect(
+            participant("mailto:user%40domain.com") == "user@domain.com",
+            "a percent-encoded address is decoded once, here")
+        expect(
+            participant("mailto:a+b@domain.com") == "a+b@domain.com",
+            "a plus survives the decode, so accountURL can encode it again")
+        expect(
+            participant("urn:uuid:1F2A") == nil,
+            "a non-mailto participant URL yields no address")
+        expect(
+            participant("mailto:unknownorganizer@calendar.google.com") != nil,
+            "a placeholder organizer address is still an address, left for isCurrentUser to refuse")
     }
 
     // MARK: - The join window
@@ -520,6 +542,10 @@ struct CalendarTests {
 
     static func hosted(_ text: String, _ account: String?) -> MeetingLink? {
         MeetingLink.detect(fields: [text], account: account)
+    }
+
+    static func participant(_ url: String, isCurrentUser: Bool = true) -> String? {
+        MeetingLink.accountAddress(of: URL(string: url)!, isCurrentUser: isCurrentUser)
     }
 
     static func provider(_ text: String) -> MeetingLink.Provider? { link(text)?.provider }
