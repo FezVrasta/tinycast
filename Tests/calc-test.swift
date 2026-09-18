@@ -1647,7 +1647,9 @@ struct CalcTests {
             "history [arguments]", expected: "max(1,5; 2)",
             got: italian.localizedExpression("max(1.5, 2)"))
         // Inside a call a canonical comma is an argument, even where it looks like grouping
-        check("history [unspaced arguments]", expected: "max(2;3)", got: italian.localizedExpression("max(2,3)"))
+        check(
+            "history [unspaced arguments]", expected: "max(2;3)", got: italian.localizedExpression("max(2,3)")
+        )
         check(
             "history [grouping-shaped argument]", expected: "max(1;234) + 1.234",
             got: italian.localizedExpression("max(1,234) + 1,234"))
