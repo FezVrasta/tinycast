@@ -25,6 +25,7 @@ struct CalendarTests {
         cardWindow()
         chordFallsBackWiderThanTheCard()
         countdownStrings()
+        rowCountdowns()
         dayBuckets()
         readSpan()
         menuBarWindow()
@@ -268,6 +269,19 @@ struct CalendarTests {
         expect(
             window.joinable(from: [event(id: "past", start: -120)], now: now) == nil,
             "a meeting that is over is not offered")
+    }
+
+    static func rowCountdowns() {
+        let meeting = event(id: "review", start: 120, minutes: 30)
+        func pill(_ offset: TimeInterval) -> String? {
+            UpcomingWindow.rowCountdown(for: meeting, now: at(120).addingTimeInterval(offset))
+        }
+        expect(pill(-60 * 60) == "in 60 min", "exactly an hour out still earns a pill")
+        expect(pill(-60 * 60 - 1) == nil, "past the hour a row shows only its time")
+        expect(pill(-25 * 60) == "in 25 min", "inside the hour a row counts down")
+        expect(pill(0) == "Now", "the start reads as Now")
+        expect(pill(29 * 60) == "Now", "a meeting under way stays Now")
+        expect(pill(30 * 60) == nil, "a finished meeting earns no pill")
     }
 
     static func countdownStrings() {
@@ -558,7 +572,7 @@ struct CalendarTests {
             id: id, title: id, start: at(minutes),
             end: at(minutes).addingTimeInterval(TimeInterval(duration * 60)),
             isAllDay: isAllDay, isDeclined: isDeclined, calendarID: "cal", calendarName: "Work",
-            calendarItemID: id, link: link)
+            calendarColor: nil, calendarItemID: id, link: link)
     }
 
     static func event(
@@ -569,7 +583,7 @@ struct CalendarTests {
             id: id, title: id, start: start,
             end: start.addingTimeInterval(TimeInterval(duration * 60)),
             isAllDay: false, isDeclined: false, calendarID: "cal", calendarName: "Work",
-            calendarItemID: id, link: link)
+            calendarColor: nil, calendarItemID: id, link: link)
     }
 
     static func expect(_ condition: Bool, _ label: String) {
