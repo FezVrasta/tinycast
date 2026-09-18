@@ -334,8 +334,7 @@ run window-layout-test     Tinycast/Features/WindowManagement/Model/WindowComman
 run custom-command-test    Tinycast/Platform/PseudoTerminal.swift \
                            Tinycast/Features/CustomCommands/Model/CustomCommand.swift \
                            Tinycast/Features/CustomCommands/Model/RaycastScriptImport.swift \
-                           Tinycast/Features/CustomCommands/Service/ShellCommandRunner.swift \
-                           Tinycast/Features/CustomCommands/Service/CustomCommandArgumentSession.swift
+                           Tinycast/Features/CustomCommands/Service/ShellCommandRunner.swift
 run uninstall-test         Tinycast/Features/Uninstall/Model/UninstallTarget.swift \
                            Tinycast/Features/Uninstall/Model/UninstallSearchRoot.swift \
                            Tinycast/Features/Uninstall/Model/UninstallRules.swift \
