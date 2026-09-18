@@ -25,7 +25,9 @@ enum QuicklinkArgumentsAccessory {
             width: QuicklinkArgumentsRow.totalWidth(
                 for: arguments, hasIcon: symbol != nil, metrics: metrics),
             fieldNames: arguments.map(\.name),
-            firstIncompleteField: arguments.first { value($0.name).wrappedValue.isEmpty }?.name,
+            firstIncompleteField: arguments.first {
+                QuicklinkCoordinator.requiresValue($0) && value($0.name).wrappedValue.isEmpty
+            }?.name,
             optionsMenu: { name in
                 guard let argument = arguments.first(where: { $0.name == name }),
                     !argument.options.isEmpty
