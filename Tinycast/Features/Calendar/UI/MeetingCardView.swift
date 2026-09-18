@@ -43,7 +43,8 @@ struct MeetingCard: View {
         .leadCard(selected: selected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(meeting.title), \(UpcomingWindow.countdown(to: meeting.start, now: now))"
+            "\(meeting.title), \(subtitle), "
+                + UpcomingWindow.countdown(to: meeting.start, now: now)
         )
         .accessibilityAddTraits(.isButton)
     }

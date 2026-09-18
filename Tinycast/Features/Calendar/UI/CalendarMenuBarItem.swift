@@ -15,7 +15,9 @@ struct CalendarMenuBarLabel: View {
             icon(meeting.link?.provider.sfSymbol ?? "calendar", describing: meeting.title)
         case (.meetingTitle, let meeting?):
             HStack(spacing: Theme.Spacing.xs) {
-                if let color = meeting.calendarColor { Image(nsImage: color.menuBarDot) }
+                if let color = meeting.calendarColor {
+                    Image(nsImage: color.menuBarDot).accessibilityHidden(true)
+                }
                 title(summary(for: meeting))
             }
         case (.meetingTitle, nil)
