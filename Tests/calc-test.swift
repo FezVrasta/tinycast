@@ -1646,6 +1646,20 @@ struct CalcTests {
         check(
             "history [arguments]", expected: "max(1,5; 2)",
             got: italian.localizedExpression("max(1.5, 2)"))
+        // Inside a call a canonical comma is an argument, even where it looks like grouping
+        check("history [unspaced arguments]", expected: "max(2;3)", got: italian.localizedExpression("max(2,3)"))
+        check(
+            "history [grouping-shaped argument]", expected: "max(1;234) + 1.234",
+            got: italian.localizedExpression("max(1,234) + 1,234"))
+        check(
+            "history [decimal argument]", expected: "round(3,14159;2)",
+            got: italian.localizedExpression("round(3.14159,2)"))
+        check(
+            "history [nested call]", expected: "2max(1; min(2;3))",
+            got: italian.localizedExpression("2max(1, min(2,3))"))
+        check("history [ch arguments]", expected: "max(1,234)", got: swiss.localizedExpression("max(1,234)"))
+        expectLocalizedExpression("max(1,234)", "max(1,234)", swiss)
+        expectLocalized("max(1;234)", "234", italian)
         check("history [exponent]", expected: "1,524157875e+16", got: italian.localized("1.524157875e+16"))
         check("history [english]", expected: "1,234.5", got: CalcNumberFormat.english.localized("1,234.5"))
         check("history [search]", expected: "3.8", got: italian.canonical("3,8") ?? "nil")

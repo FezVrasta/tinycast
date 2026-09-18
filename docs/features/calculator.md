@@ -623,8 +623,9 @@ it to canonical spelling or rejects the whole query. Rejection means **no card**
 
 `CalcNumberFormat.localized` is the reverse, applied to canonical text: a run that is one valid
 canonical number takes the format's separators, and anything else — a dotted date, a version, a
-clock, a date formatter's `Friday, 24 July` — is left as written. The echoed expression additionally
-turns its canonical argument commas into `;`. `English` makes both directions the identity, so the
+clock, a date formatter's `Friday, 24 July` — is left as written. Inside a function call every comma
+is an argument, as `CalcTokenizer` reads it, so a stored `max(1,234)` shows `max(1;234)`, never
+`max(1.234)`. The echoed expression additionally turns its canonical argument commas into `;`. `English` makes both directions the identity, so the
 English path is byte-for-byte what it was.
 
 ## Additional units and transfer rates

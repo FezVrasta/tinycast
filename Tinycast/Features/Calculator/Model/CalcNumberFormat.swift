@@ -143,10 +143,22 @@ struct CalcNumberFormat: Equatable, Sendable {
         guard self != .english else { return text }
         let scalars = Array(text.unicodeScalars)
         var output = String.UnicodeScalarView()
+        var depth = 0
+        // Inside a call every comma separates arguments, exactly as `CalcTokenizer` reads it.
+        var functionDepth: Int?
         var index = 0
         while index < scalars.count {
             let scalar = scalars[index]
             guard startsNumber(scalars, at: index, decimal: ".") else {
+                if scalar == "(" {
+                    if functionDepth == nil, Self.namesFunction(scalars, before: index) {
+                        functionDepth = depth
+                    }
+                    depth += 1
+                } else if scalar == ")" {
+                    depth -= 1
+                    if functionDepth == depth { functionDepth = nil }
+                }
                 if separatingArguments, usesDecimalComma, scalar == "," {
                     output.append(contentsOf: argumentSeparator.unicodeScalars)
                 } else {
@@ -155,7 +167,8 @@ struct CalcNumberFormat: Equatable, Sendable {
                 index += 1
                 continue
             }
-            let end = numberEnd(scalars, from: index, decimal: ".", grouping: ",")
+            let end = numberEnd(
+                scalars, from: index, decimal: ".", grouping: functionDepth == nil ? "," : nil)
             let run = scalars[index..<end]
             if !Self.isClockFragment(scalars, run: index..<end), let number = localizedNumber(run) {
                 output.append(contentsOf: number)
@@ -227,6 +240,19 @@ struct CalcNumberFormat: Equatable, Sendable {
     private static func isClockFragment(_ scalars: [Unicode.Scalar], run: Range<Int>) -> Bool {
         (run.lowerBound > 0 && scalars[run.lowerBound - 1] == ":")
             || (run.upperBound < scalars.count && scalars[run.upperBound] == ":")
+    }
+
+    /// Whether the word before `index`, spaces allowed, is a function; `2max(` is `2 × max(`.
+    private static func namesFunction(_ scalars: [Unicode.Scalar], before index: Int) -> Bool {
+        var end = index
+        while end > 0, scalars[end - 1].properties.isWhitespace { end -= 1 }
+        var start = end
+        while start > 0, scalars[start - 1].properties.isAlphabetic || isDigit(scalars[start - 1]) {
+            start -= 1
+        }
+        while start < end, isDigit(scalars[start]) { start += 1 }
+        guard start < end else { return false }
+        return CalcMath.isFunction(String(String.UnicodeScalarView(scalars[start..<end])).lowercased())
     }
 
     private static func isValidGrouping(_ groups: [ArraySlice<Unicode.Scalar>]) -> Bool {
