@@ -113,9 +113,10 @@ full-height and still off-screen.
 ## Custom sizes
 
 A **custom size** is a user-defined command: a name, a width and a height — each in points or as a
-percentage — and a position on the 3×3 grid [Window Layouts](window-layouts.md) uses. It acts on the
-focused window exactly as a built-in command does, and is the answer for a display where Reasonable
-Size is wrong: no single built-in size suits every screen, so the size is the user's.
+percentage — a position on the 3×3 grid [Window Layouts](window-layouts.md) uses, and an optional
+offset in points on top of that position. It acts on the focused window exactly as a built-in
+command does, and is the answer for a display where Reasonable Size is wrong: no single built-in
+size suits every screen, so the size is the user's.
 
 - **It stays on the window's display.** A custom size never names a display; it resolves on the one
   the window already sits on, so one shortcut works on the laptop and at the desk.
@@ -123,7 +124,9 @@ Size is wrong: no single built-in size suits every screen, so the size is the us
   Reasonable Size. A percentage is of that box; a point size is capped by it, so an oversized request
   fills the display rather than overflowing it. The length floors at 1 pt, as a layout entry does.
 - **`CustomWindowSize.frame` is the only arithmetic**, and it reuses `WindowLayoutAnchor.placement`
-  and `WindowPlacementEngine.rounded` rather than restating either.
+  and `WindowPlacementEngine.rounded` rather than restating either. The offset is applied after the
+  anchor and then clamped into the box, exactly as a layout entry's is, so it never pushes a window off
+  its display.
 - **It goes through `WindowMover`'s one placement sequence**, so a window that refuses to shrink is
   re-anchored to the chosen position, and **Restore undoes it** like any command.
   `WindowActionMemory` records it with a `nil` command: it never cycles and is never a tile, so a
@@ -327,9 +330,10 @@ and its ±1 floor, both field tables and the sign convention shared between them
 on the augmented path, the payload's size, record offsets and every scalar in it, and the big-endian
 framing of the field-4205 record.
 
-Custom sizes are covered in `Tests/window-layout-test.swift`, beside the anchor grid they share:
-the entry id, unit clamping and conversion, exact frames on every fixture display, gap arithmetic,
-the host-display placement, and store CRUD, validation, import sanitising and persistence.
+Custom sizes are covered in `Tests/window-layout-test.swift`, beside the anchor grid they share: the
+entry id, unit clamping and conversion, exact frames on every fixture display, gap and offset
+arithmetic, the host-display placement, and store CRUD, validation, import sanitising and
+persistence.
 
 Everything runs headless because the layer is pure. `WindowMover` and `SpaceSwitcher` are not compiled
 into either harness and have no automated coverage — the AX and `CGEvent` paths need manual
