@@ -8,13 +8,13 @@ enum ExecutableLocator {
         extraHomePaths: [String] = [],
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) async -> URL? {
-        let candidates = wellKnown(command, extraHomePaths: extraHomePaths, environment: environment)
-        if let url = candidates.first(where: isExecutable) {
-            return url
+        // The shell's answer wins: a stale install in a well-known prefix can shadow the working one.
+        if let path = await loginShellLookup(command) {
+            let url = URL(fileURLWithPath: path)
+            if isExecutable(url) { return url }
         }
-        guard let path = await loginShellLookup(command) else { return nil }
-        let url = URL(fileURLWithPath: path)
-        return isExecutable(url) ? url : nil
+        return wellKnown(command, extraHomePaths: extraHomePaths, environment: environment)
+            .first(where: isExecutable)
     }
 
     nonisolated private static func wellKnown(
