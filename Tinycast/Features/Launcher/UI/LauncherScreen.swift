@@ -414,7 +414,10 @@ struct LauncherScreen: PaletteScreen {
                 vm.selection = 0
                 openActions()
             },
-            onActivate: { core.launcherCoordinator.launch($0, searchQuery: vm.query) },
+            onActivate: {
+                core.launcherCoordinator.launch(
+                    $0, searchQuery: vm.query, arguments: argumentValues(for: $0))
+            },
             onActions: { app in
                 if let index = rows.firstIndex(of: .entry(app)) { vm.selection = index }
                 openActions()

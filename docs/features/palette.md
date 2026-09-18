@@ -212,7 +212,8 @@ these invariants:
   than a view of its own.
 
 The typed values live on `PaletteState.commandArguments`, keyed by
-`PaletteState.argumentKey(entryID, name)`, and are cleared with the rest of the screen.
+`PaletteState.argumentKey(entryID, field)` — the argument's name, or a custom command's positional
+`$1`–`$3` — and are cleared with the rest of the screen.
 `PaletteState.pendingArgumentEntryID` is how a *shortcut* reaches them: a quicklink opened with values
 still missing shows its own screen and names the row, and the header focuses that row's first empty
 field instead of the search field. A custom command has no screen of its own, so it also sets
