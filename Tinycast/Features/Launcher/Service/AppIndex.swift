@@ -347,6 +347,8 @@ final class AppIndex {
     private var meetingEntries: [AppEntry] = []
     /// The catalog's commands a disabled feature hides; the Commands slice is recomputed from it.
     private var hiddenCommands: Set<CommandID> = []
+    /// Kept out of launcher search by a "Show in launcher" switch, yet still runnable by shortcut.
+    private var unlistedCommands: Set<CommandID> = []
     private var nameCache = BundleNameCache()
     private var paneCache: SettingsPaneScanner.Cache?
     private var isRefreshing = false
@@ -373,7 +375,7 @@ final class AppIndex {
     private var visibleCatalogEntries: [AppEntry] {
         CommandCatalog.all.filter {
             guard let command = CommandCatalog.command(for: $0) else { return true }
-            return !hiddenCommands.contains(command)
+            return !hiddenCommands.contains(command) && !unlistedCommands.contains(command)
         }
     }
 
@@ -387,6 +389,14 @@ final class AppIndex {
         let updated = visible ? hiddenCommands.subtracting(commands) : hiddenCommands.union(commands)
         guard updated != hiddenCommands else { return }
         hiddenCommands = updated
+        publishEntries()
+    }
+
+    func setCommandsListed(_ commands: Set<CommandID>, _ listed: Bool) {
+        let updated =
+            listed ? unlistedCommands.subtracting(commands) : unlistedCommands.union(commands)
+        guard updated != unlistedCommands else { return }
+        unlistedCommands = updated
         publishEntries()
     }
 
