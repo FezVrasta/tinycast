@@ -26,6 +26,7 @@ struct ExtensionTests {
         var huds: [String] = []
         var oauthTokens: [String: String] = [:]
         private let fetcher = ExtensionFetcher()
+        private let sockets = ExtensionWebSocketBridge()
 
         func perform(api: String, method: String, arguments: [RenderValue]) async throws -> String {
             calls.append("\(api).\(method)")
@@ -35,6 +36,13 @@ struct ExtensionTests {
             }
             if api == "fetch" {
                 return ExtensionRuntime.jsonString(from: try await fetcher.request(arguments.first))
+            }
+            if api == "websocket" {
+                return ExtensionRuntime.jsonString(
+                    from: try await sockets.perform(method: method, arguments: arguments))
+            }
+            if api == "dns" {
+                return ExtensionRuntime.jsonString(from: await ExtensionNameResolver.resolve(arguments.first))
             }
             switch "\(api).\(method)" {
             case "feedback.showToast":
@@ -70,6 +78,10 @@ struct ExtensionTests {
             default:
                 return ""
             }
+        }
+
+        func sessionEnded() {
+            sockets.closeAll()
         }
     }
 
