@@ -494,7 +494,7 @@ struct RootPaletteView: View {
                 return moveHorizontally(1) ? .handled : .ignored
             }
             // Plain ↵ runs an open menu's row or non-form selection; ⌘↵ submits forms.
-            .onKeyPress(keys: [.return], phases: .down) { press in
+            .onKeyPress(keys: [.return, KeyEquivalent("\u{3}")], phases: .down) { press in
                 let command = press.modifiers.contains(.command)
                 let option = press.modifiers.contains(.option)
                 if menuOpen, !command, !option {

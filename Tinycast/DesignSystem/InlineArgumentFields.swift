@@ -180,7 +180,7 @@ private struct ArgumentChoiceField: View {
         // The chrome draws the focused edge, so AppKit's blue ring would be a second one.
         .focusEffectDisabled()
         .onTapGesture(perform: onOpen)
-        .onKeyPress(.return) {
+        .onKeyPress(keys: [.return, KeyEquivalent("\u{3}")]) { _ in
             onOpen()
             return .handled
         }
