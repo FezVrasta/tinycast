@@ -120,6 +120,11 @@ final class QuicklinkCoordinator {
     static let selectionArgument = SnippetTemplateEngine.MissingArgument(
         name: "Selected Text", options: [])
 
+    /// Left empty, "Selected Text" still resolves at open, so it never holds ↵ or earns a red edge.
+    static func requiresValue(_ argument: SnippetTemplateEngine.MissingArgument) -> Bool {
+        argument.name != selectionArgument.name
+    }
+
     /// The header fields a row shows: the link's own arguments, plus the one the setting asks for.
     func promptedArguments(for quicklink: Quicklink) -> [SnippetTemplateEngine.MissingArgument] {
         var arguments = SnippetTemplateEngine.declaredArguments(in: quicklink.link)

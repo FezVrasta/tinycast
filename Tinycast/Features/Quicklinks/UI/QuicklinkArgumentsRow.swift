@@ -44,7 +44,10 @@ struct QuicklinkArgumentsRow: View {
         }
         // Only a field the caret has been in and left may say it is still owed a value.
         .onChange(of: focused) { previous, _ in
-            if let previous, arguments.contains(where: { $0.name == previous }) {
+            if let previous,
+                let argument = arguments.first(where: { $0.name == previous }),
+                QuicklinkCoordinator.requiresValue(argument)
+            {
                 visited.insert(previous)
             }
         }
