@@ -41,6 +41,16 @@ struct SymbolTint: Hashable, Sendable {
     let color: NSColor
 }
 
+enum SystemSymbolName {
+    // This pair renders opposite to its name on the target SF Symbols runtime, in both appearances.
+    static func resolve(_ name: String) -> String {
+        switch name {
+        case "face.smiling": "face.smiling.inverse"
+        default: name
+        }
+    }
+}
+
 /// A feature sets one rather than branching `AppEntry`; `artwork` carries its extent.
 enum EntryIcon: Hashable, Sendable {
     /// The stamp is `FileIconStamp`'s: it moves when the file's icon does, retiring the old bitmap.
@@ -270,9 +280,10 @@ enum IconCache {
     private static func glyph(named name: String, tint: NSColor) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 21, weight: .medium)
             .applying(.init(paletteColors: [tint]))
-        if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
-        {
+        if let symbol = NSImage(
+            systemSymbolName: SystemSymbolName.resolve(name), accessibilityDescription: nil
+        )?
+        .withSymbolConfiguration(config) {
             return symbol
         }
         guard let asset = NSImage(named: name) else { return nil }
