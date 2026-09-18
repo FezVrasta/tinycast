@@ -322,9 +322,10 @@ and `MCPCoordinator` the twentieth.
 
 ## Installed commands
 
-`ExecutableLocator` finds `codex`, `claude`, `grok`, `opencode` and `agent` by asking the login shell,
-so a stale copy in another prefix never shadows the one Terminal runs, and falls back to the app's PATH,
-the normal Homebrew and local-bin locations and the active Node installation. The
+`ExecutableLocator` finds `codex`, `claude`, `grok`, `opencode` and `agent` by asking the account's
+login shell, so a stale copy in another prefix never shadows the one Terminal runs. Only when the shell
+names no absolute executable does it fall back to the app's PATH, the normal Homebrew and local-bin
+locations and every nvm Node version, newest first — a fallback that can pick a different copy. The
 commands are never installed by Tinycast; Settings links to their own install docs and offers a sign-in
 command to copy. `InstalledAIManager` probes Claude, Grok, OpenCode and Cursor off-main, in parallel.
 Claude's auth status gates three model aliases; a successful Grok or OpenCode model list is both its auth
