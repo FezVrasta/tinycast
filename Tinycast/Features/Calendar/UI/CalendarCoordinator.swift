@@ -105,9 +105,11 @@ final class CalendarCoordinator {
     /// Publishes or withdraws everything the feature contributes to the launcher.
     func applyEnabled() {
         let enabled = settings.calendarEnabled
-        appIndex.setCommandsVisible(
-            [.joinNextMeeting, .copyMeetingLink, .mySchedule, .openInCalendar, .createEvent],
-            enabled && settings.calendarShowInLauncher)
+        let commands: Set<CommandID> = [
+            .joinNextMeeting, .copyMeetingLink, .mySchedule, .openInCalendar, .createEvent
+        ]
+        appIndex.setCommandsVisible(commands, enabled)
+        appIndex.setCommandsListed(commands, settings.calendarShowInLauncher)
         guard enabled else {
             store.stop()
             clock.stop()
