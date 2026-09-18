@@ -257,6 +257,14 @@ extension AppEntry {
             bundleID: nil, kind: .quickAction, symbolName: action.iconSymbol)
     }
 
+    /// The one row a custom command draws, wherever it is offered from.
+    init(_ command: CustomCommand) {
+        self.init(
+            id: command.entryID, name: command.name,
+            url: URL(string: "tinycast://custom-command/" + command.id.uuidString)!,
+            bundleID: nil, kind: .customCommand, symbolName: command.iconSymbol)
+    }
+
     /// The one row a quicklink draws, wherever it is offered from.
     init(_ quicklink: Quicklink) {
         self.init(
@@ -402,13 +410,8 @@ final class AppIndex {
 
     /// Replaces the command slice without rescanning, so Settings edits land at once.
     func setCustomCommands(_ commands: [CustomCommand]) {
-        let entries = commands.filter(\.isEnabled).map { command in
-            AppEntry(
-                id: command.entryID, name: command.name,
-                url: URL(string: "tinycast://custom-command/" + command.id.uuidString)!,
-                bundleID: nil, kind: .customCommand, symbolName: command.iconSymbol)
-        }
-        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let entries = commands.filter(\.isEnabled).map(AppEntry.init)
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         guard entries != customCommandEntries else { return }
         customCommandEntries = entries
         publishEntries()
