@@ -29,9 +29,17 @@ private final class InstalledCLITurnRunner {
         "plan":{"permission":"deny"}}}
         """
 
-    private static let maximumPartialLineBytes = 8 * 1_048_576
     private static let claudeManagedMCPConfig =
         "/Library/Application Support/ClaudeCode/managed-mcp.json"
+
+    private static var maximumPartialLineBytes: Int {
+        if let raw = ProcessInfo.processInfo.environment["TC_INSTALLED_MAX_LINE_BYTES"],
+            let value = Int(raw), value > 0
+        {
+            return value
+        }
+        return 8 * 1_048_576
+    }
 
     private final class TurnToken: Sendable {}
 
@@ -46,7 +54,7 @@ private final class InstalledCLITurnRunner {
     private var continuation: AIProviderStream.Continuation?
     private var outputBuffer = Data()
     private var errorBuffer = Data()
-    private var openCodeSessionID: String?
+    private var turnSessionID: String?
     private var activeExecutable: URL?
 
     init(
@@ -191,6 +199,16 @@ private final class InstalledCLITurnRunner {
             ]
             if let effort { result += ["--variant", effort] }
             return result
+        case .cursor:
+            return [
+                "-p",
+                "--mode", "ask",
+                "--trust",
+                "--workspace", workspace.path,
+                "--model", model,
+                "--output-format", "stream-json",
+                "--stream-partial-output"
+            ]
         case .codex:
             return []
         }
@@ -212,7 +230,7 @@ private final class InstalledCLITurnRunner {
             result["OPENCODE_CONFIG_CONTENT"] = Self.openCodeConfiguration
             result["OPENCODE_AUTO_SHARE"] = "false"
             result["OPENCODE_DISABLE_AUTOUPDATE"] = "true"
-        case .codex:
+        case .cursor, .codex:
             break
         }
         return result
@@ -251,6 +269,10 @@ private final class InstalledCLITurnRunner {
         outputBuffer.append(data)
         while let newline = outputBuffer.firstIndex(of: 0x0A) {
             let line = outputBuffer[..<newline]
+            if line.count > Self.maximumPartialLineBytes {
+                fail(kind.title + " returned an oversized response.")
+                return
+            }
             outputBuffer.removeSubrange(...newline)
             guard !line.isEmpty else { continue }
             apply(InstalledAIStreamDecoder.decode(Data(line), kind: kind))
@@ -261,7 +283,7 @@ private final class InstalledCLITurnRunner {
     }
 
     private func apply(_ frame: InstalledAIStreamFrame) {
-        if let sessionID = frame.sessionID { openCodeSessionID = sessionID }
+        if let sessionID = frame.sessionID { turnSessionID = sessionID }
         for event in frame.events { continuation?.yield(event) }
         if let error = frame.error {
             fail(error)
@@ -289,7 +311,7 @@ private final class InstalledCLITurnRunner {
             let fallback = kind.title + " exited with status " + String(status) + "."
             fail(detail.isEmpty ? fallback : detail)
         }
-        deleteOpenCodeSession()
+        deleteTurnSession()
         cleanup()
     }
 
@@ -308,26 +330,65 @@ private final class InstalledCLITurnRunner {
         continuation?.finish(throwing: CancellationError())
         continuation = nil
         process?.terminate()
+        outputBuffer.removeAll(keepingCapacity: false)
+        errorBuffer.removeAll(keepingCapacity: false)
     }
 
-    private func deleteOpenCodeSession() {
-        guard kind == .openCode, let sessionID = openCodeSessionID,
-            let executable = activeExecutable
-        else { return }
-        let workspace = workspace
-        let environment = environment(for: executable)
-        Task.detached {
-            let process = Process()
-            process.executableURL = executable
-            process.arguments = ["session", "delete", sessionID, "--pure"]
-            process.currentDirectoryURL = workspace
-            process.environment = environment
-            process.standardInput = FileHandle.nullDevice
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            try? process.run()
-            process.waitUntilExit()
+    private func deleteTurnSession() {
+        guard let sessionID = turnSessionID else { return }
+        turnSessionID = nil
+        switch kind {
+        case .openCode:
+            guard let executable = activeExecutable else { return }
+            let workspace = workspace
+            let environment = environment(for: executable)
+            Task.detached {
+                Self.deleteOpenCodeSession(
+                    sessionID, executable: executable, workspace: workspace,
+                    environment: environment)
+            }
+        case .cursor:
+            let root = Self.cursorChatsRoot()
+            Task.detached { Self.deleteCursorChat(sessionID, root: root) }
+        case .claude, .codex:
+            break
         }
+    }
+
+    nonisolated private static func deleteOpenCodeSession(
+        _ sessionID: String, executable: URL, workspace: URL, environment: [String: String]
+    ) {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = ["session", "delete", sessionID, "--pure"]
+        process.currentDirectoryURL = workspace
+        process.environment = environment
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
+
+    /// The CLI has no delete-chat; chats live under `~/.cursor/chats/<workspace>/<id>`.
+    nonisolated private static func deleteCursorChat(_ sessionID: String, root: URL) {
+        let fm = FileManager.default
+        guard let workspaces = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        else { return }
+        for workspace in workspaces {
+            try? fm.removeItem(
+                at: workspace.appending(path: sessionID, directoryHint: .isDirectory))
+        }
+    }
+
+    private static func cursorChatsRoot() -> URL {
+        if let override = ProcessInfo.processInfo.environment["TC_CURSOR_CHATS_ROOT"],
+            !override.isEmpty
+        {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appending(
+            path: ".cursor/chats", directoryHint: .isDirectory)
     }
 
     private func cleanup() {
@@ -339,7 +400,7 @@ private final class InstalledCLITurnRunner {
         continuation = nil
         outputBuffer.removeAll(keepingCapacity: false)
         errorBuffer.removeAll(keepingCapacity: false)
-        openCodeSessionID = nil
+        turnSessionID = nil
         activeExecutable = nil
     }
 }

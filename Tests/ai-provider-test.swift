@@ -977,6 +977,27 @@ struct AIProviderTests {
             claudeFrame.events == [.usage(AIUsage(inputTokens: 8, outputTokens: 3))]
                 && claudeFrame.completed,
             "Claude result usage ends the stream")
+
+        let cursorDelta = Data(
+            #"{"type":"assistant","timestamp_ms":1,"message":{"content":[{"type":"text","text":"Hi"}]}}"#
+                .utf8)
+        expect(
+            InstalledAIStreamDecoder.decode(cursorDelta, kind: .cursor).events == [.text("Hi")],
+            "Cursor live deltas decode as text")
+        let cursorFlush = Data(
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Hi"}]}}"#.utf8)
+        expect(
+            InstalledAIStreamDecoder.decode(cursorFlush, kind: .cursor).events.isEmpty,
+            "Cursor buffered flushes without timestamp_ms are ignored")
+        let cursorDone = Data(#"{"type":"result","subtype":"success","result":"Hi"}"#.utf8)
+        expect(
+            InstalledAIStreamDecoder.decode(cursorDone, kind: .cursor).completed,
+            "Cursor result ends the stream")
+        let cursorSession = Data(
+            #"{"type":"system","subtype":"init","session_id":"ses_cursor"}"#.utf8)
+        expect(
+            InstalledAIStreamDecoder.decode(cursorSession, kind: .cursor).sessionID == "ses_cursor",
+            "Cursor system init carries the session id for cleanup")
     }
 }
 

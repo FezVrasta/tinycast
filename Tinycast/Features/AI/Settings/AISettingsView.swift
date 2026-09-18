@@ -110,7 +110,7 @@ struct AISettingsView: View {
     private var providerSummary: String {
         var providers: [String] = []
         if subscription.isConnected { providers.append("Codex") }
-        for kind in [InstalledAIKind.claude, .openCode]
+        for kind in InstalledAIKind.managedCLIKinds
         where installedAI.status(for: kind).isReady {
             providers.append(kind.title)
         }
@@ -258,12 +258,13 @@ struct AISettingsView: View {
             }
             installedConnection(.claude)
             installedConnection(.openCode)
+            installedConnection(.cursor)
         } header: {
             SettingsSectionHeader(.aiInstalledAI)
         } footer: {
             Text(
-                "Tinycast uses the Codex, Claude and OpenCode commands already installed and signed "
-                    + "in on this Mac. Tinycast never stores or asks for their API keys."
+                "Tinycast uses the Codex, Claude, OpenCode and Cursor commands already installed and "
+                    + "signed in on this Mac. Tinycast never stores or asks for their API keys."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -370,9 +371,7 @@ struct AISettingsView: View {
                     }
                 } label: {
                     Text("\(kind.title) · Ready")
-                    Text(
-                        status.version.map { "Version \($0) · \(modelCount(status.models))" }
-                            ?? modelCount(status.models))
+                    Text(readyDetail(kind, status))
                 }
             case .signInRequired:
                 LabeledContent {
@@ -500,7 +499,7 @@ struct AISettingsView: View {
             codexModels: enabledProviders.contains(.codex) ? subscription.models : [],
             isUnavailable: !enabledProviders.contains(.codex) || subscription.phase == .signedOut
                 || subscription.phase.isUnavailable)
-        for kind in [InstalledAIKind.claude, .openCode] {
+        for kind in InstalledAIKind.managedCLIKinds {
             let status = installedAI.status(for: kind)
             settings.reconcile(
                 installed: kind,
@@ -581,6 +580,14 @@ struct AISettingsView: View {
     private func copySignInCommand(_ kind: InstalledAIKind) {
         Paster.copyPlainText(kind.signInCommand)
         core.showMessage("Copied \(kind.signInCommand)")
+    }
+
+    private func readyDetail(_ kind: InstalledAIKind, _ status: InstalledAIStatus) -> String {
+        var parts: [String] = []
+        if let version = status.version { parts.append("Version " + version) }
+        parts.append(modelCount(status.models))
+        if let caveat = kind.isolationCaveat { parts.append(caveat) }
+        return parts.joined(separator: " · ")
     }
 
     private func modelCount(_ models: [InstalledAIModel]) -> String {

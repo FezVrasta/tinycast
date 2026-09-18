@@ -4,6 +4,10 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
     case codex
     case claude
     case openCode
+    case cursor
+
+    /// Claude, OpenCode and Cursor — Codex uses its app-server instead.
+    static let managedCLIKinds: [InstalledAIKind] = [.claude, .openCode, .cursor]
 
     var id: String { rawValue }
 
@@ -12,6 +16,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
         case .codex: return "Codex"
         case .claude: return "Claude"
         case .openCode: return "OpenCode"
+        case .cursor: return "Cursor"
         }
     }
 
@@ -20,6 +25,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
         case .codex: return "codex"
         case .claude: return "claude"
         case .openCode: return "opencode"
+        case .cursor: return "agent"
         }
     }
 
@@ -28,6 +34,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
         case .codex: return URL(string: "https://developers.openai.com/codex/cli")!
         case .claude: return URL(string: "https://code.claude.com/docs/en/setup")!
         case .openCode: return URL(string: "https://opencode.ai/docs")!
+        case .cursor: return URL(string: "https://cursor.com/docs/cli/overview")!
         }
     }
 
@@ -41,6 +48,15 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
         case .codex: return .codex
         case .claude: return .claude
         case .openCode: return .openCode
+        case .cursor: return .cursor
+        }
+    }
+
+    /// Cursor's CLI has no empty-MCP-config flag, so the person enabling it has to be told.
+    var isolationCaveat: String? {
+        switch self {
+        case .cursor: return "Ask mode · your Cursor MCP servers still apply"
+        case .codex, .claude, .openCode: return nil
         }
     }
 
@@ -49,6 +65,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
         case .codex: return "codex login"
         case .claude: return "claude auth login"
         case .openCode: return "opencode auth login"
+        case .cursor: return "agent login"
         }
     }
 }
@@ -60,6 +77,7 @@ extension AIModelSource {
         case .codex: return .codex
         case .claude: return .claude
         case .openCode: return .openCode
+        case .cursor: return .cursor
         case .appleIntelligence, .api: return nil
         }
     }
@@ -124,6 +142,24 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
                 id: id, name: id,
                 efforts: efforts.map { ChatGPTSubscription.Effort(id: $0, detail: nil) })
         }
+    }
+
+    /// `agent --list-models` lines look like `composer-2.5 - Composer 2.5`.
+    static func cursorCatalog(_ output: String) -> [InstalledAIModel] {
+        let clean = output.replacingOccurrences(
+            of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
+        var models: [InstalledAIModel] = []
+        var seen = Set<String>()
+        for raw in clean.components(separatedBy: .newlines) {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let separator = line.range(of: " - ") else { continue }
+            let id = String(line[..<separator.lowerBound]).trimmingCharacters(in: .whitespaces)
+            let name = String(line[separator.upperBound...]).trimmingCharacters(in: .whitespaces)
+            guard !id.isEmpty, !name.isEmpty, !seen.contains(id) else { continue }
+            seen.insert(id)
+            models.append(InstalledAIModel(id: id, name: name))
+        }
+        return models
     }
 
     private static func effortOrder(_ lhs: String, _ rhs: String) -> Bool {

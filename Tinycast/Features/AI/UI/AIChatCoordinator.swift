@@ -187,7 +187,7 @@ final class AIChatCoordinator {
         switch core.aiSettings.defaultModel {
         case .appleIntelligence?: return .appleIntelligence
         case .codex?: return .codex
-        case .claude?, .openCode?:
+        case .claude?, .openCode?, .cursor?:
             return AIModelCapabilities(
                 images: false, documents: false, webSearch: false, tools: false)
         case .api(let connection, let model, _)?:
@@ -399,7 +399,8 @@ final class AIChatCoordinator {
         core.aiSettings.enabledInstalledProviders.contains { kind in
             switch kind {
             case .codex: core.chatGPTSubscription.phase == .starting
-            case .claude, .openCode: core.installedAI.status(for: kind).phase == .checking
+            case .claude, .openCode, .cursor:
+                core.installedAI.status(for: kind).phase == .checking
             }
         }
     }
@@ -427,6 +428,7 @@ final class AIChatCoordinator {
         case .appleIntelligence?: return AIModelOption.appleIntelligenceIcon
         case .codex?: return .asset(AIBrand.openAI.assetName)
         case .claude?: return .asset(AIBrand.claude.assetName)
+        case .cursor?: return AIModelOption.cursorIcon
         case .openCode(let model, _)?: return AIModelOption.icon(AIBrand.resolve(model: model))
         case .api(let connection, let model, _)?:
             return AIModelOption.icon(
@@ -520,12 +522,14 @@ struct AIModelOption: Identifiable {
         let enabled = settings.enabledInstalledProviders
         let claude = installedAI.status(for: .claude)
         let openCode = installedAI.status(for: .openCode)
+        let cursor = installedAI.status(for: .cursor)
         return groupedCatalog(
             appleIntelligence: settings.isAppleIntelligenceAvailable(),
             codex: enabled.contains(.codex) && subscription.isConnected
                 ? subscription.models : [],
             claude: enabled.contains(.claude) && claude.isReady ? claude.models : [],
             openCode: enabled.contains(.openCode) && openCode.isReady ? openCode.models : [],
+            cursor: enabled.contains(.cursor) && cursor.isReady ? cursor.models : [],
             connections: settings.connections)
     }
 
@@ -534,12 +538,15 @@ struct AIModelOption: Identifiable {
         brand.map { .asset($0.assetName) } ?? .symbol("sparkles")
     }
 
+    static let cursorIcon = PopoverMenuIcon.symbol("cursorarrow.rays")
+
     /// Every route the Mac can reach, on-device first: it is the one an unconfigured Mac has.
     private static func catalog(
         appleIntelligence: Bool,
         codex: [ChatGPTSubscription.Model],
         claude: [InstalledAIModel],
         openCode: [InstalledAIModel],
+        cursor: [InstalledAIModel],
         connections: [AIConnection]
     ) -> [AIModelOption] {
         let onDevice =
@@ -566,6 +573,11 @@ struct AIModelOption: Identifiable {
                 selection: .openCode(model: model.id, effort: nil), title: model.name,
                 sourceTitle: "OpenCode", menuIcon: icon(AIBrand.resolve(model: model.id)))
         }
+        let cursor = cursor.map { model in
+            AIModelOption(
+                selection: .cursor(model: model.id, effort: nil), title: model.name,
+                sourceTitle: "Cursor", menuIcon: cursorIcon)
+        }
         let api = connections.flatMap { connection in
             connection.models.map { model in
                 AIModelOption(
@@ -575,7 +587,7 @@ struct AIModelOption: Identifiable {
                     menuIcon: icon(AIBrand.resolve(provider: connection.provider, model: model)))
             }
         }
-        return onDevice + codex + claude + openCode + api
+        return onDevice + codex + claude + openCode + cursor + api
     }
 
     private static func groupedCatalog(
@@ -583,12 +595,13 @@ struct AIModelOption: Identifiable {
         codex: [ChatGPTSubscription.Model],
         claude: [InstalledAIModel],
         openCode: [InstalledAIModel],
+        cursor: [InstalledAIModel],
         connections: [AIConnection]
     ) -> [AIModelOptionGroup] {
         var groups: [AIModelOptionGroup] = []
         for option in catalog(
             appleIntelligence: appleIntelligence, codex: codex, claude: claude,
-            openCode: openCode, connections: connections)
+            openCode: openCode, cursor: cursor, connections: connections)
         {
             if groups.last?.id == option.selection.source {
                 groups[groups.count - 1].options.append(option)
@@ -615,7 +628,7 @@ struct AIModelOption: Identifiable {
             return selection
         case .codex:
             effort = subscription.models.first { $0.id == model }?.resolvedEffort(nil)
-        case .claude, .openCode:
+        case .claude, .openCode, .cursor:
             effort = installedAI.models(for: selection.source)
                 .first { $0.id == model }?.resolvedEffort(nil)
         case .api(let connection):
@@ -637,7 +650,7 @@ struct AIModelOption: Identifiable {
             return []
         case .codex:
             return subscription.models.first { $0.id == model }?.efforts ?? []
-        case .claude, .openCode:
+        case .claude, .openCode, .cursor:
             return installedAI.models(for: selection.source).first { $0.id == model }?.efforts ?? []
         case .api(let connection):
             return settings.connection(id: connection)?.reasoningOptions(for: model)?
