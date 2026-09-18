@@ -620,7 +620,7 @@ final class AppSettings {
         calendarLauncherLimit =
             defaults.object(forKey: Key.calendarLauncherLimit.rawValue)
             .flatMap { $0 as? Int }
-            .flatMap(CalendarLauncherLimit.init(rawValue:)) ?? .three
+            .flatMap(CalendarLauncherLimit.init(rawValue:)) ?? .five
         calendarIncludesTomorrow =
             defaults.object(forKey: Key.calendarIncludesTomorrow.rawValue) == nil
             || defaults.bool(forKey: Key.calendarIncludesTomorrow.rawValue)
