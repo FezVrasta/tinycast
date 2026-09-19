@@ -1,25 +1,14 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Plan } from "../../data/support";
 import { CheckoutCard } from "./checkout-card";
 import { ThankYou } from "./thank-you";
 
 const THANKS_PARAM = "thanks";
 
-// Read once and kept: the URL is cleaned right after, and a reload must not thank them twice.
-let returnedPlan: Plan | null | undefined;
-
-function readReturnedPlan(): Plan | null {
-  if (returnedPlan === undefined) {
-    const value = new URLSearchParams(window.location.search).get(THANKS_PARAM);
-    returnedPlan = value === "monthly" || value === "one-time" ? value : null;
-  }
-  return returnedPlan;
-}
-
-function subscribeNever(): () => void {
-  return () => {};
+function parsePlan(value: string | null): Plan | null {
+  return value === "monthly" || value === "one-time" ? value : null;
 }
 
 type Props = {
@@ -29,19 +18,18 @@ type Props = {
 
 /** `intro` and `reasons` are server-rendered and passed through, so only the card ships as JS. */
 export function SupportFlow({ intro, reasons }: Props) {
-  // After paying, Polar sends the visitor back here with ?thanks=<plan>.
-  const returned = useSyncExternalStore(
-    subscribeNever,
-    readReturnedPlan,
-    () => null,
-  );
+  const [returned, setReturned] = useState<Plan | null>(null);
 
+  // Polar's return adds ?thanks=<plan>; drop it so a reload shows the card again.
   useEffect(() => {
-    if (!returned) return;
     const url = new URL(window.location.href);
+    const plan = parsePlan(url.searchParams.get(THANKS_PARAM));
+    if (!plan) return;
     url.searchParams.delete(THANKS_PARAM);
     window.history.replaceState(window.history.state, "", url);
-  }, [returned]);
+    // oxlint-disable-next-line react/set-state-in-effect -- URL is only readable after hydration
+    setReturned(plan);
+  }, []);
 
   // Phones read intro → card → reasons; from lg the card holds the right column beside both.
   return (
