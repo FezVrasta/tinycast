@@ -84,7 +84,9 @@ is a dial-in helper rather than a meeting.
 `zoommtg://zoom.us/join?confno=…` (carrying `pwd` when present) and a `teams.microsoft.com` link to
 `msteams:` plus its path and query. Nothing else is rewritten — the rest of the table has no
 unambiguous scheme, and guessing one would open the wrong thing. If no app claims the scheme, the
-plain `https` link opens instead.
+plain `https` link opens instead — in `meetingBrowserBundleID` when one is chosen under
+`Open Meeting Links In`, otherwise in the default browser. A chosen browser since uninstalled falls
+back to the default rather than failing the join, and the picker reads it as `Default Browser`.
 
 **A Google Meet link opens as the account whose calendar carried it.** Someone signed into several
 Google accounts otherwise lands on the account chooser, so `MeetingLink.webURL` appends
@@ -238,7 +240,8 @@ defaults to on. Holidays and Birthdays are what people switch off.
 
 `autoJoinMeetings` and `cameraPreview` join `calendarEnabled` in
 `SettingsBackupCoverage.deliberatelyExcluded`: one arms the app to open links unattended and the
-other turns on the camera, and an import must grant neither. The menu-bar settings carry over
+other turns on the camera, and an import must grant neither. `meetingBrowser` is excluded too: it names an
+app installed on this Mac, which another Mac may not have. The menu-bar settings carry over
 normally, and so does `calendarIncludesTomorrow`: it narrows what is read rather than widening what
 can be reached.
 

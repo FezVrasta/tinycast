@@ -416,6 +416,17 @@ final class AppSettings {
         didSet { defaults.set(cameraPreview, forKey: Key.cameraPreview.rawValue) }
     }
 
+    /// Nil opens meeting links in the default browser.
+    var meetingBrowserBundleID: String? {
+        didSet {
+            guard let meetingBrowserBundleID else {
+                defaults.removeObject(forKey: Key.meetingBrowser.rawValue)
+                return
+            }
+            defaults.set(meetingBrowserBundleID, forKey: Key.meetingBrowser.rawValue)
+        }
+    }
+
     var menuBarEvents: MenuBarEvents {
         didSet { defaults.set(menuBarEvents.rawValue, forKey: Key.menuBarEvents.rawValue) }
     }
@@ -639,6 +650,7 @@ final class AppSettings {
             defaults.object(forKey: Key.autoJoinConfirms.rawValue) == nil
             || defaults.bool(forKey: Key.autoJoinConfirms.rawValue)
         cameraPreview = defaults.bool(forKey: Key.cameraPreview.rawValue)
+        meetingBrowserBundleID = defaults.string(forKey: Key.meetingBrowser.rawValue)
         // Both default to their zero case, so an unset key needs no presence check.
         menuBarEvents =
             MenuBarEvents(rawValue: defaults.integer(forKey: Key.menuBarEvents.rawValue)) ?? .today

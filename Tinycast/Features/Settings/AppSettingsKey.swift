@@ -63,6 +63,7 @@ enum AppSettingsKey: String, CaseIterable {
     case autoJoinMeetings = "autoJoinMeetings"
     case autoJoinConfirms = "autoJoinConfirms"
     case cameraPreview = "cameraPreview"
+    case meetingBrowser = "meetingBrowser"
     case menuBarEvents = "menuBarEvents"
     case calendarMenuBarDisplay = "calendarMenuBarDisplay"
     case menuBarLinkedEventsOnly = "menuBarLinkedEventsOnly"
