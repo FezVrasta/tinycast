@@ -174,11 +174,15 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         switch method {
         case "copy", "paste":
             let content = arguments.first?.objectValue ?? [:]
+            let options = arguments[safe: 1]?.objectValue ?? [:]
+            let concealed =
+                options["concealed"]?.boolValue == true
+                || options["transient"]?.boolValue == true
             // A file goes on the pasteboard as a file, so it pastes as the picture it is.
             if let path = content["file"]?.stringValue, !path.isEmpty {
                 let target = context?.pasteTarget
                 if method == "paste" { context?.closeMainWindow(clearRootSearch: false) }
-                writeFileToPasteboard(path)
+                writeFileToPasteboard(path, concealed: method == "copy" && concealed)
                 guard method == "paste" else { return nil }
                 target?.activate()
                 Task { @MainActor in
@@ -190,7 +194,12 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             }
             guard let text = clipboardText(from: content) else { return nil }
             if method == "copy" {
-                Paster.copyString(text)
+                // History records unmarked copies; ConcealedType is how secrets stay out.
+                if concealed {
+                    writeConcealedString(text)
+                } else {
+                    Paster.copyPlainText(text)
+                }
             } else {
                 Paster.pasteString(text, previousApp: context?.pasteTarget)
             }
@@ -215,7 +224,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
     }
 
     /// The file, its picture and its path: receivers choose the representation they support.
-    private func writeFileToPasteboard(_ path: String) {
+    private func writeFileToPasteboard(_ path: String, concealed: Bool) {
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -223,7 +232,21 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         if let image = NSImage(contentsOf: url) { items.append(image) }
         pasteboard.writeObjects(items)
         pasteboard.setString(url.path, forType: .string)
+        if concealed {
+            pasteboard.setData(Data(), forType: Self.concealedPasteboardType)
+        }
     }
+
+    private func writeConcealedString(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.declareTypes([.string, Self.concealedPasteboardType], owner: nil)
+        pasteboard.setString(text, forType: .string)
+        pasteboard.setData(Data(), forType: Self.concealedPasteboardType)
+    }
+
+    private static let concealedPasteboardType = NSPasteboard.PasteboardType(
+        "org.nspasteboard.ConcealedType")
 
     private func clipboardText(from content: [String: RenderValue]) -> String? {
         if let text = content["text"]?.stringValue { return text }
