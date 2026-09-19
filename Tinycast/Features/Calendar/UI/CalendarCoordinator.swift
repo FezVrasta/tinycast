@@ -299,7 +299,9 @@ final class CalendarCoordinator {
                     confirmRole: .standard, dismissTitle: "Not Now")
             else { return }
         }
-        if MeetingLauncher.join(link) { return }
+        if await MeetingLauncher.join(link, browserBundleID: settings.meetingBrowserBundleID) {
+            return
+        }
         _ = await core.reportFailure(
             title: "Couldn't open the meeting link",
             message: "Nothing on this Mac would open \(link.url.absoluteString).",

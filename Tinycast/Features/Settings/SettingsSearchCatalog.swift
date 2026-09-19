@@ -501,6 +501,9 @@ enum SettingsSearchCatalog {
             .calendarJoining, "Camera Preview",
             keywords: ["webcam", "mirror", "video", "check"]),
         .init(
+            .calendarJoining, "Open Meeting Links In",
+            keywords: ["browser", "chrome", "safari", "firefox", "meet", "web"]),
+        .init(
             .calendarMenuBar, "Calendar in Menu Bar",
             keywords: ["status item", "menubar", "date"]),
         .init(
