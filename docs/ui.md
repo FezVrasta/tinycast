@@ -601,6 +601,11 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   the way `SystemPromptEditor` does; dimming an editor that still accepts input is the bug, not the fix.
 - **A group is a `Section`**, with `header:` for its name and `footer:` for the caption that used to
   ride under the last row.
+- **A pane scans as section → setting → control, so its words are rationed.** A subtitle is a short
+  phrase, and only where the title leaves out a consequence or a limit ("Shortcuts still work when
+  hidden."); a footer carries a caveat, such as privacy or cost, never a restatement of its header. A
+  fact every list would repeat lives once, in a tooltip — `launcherVisibilityHelp()` on each launcher
+  checkbox.
 - **The pane's own title is not in the pane.** `SettingsToolbarController` puts it in the titlebar,
   seated in the detail column by `.sidebarTrackingSeparator`.
 - **Settings is the one window that keeps the system titlebar.** `AppWindowController` builds every
@@ -614,8 +619,8 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   material, not `glassEffect`.
 - `SettingsComponents.swift` holds only what more than one pane or editor needs: **`SettingsRow`**,
   **`FeatureSwitchSection`** (a feature's master switch plus its launcher-visibility companion),
-  **`SettingsFilterField`** (the filter row above a long list), and the Settings editor header,
-  fields and surface. `ModalActionButtonStyle.swift` keeps every borderless surface's actions on one
+  **`SettingsFilterField`** (the filter row above a long list), **`launcherVisibilityHelp()`**, and the
+  Settings editor header, fields and surface. `ModalActionButtonStyle.swift` keeps every borderless surface's actions on one
   implementation — dialogs, Settings editors, the camera footers and the Quick Action panel. `Onboarding/OnboardingCard.swift` keeps the older hand-drawn card,
   which that window still uses.
 - **A Settings editor borrows the dialog language, not its job.** `SettingsEditorPresenter` hosts the
