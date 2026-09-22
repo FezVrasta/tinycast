@@ -915,11 +915,9 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         guard let (owner, command) = resolve(link) else {
             throw ExtensionLaunchError.unknownCommand(link.commandName)
         }
-        Task {
-            await run(
-                owner, command: command, arguments: link.arguments,
-                fallbackText: link.fallbackText, launchType: link.launchType)
-        }
+        coordinator?.runExtensionCommand(
+            entry(for: command, in: owner), arguments: link.arguments,
+            fallbackText: link.fallbackText, launchType: link.launchType)
     }
 
     func authorizeOAuth(options: ExtensionOAuthAuthorizeOptions) async throws -> ExtensionOAuthAuthorizeResult
