@@ -26,18 +26,32 @@ final class MCPCoordinator {
 
     /// Off means off: no connection, no resident process, and nothing offered to a model.
     func applyEnabled() {
+        defer { dropWithdrawnServers() }
         guard isActive else {
             core.mcpOAuth.stop()
             manager.stop()
             return
         }
-        manager.reconcile(store.enabledServers)
+        manager.reconcile(ownServers)
+    }
+
+    /// The Codex helper keeps what it was launched with, so a server taken away is taken from it.
+    private func dropWithdrawnServers(besides withdrawn: UUID? = nil) {
+        let offered = store.enabledServers.filter { $0.trust != .never && $0.id != withdrawn }
+        core.chatGPTSubscription.dropWithdrawnServers(
+            keeping: isActive ? Set(offered.map(\.slug)) : [])
     }
 
     /// Connecting on the way into chat, so the first send does not wait on every handshake.
     func warmUp() {
         guard isActive else { return }
-        manager.reconcile(store.enabledServers)
+        manager.reconcile(ownServers)
+    }
+
+    /// What Tinycast runs itself; Codex and Claude start their own copy of every local server.
+    private var ownServers: [MCPServer] {
+        let cliRoute = core.aiSettings.defaultModel?.runsItsOwnTools == true
+        return store.enabledServers.filter { $0.runsInTinycast(whileCLIRouteSelected: cliRoute) }
     }
 
     var slugs: Set<String> {
@@ -59,6 +73,32 @@ final class MCPCoordinator {
                 return store.server(id: tool.serverID)?.trust != .never
             }
             .map(\.aiTool)
+    }
+
+    /// The same list for a CLI route; it starts its own copies, so Tinycast's need not be ready.
+    func toolServers(scopedTo slug: String?) async -> [AIToolServer] {
+        guard isActive else { return [] }
+        let secrets = MCPSecretStore()
+        var result: [AIToolServer] = []
+        for server in store.enabledServers
+        where server.trust != .never && (slug == nil || server.slug == slug) {
+            let stored = secrets.secrets(for: server.id)
+            var bearer: String?
+            if server.oauth == true { bearer = try? await core.mcpOAuth.lentToken(for: server) }
+            guard
+                let toolServer = server.toolServer(
+                    headerValue: stored.headerValue, environment: stored.environment,
+                    bearerToken: bearer)
+            else { continue }
+            result.append(toolServer)
+        }
+        return result
+    }
+
+    /// Consent for a call a vendor CLI is making, through the same policy and the same dialog.
+    func permit(_ call: AIToolServerCall, in chat: UUID) async -> Bool {
+        guard isActive, let server = server(slug: call.handle) else { return false }
+        return await isPermitted(server, tool: call.tool, in: chat)
     }
 
     func invoke(_ call: AIToolCall, in chat: UUID) async -> AIToolResult {
@@ -90,6 +130,7 @@ final class MCPCoordinator {
     func signOut(_ id: UUID) throws {
         manager.disconnect(id)
         try core.mcpOAuth.signOut(id)
+        dropWithdrawnServers(besides: id)
     }
 
     func cancelSignIn(_ id: UUID) { core.mcpOAuth.cancelSignIn(id) }
@@ -126,7 +167,8 @@ final class MCPCoordinator {
         if server.oauth == true {
             let stored = MCPSecretStore().secrets(for: server.id).oauth
             guard stored?.clientID == secrets.oauth?.clientID,
-                stored?.clientSecret == secrets.oauth?.clientSecret else { return .signInRequired }
+                stored?.clientSecret == secrets.oauth?.clientSecret
+            else { return .signInRequired }
         }
         let connection = MCPServerConnection(server: server, secrets: secrets, oauth: core.mcpOAuth)
         defer { connection.stop() }

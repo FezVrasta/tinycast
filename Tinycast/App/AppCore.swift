@@ -510,9 +510,11 @@ final class AppCore {
         return Task { for task in tasks { await task.value } }
     }
 
-    func aiProvider() throws -> any AIProvider {
+    /// `toolServers` is chat's alone; a quick action has nothing to call.
+    func aiProvider(toolServers: AIToolServerSession? = nil) throws -> any AIProvider {
         try AIProviderFactory.make(
-            settings: aiSettings, subscription: chatGPTSubscription, installedAI: installedAI)
+            settings: aiSettings, subscription: chatGPTSubscription, installedAI: installedAI,
+            toolServers: toolServers)
     }
 
     /// Permissive guardrails: the text transformed is the reader's own, which `.default` refuses.
@@ -611,6 +613,7 @@ final class AppCore {
             reproject: { $0.snippetCoordinator.applySnippetsLauncherPresence() })
         track({ _ = $0.appearance }, reproject: { $0.applyAppearance() })
         track({ _ = $0.interfaceSize }, reproject: { $0.windowController.applyInterfaceSize() })
+        trackChatRoute()
     }
 
     /// `.system` resolves to `nil`, so AppKit follows macOS with nothing polling.
@@ -638,6 +641,19 @@ final class AppCore {
                 guard let self else { return }
                 self.track(reads, reproject: reproject)
                 reproject(self)
+            }
+        }
+    }
+
+    /// A chat route that runs its own MCP client decides which servers Tinycast runs itself.
+    private func trackChatRoute() {
+        withObservationTracking {
+            _ = aiSettings.defaultModel?.runsItsOwnTools
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.trackChatRoute()
+                self.mcpCoordinator.applyEnabled()
             }
         }
     }
