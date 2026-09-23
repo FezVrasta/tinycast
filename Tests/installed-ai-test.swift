@@ -37,13 +37,14 @@ struct InstalledAITests {
         defer { fixture.tearDown() }
         openCodeCatalogCarriesModelVariants()
         cursorCatalogParsesListModels()
-        grokCatalogParsesListedModels()
         statusJSONRecognizesLogin()
         versionKeepsPrereleaseAndBuild()
         await openCodeRunsWithoutToolsAndDeletesItsSession(fixture)
         claudeDiscoveryReadsTheCLIsOwnModelList()
         await claudeRunsWithoutToolsOrHistory(fixture)
         await grokRunsWithoutToolsAndDeletesItsSession(fixture)
+        grokCatalogParsesListedModels()
+        await grokDiscoveryRequiresLoginAndFiltersModels(fixture)
         await cursorRunsAskModeWithoutForce(fixture)
         await cursorDiscoveryRequiresLoginAndListsModels(fixture)
         await oversizedCompleteFrameFailsTheTurn(fixture)
@@ -167,6 +168,20 @@ struct InstalledAITests {
         expect(
             models.first?.efforts.map(\.id) == ["low", "medium", "high", "xhigh"],
             "Grok models expose the CLI's advertised reasoning efforts")
+        let signedOut = """
+            You are not authenticated.
+
+            Default model: grok-4.6
+
+            Available models:
+              * grok-4.6 (default)
+              - grok-4.5
+            """
+        expect(
+            !InstalledAIModel.grokSignedIn(signedOut)
+                && InstalledAIModel.grokCatalog(signedOut).map(\.id) == ["grok-4.6", "grok-4.5"],
+            "a signed-out Grok catalog is not a login")
+        expect(InstalledAIModel.grokSignedIn(output), "a logged-in Grok catalog counts as signed in")
     }
 
     static func claudeDiscoveryReadsTheCLIsOwnModelList() {
@@ -242,6 +257,18 @@ struct InstalledAITests {
             usage.contextWindow == 1_000_000,
             "the window is the conversation model's, not a side call's: "
                 + String(describing: usage.contextWindow))
+    }
+
+    private static func grokDiscoveryRequiresLoginAndFiltersModels(_ fixture: Fixture) async {
+        let manager = InstalledAIManager(supportDirectory: fixture.root)
+        await manager.refresh(kind: .grok).value
+        let status = manager.status(for: .grok)
+        expect(
+            status.phase == .signInRequired,
+            "Grok discovery requires sign-in despite a successful catalog response")
+        expect(
+            status.models.isEmpty,
+            "Grok discovery hides listed models while signed out")
     }
 
     private static func claudeRunsWithoutToolsOrHistory(_ fixture: Fixture) async {
