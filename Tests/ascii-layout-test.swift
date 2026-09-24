@@ -50,16 +50,16 @@ struct ASCIILayoutTests {
     /// The caller path, so a regression between the guard and `recovered` cannot hide behind it.
     static func callerPath() {
         print("\n# the whole recovery, over a synthesized chord")
+        // Skipped, never failed: an input source that answers ⌘↑ otherwise is not a regression.
         guard let translated = ASCIIKeyboardLayout.character(
-            for: kVK_UpArrow, modifiers: UInt32(cmdKey >> 8))?.first
+            for: kVK_UpArrow, modifiers: UInt32(cmdKey >> 8))?.first,
+            translated.unicodeScalars.allSatisfy({
+                $0.isASCII && $0.properties.generalCategory == .control
+            })
         else {
-            check("this Mac's layout translates ⌘↑ at all, or the cases below prove nothing", false)
+            print("skipped: this input source does not answer ⌘↑ with a control character")
             return
         }
-        let isASCIIControl = translated.unicodeScalars.allSatisfy {
-            $0.isASCII && $0.properties.generalCategory == .control
-        }
-        check("the layout answers ⌘↑ with a control character, which is the trap", isASCIIControl)
 
         guard let up = chord(kVK_UpArrow, [.command]),
             let left = chord(kVK_LeftArrow, [.control]),
