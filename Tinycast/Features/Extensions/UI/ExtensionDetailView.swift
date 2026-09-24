@@ -216,6 +216,7 @@ struct ExtensionMarkdownView: View {
         case code(String)
         case rule
         case image(URL)
+        case table([[String]])
 
         var id: String {
             switch self {
@@ -227,6 +228,7 @@ struct ExtensionMarkdownView: View {
             case .code(let text): return "c:\(text)"
             case .rule: return "rule:\(UUID().uuidString)"
             case .image(let url): return "img:\(url.absoluteString)"
+            case .table(let rows): return "t:\(rows)"
             }
         }
     }
@@ -277,6 +279,21 @@ struct ExtensionMarkdownView: View {
                     Rectangle().fill(Theme.Colors.separator).frame(height: 1)
                 case .image(let url):
                     ExtensionMarkdownImage(url: url)
+                case .table(let rows):
+                    Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                        ForEach(rows.indices, id: \.self) { r in
+                            GridRow {
+                                ForEach(rows[r].indices, id: \.self) { c in
+                                    Text(inline(rows[r][c])).fontWeight(r == 0 ? .semibold : nil)
+                                        .padding(.vertical, metrics.spacing.lg)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(r == 0 ? ExtensionColors.detailCardFill : .clear)
+                                        .border(Theme.Colors.separator, width: 0.5)
+                                }
+                            }
+                        }
+                    }
+                    .font(metrics.typography.rowTitle).monospacedDigit()
                 }
             }
         }
@@ -303,8 +320,10 @@ struct ExtensionMarkdownView: View {
         var paragraph: [String] = []
         var fence: [String]?
         var numberedIndex = 0
+        var table: [[String]] = []
 
         func flushParagraph() {
+            if !table.isEmpty { blocks.append(.table(table)); table.removeAll() }
             guard !paragraph.isEmpty else { return }
             blocks.append(.paragraph(paragraph.joined(separator: " ")))
             paragraph.removeAll()
@@ -338,6 +357,17 @@ struct ExtensionMarkdownView: View {
             if trimmed == "---" || trimmed == "***" || trimmed == "___" {
                 flushParagraph()
                 blocks.append(.rule)
+                continue
+            }
+            if trimmed.hasPrefix("|") {
+                if !paragraph.isEmpty { flushParagraph() }
+                let row = trimmed.replacingOccurrences(
+                    of: #"(?<!\\)((?:\\\\)*)\\\|"#, with: "$1\u{0}", options: .regularExpression)
+                let cells = row.split(separator: "|", omittingEmptySubsequences: false).dropFirst()
+                    .dropLast(row.hasSuffix("|") ? 1 : 0)
+                    .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "\u{0}", with: "|") }
+                if cells.allSatisfy({ $0.contains("-") && $0.allSatisfy(":-".contains) }) { continue }
+                table.append(cells)
                 continue
             }
             // A standalone image is the one block AttributedString can't show inline.
