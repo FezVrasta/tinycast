@@ -245,6 +245,10 @@ final class MenuPanelController {
     private func detach(_ panel: MenuPanel) {
         panel.parent?.removeChildWindow(panel)
         panel.orderOut(nil)
+        // The hosted tree outlives the window, and an extension's menu closes over its whole screen.
+        hosting?.rootView = AnyView(EmptyView())
+        clipPath = nil
+        placement = nil
     }
 
     private func ensurePanel(state: PaletteState) -> MenuPanel {
