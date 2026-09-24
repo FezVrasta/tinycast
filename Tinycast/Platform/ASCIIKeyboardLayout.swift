@@ -43,8 +43,10 @@ enum ASCIIKeyboardLayout {
     }
 
     /// SwiftUI exposes the input-source character; recover the logical ASCII key from AppKit.
-    @MainActor static func keyEquivalent(fallingBackTo key: KeyEquivalent) -> KeyEquivalent {
-        guard let event = NSApp.currentEvent,
+    @MainActor static func keyEquivalent(
+        fallingBackTo key: KeyEquivalent, event: NSEvent? = nil
+    ) -> KeyEquivalent {
+        guard let event = event ?? NSApp.currentEvent,
             !event.modifierFlags.isDisjoint(with: [.command, .control])
         else { return lowercased(key) }
         return recovered(key, layoutCharacter: character(for: event)?.lowercased().first)
