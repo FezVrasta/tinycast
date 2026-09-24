@@ -77,9 +77,8 @@ final class CalendarCoordinator {
             from: store.events, now: clock.now, dismissed: dismissedFromMenuBar)
     }
 
-    /// Takes the displayed event out of the menu bar and hands the space to the next one.
-    func dismissMenuBarEvent() {
-        guard let meeting = menuBarEvent else { return }
+    /// Dismisses what the menu drew: a handover mid-click must not eat the arriving event.
+    func dismissMenuBarEvent(_ meeting: MeetingEvent) {
         dismissedFromMenuBar.insert(meeting.id)
         refreshMenuBarEvent()
     }
