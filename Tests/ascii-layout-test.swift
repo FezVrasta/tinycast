@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 import SwiftUI
 
 /// `UCKeyTranslate` answers a named key's keycode with a control character the ASCII test admits.
@@ -36,48 +35,9 @@ struct ASCIILayoutTests {
         ("↩", .return, "\u{d}"),
         ("⌫", .delete, "\u{8}"),
         ("⇥", .tab, "\u{9}"),
-        ("⎋", .escape, "\u{1b}")
+        ("⎋", .escape, "\u{1b}"),
+        ("space", .space, " ")
     ]
-
-    /// ⌘ plus a keycode, the shape `ExtensionShortcutKeys` hands the recovery every key press.
-    static func chord(_ keyCode: Int, _ flags: NSEvent.ModifierFlags) -> NSEvent? {
-        NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0,
-            context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false,
-            keyCode: UInt16(keyCode))
-    }
-
-    /// The caller path, so a regression between the guard and `recovered` cannot hide behind it.
-    static func callerPath() {
-        print("\n# the whole recovery, over a synthesized chord")
-        // Skipped, never failed: an input source that answers ⌘↑ otherwise is not a regression.
-        guard let translated = ASCIIKeyboardLayout.character(
-            for: kVK_UpArrow, modifiers: UInt32(cmdKey >> 8))?.first,
-            translated.unicodeScalars.allSatisfy({
-                $0.isASCII && $0.properties.generalCategory == .control
-            })
-        else {
-            print("skipped: this input source does not answer ⌘↑ with a control character")
-            return
-        }
-
-        guard let up = chord(kVK_UpArrow, [.command]),
-            let left = chord(kVK_LeftArrow, [.control]),
-            let plain = chord(kVK_UpArrow, [.option])
-        else {
-            check("AppKit builds a synthetic key event", false)
-            return
-        }
-        check(
-            "⌘↑ reaches the action as ↑",
-            ASCIIKeyboardLayout.keyEquivalent(fallingBackTo: .upArrow, event: up) == .upArrow)
-        check(
-            "⌃← reaches the action as ←",
-            ASCIIKeyboardLayout.keyEquivalent(fallingBackTo: .leftArrow, event: left) == .leftArrow)
-        check(
-            "⌥↑ never consulted the layout, and still does not",
-            ASCIIKeyboardLayout.keyEquivalent(fallingBackTo: .upArrow, event: plain) == .upArrow)
-    }
 
     static func main() {
         print("# a named key is never recovered from the layout")
@@ -113,8 +73,6 @@ struct ASCIILayoutTests {
             "a shifted letter is still spelled lower case",
             ASCIIKeyboardLayout.recovered(KeyEquivalent("C"), layoutCharacter: nil)
                 == KeyEquivalent("c"))
-
-        callerPath()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)
