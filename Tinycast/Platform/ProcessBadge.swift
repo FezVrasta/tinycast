@@ -13,7 +13,7 @@ enum ProcessBadge {
         let target = executable.resolvingSymlinksInPath()
         // A shebang script re-execs its interpreter, which overwrites the badge with `node`.
         guard !isScript(target) else { return executable }
-        let name = badgeName(for: target)
+        let name = badgeName(for: executable)
         guard name.utf8.count <= nameLimit,
             let directory = directory ?? defaultDirectory(),
             (try? FileManager.default.createDirectory(
@@ -31,6 +31,7 @@ enum ProcessBadge {
         return link
     }
 
+    /// Named for the command as invoked: `grok` resolves to a release filename nothing would fit.
     static func badgeName(for executable: URL) -> String {
         "Tinycast (\(executable.lastPathComponent))"
     }

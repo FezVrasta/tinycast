@@ -67,6 +67,19 @@ struct ProcessBadgeTests {
         check(
             "a name past the p_comm cap is not badged",
             ProcessBadge.badged(long, in: links) == long)
+        check(
+            "a name exactly at the cap is badged, measured against p_comm",
+            ProcessBadge.badgeName(for: URL(fileURLWithPath: "/x/codex")).utf8.count
+                == ProcessBadge.nameLimit)
+
+        print("\n# the badge is named for the command, not what it resolves to")
+        let release = root.appendingPathComponent("grok-macos-aarch64")
+        try? FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/echo"), to: release)
+        let invoked = root.appendingPathComponent("grok")
+        try? FileManager.default.createSymbolicLink(at: invoked, withDestinationURL: release)
+        let grok = ProcessBadge.badged(invoked, in: links)
+        check("the symlink's own name is used", grok.lastPathComponent == "Tinycast (grok)")
+        check("and it links the file the symlink points at", sameFile(grok, release))
 
         let missing = root.appendingPathComponent("not-here")
         check("a path that isn't there is left alone", ProcessBadge.badged(missing, in: links) == missing)

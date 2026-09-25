@@ -166,7 +166,7 @@ private final class InstalledCLITurnRunner {
         let stdin = Pipe()
         let stdout = Pipe()
         let stderr = Pipe()
-        process.executableURL = executable
+        process.executableURL = ProcessBadge.badged(executable)
         process.currentDirectoryURL = workspace
         process.environment = environment(for: executable)
         var grokPrompt: URL?
