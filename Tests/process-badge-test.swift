@@ -85,6 +85,33 @@ struct ProcessBadgeTests {
                 atPath: links.appendingPathComponent(digest).path)) ?? []
         check("only the link is in its directory", contents == ["Tinycast (node)"])
 
+        print("\n# a binary that resolves libraries from its own path keeps it")
+        // A thin 64-bit header, then a load-command region of the size the header declares.
+        func machO(commands: String) -> Data {
+            var header = Data([0xcf, 0xfa, 0xed, 0xfe])
+            header.append(Data(repeating: 0, count: 16))
+            var size = UInt32(commands.utf8.count)
+            withUnsafeBytes(of: &size) { header.append(contentsOf: $0) }
+            header.append(Data(repeating: 0, count: 8))
+            return header + Data(commands.utf8)
+        }
+        let plain = root.appendingPathComponent("plain")
+        try? machO(commands: String(repeating: "\0", count: 64)).write(to: plain)
+        check("a binary with no such load command is fine", !ProcessBadge.dependsOnItsOwnPath(plain))
+
+        let relative = root.appendingPathComponent("relative")
+        try? machO(commands: "@executable_path/../lib\0\0").write(to: relative)
+        check("one naming @executable_path is not", ProcessBadge.dependsOnItsOwnPath(relative))
+        check("so it is never badged", ProcessBadge.badged(relative, in: links) == relative)
+
+        let loader = root.appendingPathComponent("loader")
+        try? machO(commands: "@loader_path/../lib\0\0").write(to: loader)
+        check("nor is one naming @loader_path", ProcessBadge.dependsOnItsOwnPath(loader))
+
+        let text = root.appendingPathComponent("notmacho")
+        try? Data("just some bytes".utf8).write(to: text)
+        check("anything this can't parse is left alone", ProcessBadge.dependsOnItsOwnPath(text))
+
         print("\n# everything else is left alone")
         let script = root.appendingPathComponent("npm")
         try? Data("#!/bin/sh\necho hi\n".utf8).write(to: script)
