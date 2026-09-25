@@ -1,7 +1,6 @@
 import Foundation
 
-/// The hard link that makes a spawned interpreter legible in Activity Monitor. `p_comm` comes from
-/// the basename of the exec'd file, so the link's name is the whole mechanism.
+/// `p_comm` comes from the basename of the exec'd file, so the link's name is the whole mechanism.
 @main
 @MainActor
 struct ProcessBadgeTests {
@@ -17,12 +16,16 @@ struct ProcessBadgeTests {
         }
     }
 
+    /// Rebuilt each time: Foundation caches resource values, so a held `URL` reports a stale inode.
+    static func identifier(_ url: URL) -> NSObject? {
+        try? URL(fileURLWithPath: url.path)
+            .resourceValues(forKeys: [.fileResourceIdentifierKey])
+            .fileResourceIdentifier as? NSObject
+    }
+
     /// Two paths naming one file, which is what a hard link is.
     static func sameFile(_ a: URL, _ b: URL) -> Bool {
-        let keys: Set<URLResourceKey> = [.fileResourceIdentifierKey]
-        guard let x = try? a.resourceValues(forKeys: keys).fileResourceIdentifier as? NSObject,
-            let y = try? b.resourceValues(forKeys: keys).fileResourceIdentifier as? NSObject
-        else { return false }
+        guard let x = identifier(a), let y = identifier(b) else { return false }
         return x == y
     }
 
@@ -41,19 +44,39 @@ struct ProcessBadgeTests {
         let badged = ProcessBadge.badged(binary, in: links)
         check("the link is named for Tinycast", badged.lastPathComponent == "Tinycast (node)")
         check(
-            "the link is in the badge directory",
-            badged.deletingLastPathComponent().standardizedFileURL.path == links.standardizedFileURL.path)
+            "the link is under the badge directory",
+            badged.standardizedFileURL.path.hasPrefix(links.standardizedFileURL.path + "/"))
         check("the link is the same file", sameFile(badged, binary))
         check("the name fits p_comm", badged.lastPathComponent.utf8.count <= ProcessBadge.nameLimit)
 
         print("\n# a second call reuses it")
         check("the same link comes back", ProcessBadge.badged(binary, in: links) == badged)
 
+        print("\n# two interpreters sharing a basename get their own link")
+        let other = root.appendingPathComponent("other")
+        try? FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        let rival = other.appendingPathComponent("node")
+        try? FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/date"), to: rival)
+        let rivalLink = ProcessBadge.badged(rival, in: links)
+        check("both are badged", rivalLink.lastPathComponent == "Tinycast (node)")
+        check("but not to the same path", rivalLink != ProcessBadge.badged(binary, in: links))
+        check("each links its own interpreter", sameFile(rivalLink, rival))
+        check(
+            "and the first one still points where it did",
+            sameFile(ProcessBadge.badged(binary, in: links), binary))
+
         print("\n# the link follows the interpreter")
         try? FileManager.default.removeItem(at: binary)
         try? FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/date"), to: binary)
         let remade = ProcessBadge.badged(binary, in: links)
         check("an upgraded interpreter is relinked", sameFile(remade, binary))
+
+        print("\n# an upgrade of one doesn't disturb the other")
+        check(
+            "the upgraded one still resolves to itself",
+            sameFile(ProcessBadge.badged(binary, in: links), binary))
+        check(
+            "and its rival is untouched", sameFile(ProcessBadge.badged(rival, in: links), rival))
 
         print("\n# everything else is left alone")
         let script = root.appendingPathComponent("npm")
@@ -82,7 +105,9 @@ struct ProcessBadgeTests {
         check("and it links the file the symlink points at", sameFile(grok, release))
 
         let missing = root.appendingPathComponent("not-here")
-        check("a path that isn't there is left alone", ProcessBadge.badged(missing, in: links) == missing)
+        check(
+            "a path that isn't there is left alone",
+            ProcessBadge.badged(missing, in: links) == missing)
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)
