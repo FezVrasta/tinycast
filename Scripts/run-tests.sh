@@ -311,6 +311,8 @@ run ext-icon-test          Tinycast/Platform/Appearance.swift \
                            Tinycast/Features/Extensions/Service/ExtensionCatalog.swift \
                            Tinycast/Features/Extensions/Service/ExtensionFetcher.swift \
                            Tinycast/Features/Extensions/Service/ExtensionNodeShims.swift \
+                           Tinycast/Platform/ProcessBadge.swift \
+                           Tinycast/Platform/AppPaths.swift \
                            Tinycast/Features/Extensions/Service/ExtensionOAuthKeychain.swift \
                            Tinycast/Features/Extensions/Service/ExtensionOAuthSession.swift \
                            Tinycast/Features/Extensions/Service/ExtensionRuntime.swift \
@@ -488,6 +490,8 @@ run slow ext-test          -parse-as-library \
                            $E/Service/ExtensionFetcher.swift \
                            $E/Service/ExtensionIconCache.swift \
                            $E/Service/ExtensionNodeShims.swift \
+                           Tinycast/Platform/ProcessBadge.swift \
+                           Tinycast/Platform/AppPaths.swift \
                            $E/Service/ExtensionOAuthKeychain.swift \
                            $E/Service/ExtensionOAuthSession.swift \
                            $E/Service/ExtensionRuntime.swift \
