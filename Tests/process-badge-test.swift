@@ -78,6 +78,13 @@ struct ProcessBadgeTests {
         check(
             "and its rival is untouched", sameFile(ProcessBadge.badged(rival, in: links), rival))
 
+        print("\n# installing a badge leaves nothing behind")
+        let digest = ProcessBadge.digest(binary.resolvingSymlinksInPath().path)
+        let contents =
+            (try? FileManager.default.contentsOfDirectory(
+                atPath: links.appendingPathComponent(digest).path)) ?? []
+        check("only the link is in its directory", contents == ["Tinycast (node)"])
+
         print("\n# everything else is left alone")
         let script = root.appendingPathComponent("npm")
         try? Data("#!/bin/sh\necho hi\n".utf8).write(to: script)

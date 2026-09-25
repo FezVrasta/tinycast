@@ -21,11 +21,16 @@ enum ProcessBadge {
         else { return executable }
 
         let link = directory.appendingPathComponent(name)
-        if sharesInode(link, target) { return link }
         // An upgrade in place moves the inode, so a stale link would exec what it replaced.
-        try? FileManager.default.removeItem(at: link)
+        if sharesInode(link, target) { return link }
         // Hard links can't cross volumes, and the sealed system volume refuses them outright.
-        guard (try? FileManager.default.linkItem(at: target, to: link)) != nil else {
+        let staging = directory.appendingPathComponent("\(name).\(UUID().uuidString)")
+        guard (try? FileManager.default.linkItem(at: target, to: staging)) != nil else {
+            return executable
+        }
+        // Renamed over, never removed first: a concurrent caller must not meet a missing path.
+        guard rename(staging.path, link.path) == 0 else {
+            try? FileManager.default.removeItem(at: staging)
             return executable
         }
         return link
